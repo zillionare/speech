@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+/tmp/
+*.pid
+*.log
+audio_*.wav
+output_*.wav
+
+# Voices directory (用户自己的文件)
+/voices/
+VibeVoiceFusion/

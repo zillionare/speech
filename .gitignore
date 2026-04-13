@@ -21,6 +21,7 @@ build/
 *.log
 audio_*.wav
 output_*.wav
+/outputs/
 
 # Voices directory (用户自己的文件)
 /voices/

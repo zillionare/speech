@@ -4,7 +4,7 @@
 import sys
 sys.path.insert(0, '/Users/aaronyang/workspace/speech')
 
-from tts_service.cli import TTSCLI, main
+from tts_service.cli import main
 
 if __name__ == "__main__":
     main()

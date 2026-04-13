@@ -1,5 +1,12 @@
 # TTS Web Service 默认配置
 
+# 首次运行配置
+first_run:
+  # HuggingFace 镜像地址（中国大陆推荐用 hf-mirror.com）
+  hf_endpoint: "https://hf-mirror.com"
+  # 是否跳过首次运行提示
+  skip_welcome: false
+
 # 模型配置
 model:
   # 默认模型名称

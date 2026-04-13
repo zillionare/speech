@@ -9,7 +9,17 @@
 - **声音样本管理**: 自动扫描 {speaker}.wav 文件
 - **CLI 管理**: start/stop/restart/status 命令
 - **配置化**: YAML 配置文件，CLI 可覆盖
+- **首次运行向导**: 交互式配置模型、量化、缓存目录
+- **模型量化支持**: 4bit/8bit 可选
 - **支持长文本**: 最大 64KB 输入文本
+
+## 模型支持
+
+| 模型 | 大小 | 量化 | 推荐场景 |
+|------|------|------|----------|
+| `gafiatulin/vibevoice-1.5b-mlx` | 1.5B | 8bit | **生产推荐** - 平衡速度与质量 |
+| `milkey/vibevoice-7b-mlx:4bit` | 7B | 4bit | 更高质量，需要更多内存 |
+| `mlx-community/VibeVoice-Realtime-0.5B-4bit` | 0.5B | 4bit | 快速推理，资源受限 |
 
 ## 安装
 
@@ -18,17 +28,53 @@
 pip install -r requirements.txt
 ```
 
+## 首次运行
+
+直接启动服务会自动运行配置向导：
+
+```bash
+python run.py start --no-daemon
+```
+
+向导会引导你配置：
+1. HuggingFace 镜像地址（默认 hf-mirror.com）
+2. TTS 模型选择（默认 1.5B 8bit）
+3. 量化方式（4bit/8bit）
+4. 模型缓存目录（默认 ~/.speech/models）
+5. 声音样本目录（默认 ~/.speech/voices）
+
 ## 配置
 
 编辑 `config.yaml`:
 
 ```yaml
+# 首次运行配置
+first_run:
+  hf_endpoint: "https://hf-mirror.com"
+  skip_welcome: false
+
+# 模型配置
 model:
-  name: "mlx-community/VibeVoice-Realtime-0.5B-4bit"
+  name: "gafiatulin/vibevoice-1.5b-mlx"
+  cache_dir: "~/.speech/models"
+  quantization: "8bit"  # 可选: "4bit", "8bit", 或 null
+  num_steps: 10
+  cfg_scale: 1.3
+
+samples:
+  base_dir: "~/.speech/voices"
+  allowed_speakers: []
+
+server:
+  host: "0.0.0.0"
+  port: 8123
+  workers: 1
+  log_level: "info"
 
 defaults:
   voice: "zh-Aaron_man"
   response_format: "wav"
+  speed: 1.0
 ```
 
 ## 使用
@@ -39,7 +85,7 @@ defaults:
 # 启动服务 (后台模式)
 python run.py start
 
-# 前台模式运行
+# 前台模式运行 (推荐首次运行)
 python run.py start --no-daemon
 
 # 指定端口
@@ -106,6 +152,7 @@ tts_service/
 ├── __init__.py
 ├── cli.py              # CLI 管理
 ├── config.py           # 配置管理
+├── first_run.py        # 首次运行向导
 ├── models.py           # Pydantic 模型
 ├── sample_manager.py   # 声音样本管理
 ├── server.py           # FastAPI 服务

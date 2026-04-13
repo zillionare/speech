@@ -9,8 +9,13 @@ from pydantic import BaseModel, Field
 
 class ModelConfig(BaseModel):
     """模型配置"""
-    name: str = "mlx-community/VibeVoice-Realtime-0.5B-4bit"
-    cache_dir: str = "~/.cache/tts_models"
+    name: str = "gafiatulin/vibevoice-1.5b-mlx"  # 默认使用 1.5B 8bit 模型
+    # 可选模型:
+    # - gafiatulin/vibevoice-1.5b-mlx (8bit 量化)
+    # - milkey/vibevoice-7b-mlx:4bit (4bit 量化)
+    # - mlx-community/VibeVoice-Realtime-0.5B-4bit (0.5B 4bit)
+    cache_dir: str = "~/.speech/models"
+    quantization: Optional[str] = None  # 量化模式: "4bit", "8bit" 或 None (使用模型默认)
     num_steps: int = 10
     cfg_scale: float = 1.3
 
@@ -44,8 +49,15 @@ class DefaultsConfig(BaseModel):
     speed: float = 1.0
 
 
+class FirstRunConfig(BaseModel):
+    """首次运行配置"""
+    hf_endpoint: str = "https://hf-mirror.com"
+    skip_welcome: bool = False
+
+
 class Config(BaseModel):
     """主配置类"""
+    first_run: FirstRunConfig = Field(default_factory=FirstRunConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     samples: SamplesConfig = Field(default_factory=SamplesConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)

@@ -1,18 +1,94 @@
-"""TTS 引擎模块 v2 - 使用 CLI 方式调用"""
+"""TTS 引擎模块 - 使用 mlx-audio API 直接调用"""
 
 import os
 import struct
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+
+from mlx_audio.tts import load as load_tts_model
+from mlx_audio.audio_io import write as audio_write
+
 from .sample_manager import SampleManager, MultiSpeakerParser
 
 
+class ModelManager:
+    """模型管理器，支持自动加载和卸载"""
+
+    # 1小时无访问自动卸载 (秒)
+    OFFLOAD_TIMEOUT = 3600
+
+    def __init__(self, model_name: str, quantization: Optional[str] = None):
+        self.model_name = model_name
+        self.quantization = quantization
+        self._model = None
+        self._last_access_time = 0
+        self._lock = threading.RLock()
+        self._offload_timer = None
+
+    def get_model(self):
+        """获取模型（自动加载）"""
+        with self._lock:
+            if self._model is None:
+                print(f"Loading TTS model: {self.model_name}...")
+                if self.quantization:
+                    print(f"  Quantization: {self.quantization}")
+                start_time = time.time()
+
+                # 根据量化配置加载模型
+                # 注意: 有些模型可能缺少非关键参数，使用 strict=False 忽略缺失的参数
+                load_kwargs = {'strict': False}
+                if self.quantization:
+                    load_kwargs['quantization'] = self.quantization
+
+                self._model = load_tts_model(self.model_name, **load_kwargs)
+                load_time = time.time() - start_time
+                print(f"Model loaded in {load_time:.2f}s")
+
+            self._last_access_time = time.time()
+            self._schedule_offload()
+            return self._model
+
+    def _schedule_offload(self):
+        """安排自动卸载"""
+        # 取消之前的定时器
+        if self._offload_timer is not None:
+            self._offload_timer.cancel()
+
+        # 创建新的定时器
+        self._offload_timer = threading.Timer(
+            self.OFFLOAD_TIMEOUT,
+            self._offload_if_inactive
+        )
+        self._offload_timer.daemon = True
+        self._offload_timer.start()
+
+    def _offload_if_inactive(self):
+        """如果超过时间无访问，卸载模型"""
+        with self._lock:
+            elapsed = time.time() - self._last_access_time
+            if elapsed >= self.OFFLOAD_TIMEOUT and self._model is not None:
+                print(f"Model inactive for {elapsed:.0f}s, offloading...")
+                self._model = None
+                import gc
+                gc.collect()
+                print("Model offloaded")
+            elif self._model is not None:
+                # 还有活跃使用，重新安排
+                self._schedule_offload()
+
+    def is_loaded(self) -> bool:
+        """检查模型是否已加载"""
+        return self._model is not None
+
+
 class TTSEngine:
-    """TTS 引擎，支持单 speaker 和多 speaker 生成（使用 CLI 方式）"""
+    """TTS 引擎，支持单 speaker 和多 speaker 生成"""
 
     # VibeVoice 内置 voices
     BUILTIN_VOICES = [
@@ -32,14 +108,12 @@ class TTSEngine:
 
     # 本地 voice 到内置 voice 的映射
     VOICE_MAPPING = {
-        # 英文 voices
         "en-Alice_woman": "en-Emma_woman",
         "en-Carter_man": "en-Carter_man",
         "en-Frank_man": "en-Frank_man",
         "en-Maya_woman": "en-Grace_woman",
         "en-Mary_woman_bgm": "en-Emma_woman",
         "in-Samuel_man": "in-Samuel_man",
-        # 中文 voices - 映射到相近的英文 voice
         "zh-Aaron_man": "en-Frank_man",
         "zh-Bowen_man": "en-Davis_man",
         "zh-007_man": "en-Mike_man",
@@ -52,38 +126,39 @@ class TTSEngine:
         """初始化 TTS 引擎"""
         self.config = config
         self.model_name = config.model.name
+        self.quantization = config.model.quantization
         self.sample_manager = SampleManager(
             config.samples.expanded_base_dir,
             config.samples.allowed_speakers if config.samples.allowed_speakers else None
         )
+        # 使用模型管理器管理加载/卸载
+        self._model_manager = ModelManager(self.model_name, self.quantization)
 
     def _get_model_voice(self, voice: str) -> Optional[str]:
-        """
-        获取模型可用的 voice 名称
+        """获取模型可用的 voice 名称
 
-        1. 如果是内置 voice，直接使用
-        2. 如果有映射，使用映射后的 voice
-        3. 如果没有映射，检查是否包含内置 voice 的相似名
+        Returns:
+            voice 名称，如果是本地文件则返回 None（表示使用 ref_audio）
         """
-        # 直接匹配内置 voice
+        # 优先检查是否为本地 voice 文件
+        local_path = self.sample_manager.get_voice_path(voice)
+        if local_path:
+            return None  # 本地文件需要使用 ref_audio 参数
+
         if voice in self.BUILTIN_VOICES:
             return voice
 
-        # 查找映射
         mapped = self.VOICE_MAPPING.get(voice)
         if mapped:
             return mapped
 
-        # 尝试从 voice 名推断（如从 "zh-Aaron_man" 推断出 "_man" 结尾）
+        # 对于不支持内置 voices 的模型（如 1.5B），返回 None
         if "woman" in voice.lower() or "_woman" in voice:
-            # 女性声音默认使用 en-Emma_woman
-            return "en-Emma_woman"
+            return None
         elif "man" in voice.lower() or "_man" in voice:
-            # 男性声音默认使用 en-Frank_man
-            return "en-Frank_man"
+            return None
 
-        # 默认
-        return "en-Emma_woman"
+        return None
 
     def generate_single(
         self,
@@ -94,65 +169,62 @@ class TTSEngine:
         **kwargs
     ) -> bytes:
         """
-        单 speaker TTS 生成（使用 mlx-audio CLI）
+        单 speaker TTS 生成（使用 mlx-audio API）
         """
         # 获取模型可用的 voice
         model_voice = self._get_model_voice(voice)
 
-        print(f"Generating audio: voice={voice} -> {model_voice}, text_length={len(text)}")
+        print(f"Generating audio: voice={voice} -> {model_voice}, text={text[:50]}...")
 
-        # 使用临时目录
+        # 获取模型（自动加载/卸载管理）
+        model = self._model_manager.get_model()
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            output_file = os.path.join(tmpdir, f"output.{output_format}")
-
             try:
-                # 构建 CLI 命令
-                cmd = [
-                    "python", "-m", "mlx_audio.tts.generate",
-                    "--model", self.model_name,
-                    "--text", text,
-                    "--voice", model_voice,
-                ]
-
-                if speed != 1.0:
-                    cmd.extend(["--speed", str(speed)])
-
-                # 将文件重命名到目标路径
-                # CLI 默认输出为 audio_000.wav
-                default_output = "audio_000.wav"
-
-                print(f"  Running: {' '.join(cmd[:8])}...")
+                print(f"  Using model.generate() with device auto-detection")
                 start_time = time.time()
 
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=180,  # 3分钟超时
-                    cwd=tmpdir  # 在临时目录中运行
+                # 调用模型生成
+                results = model.generate(
+                    text=text,
+                    voice=model_voice,
+                    verbose=False,
                 )
 
+                # 处理 generator 结果
+                audio_samples = None
+                sample_rate = 24000
+
+                for result in results:
+                    if hasattr(result, 'audio'):
+                        audio = result.audio
+                        sample_rate = getattr(result, 'sample_rate', 24000)
+
+                        if audio_samples is None:
+                            audio_samples = audio
+                        else:
+                            # 拼接音频
+                            if hasattr(audio_samples, 'tolist') and hasattr(audio, 'tolist'):
+                                audio_samples = np.concatenate([audio_samples, audio])
+                            else:
+                                audio_samples = audio
+
+                if audio_samples is None:
+                    raise RuntimeError("No audio generated from model")
+
+                # 保存音频文件
+                output_file = os.path.join(tmpdir, f"output.{output_format}")
+                audio_write(output_file, audio_samples, sample_rate)
+
                 elapsed = time.time() - start_time
-                print(f"  CLI completed in {elapsed:.2f}s")
-
-                if result.returncode != 0:
-                    error_msg = result.stderr if result.stderr else "Unknown error"
-                    raise RuntimeError(f"CLI failed: {error_msg}")
-
-                # CLI 输出到当前目录的 audio_000.wav
-                cli_output = os.path.join(tmpdir, default_output)
 
                 # 读取生成的音频
-                if os.path.exists(cli_output):
-                    with open(cli_output, 'rb') as f:
-                        data = f.read()
-                    print(f"  Generated: {len(data)} bytes")
-                    return data
-                else:
-                    raise RuntimeError(f"Output file not found: {cli_output}")
+                with open(output_file, 'rb') as f:
+                    data = f.read()
 
-            except subprocess.TimeoutExpired:
-                raise RuntimeError("TTS generation timeout (180s)")
+                print(f"  Generated: {len(data)} bytes in {elapsed:.2f}s")
+                return data
+
             except Exception as e:
                 print(f"  Generation error: {e}")
                 raise
@@ -189,7 +261,6 @@ class TTSEngine:
                     self.config.defaults.voice
 
             print(f"  Segment {i+1}/{len(segments)}: {speaker_name} -> {voice}")
-            print(f"    Text: {segment_text[:50]}...")
 
             # 生成
             audio_data = self.generate_single(
@@ -213,7 +284,6 @@ class TTSEngine:
         with tempfile.TemporaryDirectory() as tmpdir:
             segment_files = []
 
-            # 保存所有片段
             for i, data in enumerate(segments):
                 seg_path = os.path.join(tmpdir, f"seg_{i:04d}.{output_format}")
                 with open(seg_path, 'wb') as f:
@@ -237,10 +307,8 @@ class TTSEngine:
                 if result.returncode == 0 and os.path.exists(output_path):
                     with open(output_path, 'rb') as f:
                         return f.read()
-                else:
-                    print(f"  FFmpeg failed: {result.stderr[:200]}")
-            except (subprocess.SubprocessError, FileNotFoundError) as e:
-                print(f"  FFmpeg not available: {e}")
+            except (subprocess.SubprocessError, FileNotFoundError):
+                pass
 
             # 回退：手动拼接 WAV
             return self._concat_wav_files(segment_files)
@@ -298,4 +366,14 @@ class TTSEngine:
             "text_preview": local_text[:100] if local_text else None,
             "is_builtin": is_builtin,
             "maps_to": model_voice
+        }
+
+    def get_model_status(self) -> Dict:
+        """获取模型状态"""
+        return {
+            "is_loaded": self._model_manager.is_loaded(),
+            "model_name": self.model_name,
+            "quantization": self.quantization,
+            "last_access_time": self._model_manager._last_access_time,
+            "offload_timeout": self._model_manager.OFFLOAD_TIMEOUT
         }

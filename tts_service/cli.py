@@ -24,6 +24,7 @@ except ImportError:
     FIRE_AVAILABLE = False
 
 from .config import load_config
+from .first_run import maybe_run_first_run, setup_environment
 
 
 class ServerManager:
@@ -113,7 +114,9 @@ class TTSCLI:
         port: Optional[int] = None,
         model: Optional[str] = None,
         voices_dir: Optional[str] = None,
-        daemon: bool = True
+        daemon: bool = True,
+        no_daemon: bool = False,
+        skip_first_run: bool = False
     ):
         """
         启动 TTS 服务
@@ -125,30 +128,45 @@ class TTSCLI:
             model: TTS 模型名称 (覆盖配置文件)
             voices_dir: 声音样本目录 (覆盖配置文件)
             daemon: 后台运行 (默认: True)
+            no_daemon: 前台运行模式 (与 daemon=False 等效)
+            skip_first_run: 跳过首次运行向导
         """
+        # 处理 --no-daemon 参数
+        if no_daemon:
+            daemon = False
         if self.manager.is_running():
             pid = self.manager.get_pid()
             print(f"TTS Service is already running (PID: {pid})")
             return
 
-        # 加载配置
-        overrides = {}
-        if host:
-            overrides['server'] = {'host': host}
-        if port:
-            overrides.setdefault('server', {})['port'] = port
-        if model:
-            overrides.setdefault('model', {})['name'] = model
-        if voices_dir:
-            overrides.setdefault('samples', {})['base_dir'] = voices_dir
+        # 首次运行配置
+        if not skip_first_run:
+            cfg = maybe_run_first_run(config)
+            if cfg is None:
+                print("配置未完成，退出。")
+                return
+        else:
+            # 加载配置
+            overrides = {}
+            if host:
+                overrides['server'] = {'host': host}
+            if port:
+                overrides.setdefault('server', {})['port'] = port
+            if model:
+                overrides.setdefault('model', {})['name'] = model
+            if voices_dir:
+                overrides.setdefault('samples', {})['base_dir'] = voices_dir
 
-        try:
-            cfg = load_config(config, **overrides)
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            print(f"Creating default config at {config}...")
-            self._create_default_config(config)
-            cfg = load_config(config, **overrides)
+            try:
+                cfg = load_config(config, **overrides)
+            except FileNotFoundError as e:
+                print(f"错误：{e}")
+                print(f"将在 {config} 创建默认配置...")
+                self._create_default_config(config)
+                cfg = load_config(config, **overrides)
+
+            # 依然要设置环境变量
+            setup_environment(cfg)
 
         print(f"Starting TTS Service...")
         print(f"  Config: {config}")
@@ -157,14 +175,12 @@ class TTSCLI:
         print(f"  Voices: {cfg.samples.expanded_base_dir}")
 
         if daemon:
-            # 后台启动
+            # 后台启动 - 首次运行配置已经在前端完成
             cmd = [
                 sys.executable, "-m", "tts_service.server_runner",
-                "--config", os.path.abspath(config)
+                "--config", os.path.abspath(config),
+                "--skip-first-run"  # 后台模式跳过首次运行检查
             ]
-            if host or port or model or voices_dir:
-                cmd.append("--overrides")
-                cmd.append(str(overrides))
 
             proc = subprocess.Popen(
                 cmd,
@@ -200,7 +216,8 @@ class TTSCLI:
         host: Optional[str] = None,
         port: Optional[int] = None,
         model: Optional[str] = None,
-        voices_dir: Optional[str] = None
+        voices_dir: Optional[str] = None,
+        no_daemon: bool = False
     ):
         """
         重启 TTS 服务
@@ -211,11 +228,12 @@ class TTSCLI:
             port: 服务器端口
             model: TTS 模型名称
             voices_dir: 声音样本目录
+            no_daemon: 前台运行模式
         """
         print("Restarting TTS Service...")
         self.stop()
         time.sleep(1)
-        self.start(config, host, port, model, voices_dir)
+        self.start(config, host, port, model, voices_dir, not no_daemon, no_daemon)
 
     def status(self):
         """显示服务状态"""
@@ -241,24 +259,41 @@ class TTSCLI:
 
     def _create_default_config(self, path: str):
         """创建默认配置文件"""
-        default_config = '''# TTS Web Service 配置
+        default_config = '''# TTS Web Service 配置文件
 
+# 首次运行配置
+first_run:
+  # HuggingFace 镜像地址（中国大陆推荐用 hf-mirror.com）
+  hf_endpoint: "https://hf-mirror.com"
+  # 是否跳过首次运行提示
+  skip_welcome: false
+
+# 模型配置
 model:
+  # 模型名称 (HuggingFace model ID)
   name: "mlx-community/VibeVoice-Realtime-0.5B-4bit"
+  # 模型缓存目录
   cache_dir: "~/.cache/tts_models"
+  # 默认推理步数 (数值越低越快，质量可能降低)
   num_steps: 10
+  # CFG scale (控制生成多样性)
   cfg_scale: 1.3
 
+# 声音样本配置
 samples:
+  # 声音样本目录 (.wav 文件放在这里)
   base_dir: "./voices"
+  # 限定允许的声音列表 (为空则允许所有)
   allowed_speakers: []
 
+# 服务器配置
 server:
   host: "0.0.0.0"
   port: 8123
   workers: 1
   log_level: "info"
 
+# 默认生成参数
 defaults:
   voice: "zh-Aaron_man"
   response_format: "wav"
@@ -308,6 +343,7 @@ def run_argparse_cli():
     restart_parser.add_argument('--port', type=int, help='Server port')
     restart_parser.add_argument('--model', type=str, help='TTS model name')
     restart_parser.add_argument('--voices-dir', type=str, help='Voices directory')
+    restart_parser.add_argument('--no-daemon', action='store_true', dest='no_daemon', help='Run in foreground')
 
     # status 命令
     subparsers.add_parser('status', help='Show service status')
@@ -337,7 +373,8 @@ def run_argparse_cli():
             host=args.host,
             port=args.port,
             model=args.model,
-            voices_dir=args.voices_dir
+            voices_dir=args.voices_dir,
+            no_daemon=args.no_daemon if hasattr(args, 'no_daemon') else False
         )
     elif args.command == 'status':
         cli.status()

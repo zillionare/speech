@@ -1,379 +1,278 @@
-"""TTS 引擎模块 - 使用 mlx-audio API 直接调用"""
+"""vibevoice-mlx based TTS engine used by the API and UI."""
 
-import os
-import struct
-import subprocess
-import tempfile
+from __future__ import annotations
+
+import io
+import math
+import re
+import sys
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import Optional
 
-import numpy as np
+import mlx.core as mx
+import soundfile as sf
 
-from mlx_audio.tts import load as load_tts_model
-from mlx_audio.audio_io import write as audio_write
+from .config import Config
+from .models import SpeakerResolution
+from .sample_manager import SampleManager, VoiceSample
 
-from .sample_manager import SampleManager, MultiSpeakerParser
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+VIBEVOICE_MLX_ROOT = REPO_ROOT / "vibevoice-mlx"
+if str(VIBEVOICE_MLX_ROOT) not in sys.path:
+    sys.path.insert(0, str(VIBEVOICE_MLX_ROOT))
+
+from vibevoice_mlx.e2e_pipeline import (  # noqa: E402
+    SAMPLE_RATE,
+    SPEECH_TOK_COMPRESS_RATIO,
+    VOICE_CLONE_SAMPLES,
+    VoiceCloneData,
+    _detect_tokenizer,
+    _load_and_resample,
+    _load_semantic_encoder,
+    encode_voice_reference,
+    save_voice,
+    tokenize_text,
+)
+from vibevoice_mlx.generate import GenerationOptions, generate  # noqa: E402
+from vibevoice_mlx.load_weights import load_model  # noqa: E402
 
 
-class ModelManager:
-    """模型管理器，支持自动加载和卸载"""
-
-    # 1小时无访问自动卸载 (秒)
-    OFFLOAD_TIMEOUT = 3600
-
-    def __init__(self, model_name: str, quantization: Optional[str] = None):
-        self.model_name = model_name
-        self.quantization = quantization
-        self._model = None
-        self._last_access_time = 0
-        self._lock = threading.RLock()
-        self._offload_timer = None
-
-    def get_model(self):
-        """获取模型（自动加载）"""
-        with self._lock:
-            if self._model is None:
-                print(f"Loading TTS model: {self.model_name}...")
-                if self.quantization:
-                    print(f"  Quantization: {self.quantization}")
-                start_time = time.time()
-
-                # 根据量化配置加载模型
-                # 注意: 有些模型可能缺少非关键参数，使用 strict=False 忽略缺失的参数
-                load_kwargs = {'strict': False}
-                if self.quantization:
-                    load_kwargs['quantization'] = self.quantization
-
-                self._model = load_tts_model(self.model_name, **load_kwargs)
-                load_time = time.time() - start_time
-                print(f"Model loaded in {load_time:.2f}s")
-
-            self._last_access_time = time.time()
-            self._schedule_offload()
-            return self._model
-
-    def _schedule_offload(self):
-        """安排自动卸载"""
-        # 取消之前的定时器
-        if self._offload_timer is not None:
-            self._offload_timer.cancel()
-
-        # 创建新的定时器
-        self._offload_timer = threading.Timer(
-            self.OFFLOAD_TIMEOUT,
-            self._offload_if_inactive
-        )
-        self._offload_timer.daemon = True
-        self._offload_timer.start()
-
-    def _offload_if_inactive(self):
-        """如果超过时间无访问，卸载模型"""
-        with self._lock:
-            elapsed = time.time() - self._last_access_time
-            if elapsed >= self.OFFLOAD_TIMEOUT and self._model is not None:
-                print(f"Model inactive for {elapsed:.0f}s, offloading...")
-                self._model = None
-                import gc
-                gc.collect()
-                print("Model offloaded")
-            elif self._model is not None:
-                # 还有活跃使用，重新安排
-                self._schedule_offload()
-
-    def is_loaded(self) -> bool:
-        """检查模型是否已加载"""
-        return self._model is not None
+@dataclass(slots=True)
+class GenerationResult:
+    audio_bytes: bytes
+    output_format: str
+    generation_seconds: float
+    duration_seconds: float
+    resolved_speakers: list[SpeakerResolution]
 
 
 class TTSEngine:
-    """TTS 引擎，支持单 speaker 和多 speaker 生成"""
+    """Direct Python integration with vibevoice-mlx generation flow."""
 
-    # VibeVoice 内置 voices
-    BUILTIN_VOICES = [
-        "de-Spk0_man", "de-Spk1_woman",
-        "en-Carter_man", "en-Davis_man", "en-Emma_woman", "en-Frank_man",
-        "en-Grace_woman", "en-Mike_man",
-        "fr-Spk0_man", "fr-Spk1_woman",
-        "in-Samuel_man",
-        "it-Spk0_woman", "it-Spk1_man",
-        "jp-Spk0_man", "jp-Spk1_woman",
-        "kr-Spk0_woman", "kr-Spk1_man",
-        "nl-Spk0_man", "nl-Spk1_woman",
-        "pl-Spk0_man", "pl-Spk1_woman",
-        "pt-Spk0_woman", "pt-Spk1_man",
-        "sp-Spk0_woman", "sp-Spk1_man",
-    ]
+    DIALOGUE_LINE_RE = re.compile(r"^([^:\n]{1,80}):\s*(.+)$")
 
-    # 本地 voice 到内置 voice 的映射
-    VOICE_MAPPING = {
-        "en-Alice_woman": "en-Emma_woman",
-        "en-Carter_man": "en-Carter_man",
-        "en-Frank_man": "en-Frank_man",
-        "en-Maya_woman": "en-Grace_woman",
-        "en-Mary_woman_bgm": "en-Emma_woman",
-        "in-Samuel_man": "in-Samuel_man",
-        "zh-Aaron_man": "en-Frank_man",
-        "zh-Bowen_man": "en-Davis_man",
-        "zh-007_man": "en-Mike_man",
-        "zh-007_woman": "en-Emma_woman",
-        "zh-Xinran_woman": "en-Grace_woman",
-        "zh-Anchen_man_bgm": "en-Carter_man",
-    }
-
-    def __init__(self, config):
-        """初始化 TTS 引擎"""
+    def __init__(self, config: Config, sample_manager: SampleManager):
         self.config = config
-        self.model_name = config.model.name
-        self.quantization = config.model.quantization
-        self.sample_manager = SampleManager(
-            config.samples.expanded_base_dir,
-            config.samples.allowed_speakers if config.samples.allowed_speakers else None
-        )
-        # 使用模型管理器管理加载/卸载
-        self._model_manager = ModelManager(self.model_name, self.quantization)
+        self.sample_manager = sample_manager
+        self._runtime_lock = threading.RLock()
+        self._generation_lock = threading.RLock()
+        self._model = None
+        self._model_config = None
+        self._tokenizer_name: Optional[str] = None
+        self._semantic_fn = None
+        self._semantic_reset_fn = None
 
-    def _get_model_voice(self, voice: str) -> Optional[str]:
-        """获取模型可用的 voice 名称
+    def ensure_voice_cache_ready(self, speaker: str) -> VoiceSample:
+        sample = self.sample_manager.resolve_or_default(speaker)
+        self._load_voice_embeddings(sample)
+        return self.sample_manager.resolve_or_default(sample.speaker)
 
-        Returns:
-            voice 名称，如果是本地文件则返回 None（表示使用 ref_audio）
-        """
-        # 优先检查是否为本地 voice 文件
-        local_path = self.sample_manager.get_voice_path(voice)
-        if local_path:
-            return None  # 本地文件需要使用 ref_audio 参数
+    def generate_single(self, text: str, voice: Optional[str], output_format: str = "wav") -> GenerationResult:
+        return self.generate_dialogue(text=text, output_format=output_format, preferred_voice=voice)
 
-        if voice in self.BUILTIN_VOICES:
-            return voice
-
-        mapped = self.VOICE_MAPPING.get(voice)
-        if mapped:
-            return mapped
-
-        # 对于不支持内置 voices 的模型（如 1.5B），返回 None
-        if "woman" in voice.lower() or "_woman" in voice:
-            return None
-        elif "man" in voice.lower() or "_man" in voice:
-            return None
-
-        return None
-
-    def generate_single(
+    def generate_dialogue(
         self,
         text: str,
-        voice: str,
         output_format: str = "wav",
-        speed: float = 1.0,
-        **kwargs
-    ) -> bytes:
-        """
-        单 speaker TTS 生成（使用 mlx-audio API）
-        """
-        # 获取模型可用的 voice
-        model_voice = self._get_model_voice(voice)
+        preferred_voice: Optional[str] = None,
+        voice_mapping: Optional[dict[str, str]] = None,
+    ) -> GenerationResult:
+        normalized_text = text.strip()
+        if not normalized_text:
+            raise ValueError("Input text cannot be empty")
 
-        print(f"Generating audio: voice={voice} -> {model_voice}, text={text[:50]}...")
-
-        # 获取模型（自动加载/卸载管理）
-        model = self._model_manager.get_model()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            try:
-                print(f"  Using model.generate() with device auto-detection")
-                start_time = time.time()
-
-                # 调用模型生成
-                results = model.generate(
-                    text=text,
-                    voice=model_voice,
-                    verbose=False,
-                )
-
-                # 处理 generator 结果
-                audio_samples = None
-                sample_rate = 24000
-
-                for result in results:
-                    if hasattr(result, 'audio'):
-                        audio = result.audio
-                        sample_rate = getattr(result, 'sample_rate', 24000)
-
-                        if audio_samples is None:
-                            audio_samples = audio
-                        else:
-                            # 拼接音频
-                            if hasattr(audio_samples, 'tolist') and hasattr(audio, 'tolist'):
-                                audio_samples = np.concatenate([audio_samples, audio])
-                            else:
-                                audio_samples = audio
-
-                if audio_samples is None:
-                    raise RuntimeError("No audio generated from model")
-
-                # 保存音频文件
-                output_file = os.path.join(tmpdir, f"output.{output_format}")
-                audio_write(output_file, audio_samples, sample_rate)
-
-                elapsed = time.time() - start_time
-
-                # 读取生成的音频
-                with open(output_file, 'rb') as f:
-                    data = f.read()
-
-                print(f"  Generated: {len(data)} bytes in {elapsed:.2f}s")
-                return data
-
-            except Exception as e:
-                print(f"  Generation error: {e}")
-                raise
-
-    def generate_podcast(
-        self,
-        text: str,
-        voice_mapping: Dict[str, str],
-        output_format: str = "wav",
-        speed: float = 1.0
-    ) -> bytes:
-        """
-        多 speaker 播客生成
-        """
-        # 解析多 speaker 文本
-        parser = MultiSpeakerParser(voice_mapping)
-        segments = parser.parse(text)
-
-        if not segments:
-            raise ValueError("No valid speaker segments found in text")
-
-        print(f"Generating podcast with {len(segments)} segments")
-
-        audio_segments = []
-
-        for i, segment in enumerate(segments):
-            speaker_id = segment['speaker_id']
-            speaker_name = segment['speaker_name']
-            segment_text = segment['text']
-
-            # 获取 voice
-            voice = voice_mapping.get(speaker_id) or \
-                    voice_mapping.get(speaker_name) or \
-                    self.config.defaults.voice
-
-            print(f"  Segment {i+1}/{len(segments)}: {speaker_name} -> {voice}")
-
-            # 生成
-            audio_data = self.generate_single(
-                text=segment_text,
-                voice=voice,
-                output_format=output_format,
-                speed=speed
+        with self._generation_lock:
+            self._ensure_runtime_loaded()
+            default_sample = self.sample_manager.resolve_or_default(self.config.voices.default_voice)
+            normalized_script, ordered_samples, resolutions = self._build_dialogue_script(
+                normalized_text,
+                preferred_voice=preferred_voice,
+                voice_mapping=voice_mapping or {},
+                default_sample=default_sample,
             )
-            audio_segments.append(audio_data)
 
-        # 合并音频
-        return self._merge_audio_segments(audio_segments, output_format)
+            speaker_embeds = []
+            for sample in ordered_samples:
+                embeds = self._load_voice_embeddings(sample)
+                speaker_embeds.append((embeds.shape[0], embeds))
 
-    def _merge_audio_segments(self, segments: List[bytes], output_format: str) -> bytes:
-        """合并多个音频片段"""
-        if len(segments) == 1:
-            return segments[0]
+            tokenize_result = tokenize_text(
+                normalized_script,
+                self._tokenizer_name,
+                self._model_config,
+                speaker_embeds=speaker_embeds,
+            )
 
-        print(f"Merging {len(segments)} audio segments...")
+            input_ids, voice_embeds = self._build_voice_embed_map(tokenize_result)
+            if self._semantic_reset_fn is not None:
+                self._semantic_reset_fn()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            segment_files = []
+            options = GenerationOptions(
+                solver="dpm",
+                diffusion_steps=self.config.model.diffusion_steps,
+                cfg_scale=self.config.model.cfg_scale,
+                max_speech_tokens=self.config.model.max_speech_tokens,
+                seed=self.config.model.seed,
+            )
 
-            for i, data in enumerate(segments):
-                seg_path = os.path.join(tmpdir, f"seg_{i:04d}.{output_format}")
-                with open(seg_path, 'wb') as f:
-                    f.write(data)
-                segment_files.append(seg_path)
+            start_time = time.perf_counter()
+            audio, _metrics = generate(
+                model=self._model,
+                input_ids=input_ids,
+                opts=options,
+                semantic_encoder_fn=self._semantic_fn,
+                semantic_reset_fn=self._semantic_reset_fn,
+                voice_embeds=voice_embeds,
+            )
+            generation_seconds = time.perf_counter() - start_time
 
-            output_path = os.path.join(tmpdir, f"merged.{output_format}")
+            audio_bytes = self._encode_audio(audio, output_format)
+            duration_seconds = len(audio) / SAMPLE_RATE if len(audio) else 0.0
+            return GenerationResult(
+                audio_bytes=audio_bytes,
+                output_format=output_format,
+                generation_seconds=generation_seconds,
+                duration_seconds=duration_seconds,
+                resolved_speakers=resolutions,
+            )
 
-            # 尝试 ffmpeg
-            try:
-                list_file = os.path.join(tmpdir, "list.txt")
-                with open(list_file, 'w') as f:
-                    for seg_path in segment_files:
-                        f.write(f"file '{os.path.abspath(seg_path)}'\n")
+    def _ensure_runtime_loaded(self) -> None:
+        with self._runtime_lock:
+            if self._model is not None:
+                return
+            self._model, self._model_config = load_model(
+                self.config.model.model_id,
+                quantize_bits=self.config.model.quantize_bits,
+            )
+            self._tokenizer_name = _detect_tokenizer(self.config.model.model_id, self._model_config)
+            if self.config.model.use_semantic:
+                result = _load_semantic_encoder(
+                    self._model,
+                    self._model_config,
+                    self.config.model.model_id,
+                    use_coreml=self.config.model.use_coreml_semantic,
+                )
+                if result is not None:
+                    self._semantic_fn, self._semantic_reset_fn = result
 
-                result = subprocess.run([
-                    'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
-                    '-i', list_file, '-c', 'copy', output_path
-                ], capture_output=True, text=True, timeout=60)
+    def _load_voice_embeddings(self, sample: VoiceSample):
+        if sample.cache_path.exists():
+            from vibevoice_mlx.e2e_pipeline import load_voice
 
-                if result.returncode == 0 and os.path.exists(output_path):
-                    with open(output_path, 'rb') as f:
-                        return f.read()
-            except (subprocess.SubprocessError, FileNotFoundError):
-                pass
+            return load_voice(str(sample.cache_path))
 
-            # 回退：手动拼接 WAV
-            return self._concat_wav_files(segment_files)
+        wav = _load_and_resample(str(sample.wav_path))
+        if len(wav) > VOICE_CLONE_SAMPLES:
+            wav = wav[:VOICE_CLONE_SAMPLES]
+        num_tokens = math.ceil(len(wav) / SPEECH_TOK_COMPRESS_RATIO)
+        embeds = encode_voice_reference(wav, num_tokens, self._model, self._model_config, self.config.model.model_id)
+        save_voice(str(sample.cache_path), embeds)
+        return embeds
 
-    def _concat_wav_files(self, file_paths: List[str]) -> bytes:
-        """直接拼接 WAV 文件"""
-        if not file_paths:
-            return b''
+    def _build_dialogue_script(
+        self,
+        text: str,
+        preferred_voice: Optional[str],
+        voice_mapping: dict[str, str],
+        default_sample: VoiceSample,
+    ) -> tuple[str, list[VoiceSample], list[SpeakerResolution]]:
+        lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+        matched_dialogue = [self.DIALOGUE_LINE_RE.match(line.strip()) for line in lines]
+        is_dialogue = any(match is not None for match in matched_dialogue)
 
-        with open(file_paths[0], 'rb') as f:
-            base_data = f.read()
+        if not is_dialogue:
+            target_voice = preferred_voice or default_sample.speaker
+            resolved = self.sample_manager.resolve(target_voice)
+            sample = resolved or default_sample
+            resolutions = [
+                SpeakerResolution(
+                    requested_name=target_voice,
+                    resolved_voice=sample.speaker,
+                    used_default=resolved is None,
+                    transcript_preview=sample.transcript_preview,
+                )
+            ]
+            script = "\n".join(f"Speaker 1: {line.strip()}" for line in lines)
+            return script, [sample], resolutions
 
-        if len(base_data) < 44 or base_data[:4] != b'RIFF' or base_data[8:12] != b'WAVE':
-            combined = base_data
-            for fp in file_paths[1:]:
-                with open(fp, 'rb') as f:
-                    combined += f.read()
-            return combined
+        speaker_order: list[str] = []
+        speaker_indices: dict[str, int] = {}
+        speaker_samples: dict[str, VoiceSample] = {}
+        resolutions: list[SpeakerResolution] = []
+        normalized_lines: list[str] = []
+        current_speaker: Optional[str] = None
 
-        audio_data = base_data[44:]
-        for fp in file_paths[1:]:
-            with open(fp, 'rb') as f:
-                data = f.read()
-                if len(data) > 44:
-                    audio_data += data[44:]
+        for raw_line in lines:
+            line = raw_line.strip()
+            match = self.DIALOGUE_LINE_RE.match(line)
+            if match is None:
+                if current_speaker is None:
+                    current_speaker = preferred_voice or default_sample.speaker
+                    if current_speaker not in speaker_indices:
+                        speaker_indices[current_speaker] = len(speaker_order) + 1
+                        speaker_order.append(current_speaker)
+                        speaker_samples[current_speaker] = default_sample
+                        resolutions.append(
+                            SpeakerResolution(
+                                requested_name=current_speaker,
+                                resolved_voice=default_sample.speaker,
+                                used_default=True,
+                                transcript_preview=default_sample.transcript_preview,
+                            )
+                        )
+                normalized_lines.append(f"Speaker {speaker_indices[current_speaker]}: {line}")
+                continue
 
-        total_size = 36 + len(audio_data)
-        header = bytearray(44)
-        header[0:4] = b'RIFF'
-        header[4:8] = struct.pack('<I', total_size)
-        header[8:12] = b'WAVE'
-        header[12:16] = b'fmt '
-        header[16:20] = struct.pack('<I', 16)
-        header[20:22] = struct.pack('<H', 1)
-        header[22:44] = base_data[22:44]
+            requested_name = match.group(1).strip()
+            content = match.group(2).strip()
+            current_speaker = requested_name
+            if requested_name not in speaker_indices:
+                speaker_indices[requested_name] = len(speaker_order) + 1
+                speaker_order.append(requested_name)
+                mapped_voice = voice_mapping.get(requested_name) or requested_name
+                resolved = self.sample_manager.resolve(mapped_voice)
+                sample = resolved or default_sample
+                speaker_samples[requested_name] = sample
+                resolutions.append(
+                    SpeakerResolution(
+                        requested_name=requested_name,
+                        resolved_voice=sample.speaker,
+                        used_default=resolved is None,
+                        transcript_preview=sample.transcript_preview,
+                    )
+                )
+            normalized_lines.append(f"Speaker {speaker_indices[requested_name]}: {content}")
 
-        return bytes(header) + audio_data
+        ordered_samples = [speaker_samples[name] for name in speaker_order]
+        return "\n".join(normalized_lines), ordered_samples, resolutions
 
-    def list_voices(self) -> List[str]:
-        """返回可用声音列表（本地 + 内置）"""
-        local_voices = self.sample_manager.list_voices()
-        return local_voices + self.BUILTIN_VOICES
+    def _build_voice_embed_map(self, tokenize_result) -> tuple[list[int], dict[int, mx.array]]:
+        if not isinstance(tokenize_result, VoiceCloneData):
+            return tokenize_result, {}
 
-    def get_voice_info(self, voice_name: str) -> Dict:
-        """获取声音详情"""
-        local_path = self.sample_manager.get_voice_path(voice_name)
-        local_text = self.sample_manager.get_voice_text(voice_name)
-        is_builtin = voice_name in self.BUILTIN_VOICES
-        model_voice = self._get_model_voice(voice_name) if not is_builtin and not local_path else None
+        voice_embeds: dict[int, mx.array] = {}
+        for speaker in tokenize_result.speakers:
+            embeds_mx = mx.array(speaker.cached_embeds).astype(mx.float16)
+            for index, position in enumerate(speaker.speech_embed_positions):
+                if index < embeds_mx.shape[0]:
+                    voice_embeds[position] = embeds_mx[index:index + 1]
+        return tokenize_result.input_ids, voice_embeds
 
-        return {
-            "name": voice_name,
-            "path": local_path,
-            "has_text": local_text is not None,
-            "text_preview": local_text[:100] if local_text else None,
-            "is_builtin": is_builtin,
-            "maps_to": model_voice
-        }
-
-    def get_model_status(self) -> Dict:
-        """获取模型状态"""
-        return {
-            "is_loaded": self._model_manager.is_loaded(),
-            "model_name": self.model_name,
-            "quantization": self.quantization,
-            "last_access_time": self._model_manager._last_access_time,
-            "offload_timeout": self._model_manager.OFFLOAD_TIMEOUT
-        }
+    @staticmethod
+    def _encode_audio(audio, output_format: str) -> bytes:
+        buffer = io.BytesIO()
+        fmt = output_format.lower()
+        if fmt == "wav":
+            sf.write(buffer, audio, SAMPLE_RATE, format="WAV")
+        elif fmt == "flac":
+            sf.write(buffer, audio, SAMPLE_RATE, format="FLAC")
+        elif fmt == "ogg":
+            sf.write(buffer, audio, SAMPLE_RATE, format="OGG", subtype="VORBIS")
+        else:
+            raise ValueError(f"Unsupported output format: {output_format}")
+        buffer.seek(0)
+        return buffer.read()

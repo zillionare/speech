@@ -1,258 +1,216 @@
-"""FastAPI Web 服务"""
+"""FastAPI app for the new worktree implementation."""
 
-import os
-import time
-import traceback
-from contextlib import asynccontextmanager
-from typing import Optional
-
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from __future__ import annotations
 
 import io
+import uuid
+from collections import deque
+from pathlib import Path
+from typing import Optional
 
-from .config import Config, load_config
-from .tts_engine import TTSEngine
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from .config import load_config
 from .models import (
-    SpeechRequest, PodcastRequest, VoiceListResponse,
-    VoiceDetailResponse, ErrorResponse, HealthResponse
+    AppConfigResponse,
+    GenerateRequest,
+    GenerationRecord,
+    HealthResponse,
+    PodcastRequest,
+    SpeechRequest,
+    TranscriptUpdateRequest,
+    VoiceInfo,
+    VoiceListResponse,
 )
+from .sample_manager import SampleManager, VoiceSample
+from .tts_engine import TTSEngine
 
 
-# 全局变量
-engine: Optional[TTSEngine] = None
-config: Optional[Config] = None
-start_time: float = 0.0
+def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
+    return VoiceInfo(
+        speaker=sample.speaker,
+        transcript=sample.transcript,
+        transcript_preview=sample.transcript_preview,
+        cache_ready=sample.cache_path.exists(),
+        is_default=sample.speaker == default_voice,
+        audio_url=f"/api/voices/{sample.speaker}/audio",
+    )
 
 
 def create_app(config_path: Optional[str] = None) -> FastAPI:
-    """
-    创建 FastAPI 应用
-
-    Args:
-        config_path: 配置文件路径
-
-    Returns:
-        FastAPI 应用实例
-    """
-    global config, engine, start_time
-
-    # 加载配置
     config = load_config(config_path)
-
-    # 创建引擎 (延迟加载模型)
-    engine = TTSEngine(config)
-
-    start_time = time.time()
-
-    # 生命周期管理
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        """应用生命周期管理"""
-        print("TTS Server starting...")
-        print(f"Model: {config.model.name}")
-        print(f"Voices directory: {config.samples.expanded_base_dir}")
-        print(f"Available voices: {len(engine.list_voices())}")
-        yield
-        print("TTS Server shutting down...")
+    sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
+    engine = TTSEngine(config, sample_manager)
+    static_dir = Path(__file__).resolve().parent / "static"
+    outputs_dir = config.outputs.expanded_base_dir
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
 
     app = FastAPI(
-        title="TTS Web Service",
-        description="基于 mlx-audio 的文本转语音服务",
-        version="0.1.0",
-        lifespan=lifespan
+        title="VibeVoice MLX Studio",
+        description="vibevoice-mlx based dialogue generation and voice management UI",
+        version="0.2.0",
     )
-
-    # CORS 中间件
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        allow_credentials=True,
     )
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-    # === API 路由 ===
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def index() -> FileResponse:
+        return FileResponse(static_dir / "index.html")
 
-    @app.get("/")
-    async def root():
-        """根路径重定向到文档"""
-        return {"message": "TTS Web Service", "docs": "/docs"}
-
-    @app.get("/health")
-    async def health():
-        """健康检查"""
-        uptime = time.time() - start_time if start_time else 0
+    @app.get("/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
         return HealthResponse(
             status="healthy",
-            model=config.model.name,
-            voices_count=len(engine.list_voices()),
-            uptime=uptime
+            model=config.model.model_id,
+            quantize_bits=config.model.quantize_bits,
+            voices_count=len(sample_manager.list_samples()),
+            default_voice=config.voices.default_voice,
         )
 
-    @app.get("/v1/voices")
-    async def list_voices():
-        """
-        获取可用声音列表
+    @app.get("/api/config", response_model=AppConfigResponse)
+    def get_config() -> AppConfigResponse:
+        return AppConfigResponse(
+            model=config.model.model_id,
+            quantize_bits=config.model.quantize_bits,
+            default_voice=config.voices.default_voice,
+            diffusion_steps=config.model.diffusion_steps,
+            use_coreml_semantic=config.model.use_coreml_semantic,
+        )
 
-        Returns:
-            VoiceListResponse: 声音名称列表
-        """
-        voices = engine.list_voices()
-        return VoiceListResponse(voices=voices)
+    @app.get("/api/voices", response_model=VoiceListResponse)
+    def list_api_voices() -> VoiceListResponse:
+        sample_manager.refresh()
+        return VoiceListResponse(
+            voices=[_voice_info(sample, config.voices.default_voice) for sample in sample_manager.list_samples()]
+        )
 
-    @app.get("/v1/voices/details")
-    async def list_voices_details():
-        """
-        获取声音详细信息列表
+    @app.post("/api/voices", response_model=VoiceInfo)
+    async def upload_voice(
+        speaker: str = Form(...),
+        transcript: str = Form(""),
+        overwrite: bool = Form(False),
+        audio_file: UploadFile = File(...),
+    ) -> VoiceInfo:
+        if not audio_file.filename:
+            raise HTTPException(status_code=400, detail="Audio file is required")
+        audio_bytes = await audio_file.read()
+        sample = sample_manager.add_voice(speaker=speaker, audio_bytes=audio_bytes, transcript=transcript, overwrite=overwrite)
+        return _voice_info(sample, config.voices.default_voice)
 
-        Returns:
-            VoiceDetailResponse: 声音详细信息列表
-        """
-        from .models import VoiceInfo
-        voices = []
-        for name in engine.list_voices():
-            info = engine.get_voice_info(name)
-            voices.append(VoiceInfo(**info))
-        return VoiceDetailResponse(voices=voices)
+    @app.put("/api/voices/{speaker}/transcript", response_model=VoiceInfo)
+    def update_transcript(speaker: str, request: TranscriptUpdateRequest) -> VoiceInfo:
+        sample = sample_manager.update_transcript(speaker, request.transcript)
+        return _voice_info(sample, config.voices.default_voice)
+
+    @app.post("/api/voices/{speaker}/cache", response_model=VoiceInfo)
+    def warm_voice_cache(speaker: str) -> VoiceInfo:
+        sample = engine.ensure_voice_cache_ready(speaker)
+        return _voice_info(sample, config.voices.default_voice)
+
+    @app.delete("/api/voices/{speaker}")
+    def delete_voice(speaker: str) -> dict[str, str]:
+        if speaker == config.voices.default_voice:
+            raise HTTPException(status_code=400, detail="Cannot delete the configured default voice")
+        sample_manager.delete_voice(speaker)
+        return {"status": "deleted", "speaker": speaker}
+
+    @app.get("/api/voices/{speaker}/audio")
+    def get_voice_audio(speaker: str) -> FileResponse:
+        sample = sample_manager.get(speaker)
+        if sample is None:
+            raise HTTPException(status_code=404, detail="Voice not found")
+        return FileResponse(sample.wav_path, media_type="audio/wav")
+
+    @app.get("/api/generations", response_model=list[GenerationRecord])
+    def list_generations() -> list[GenerationRecord]:
+        return list(history)
+
+    @app.get("/api/outputs/{filename}")
+    def get_generated_audio(filename: str) -> FileResponse:
+        output_path = (outputs_dir / filename).resolve()
+        if output_path.parent != outputs_dir.resolve() or not output_path.exists():
+            raise HTTPException(status_code=404, detail="Output not found")
+        return FileResponse(output_path)
+
+    def _store_generation(request_text: str, output_format: str, result) -> GenerationRecord:
+        request_id = uuid.uuid4().hex[:12]
+        filename = f"{request_id}.{output_format}"
+        output_path = outputs_dir / filename
+        output_path.write_bytes(result.audio_bytes)
+        record = GenerationRecord(
+            request_id=request_id,
+            filename=filename,
+            audio_url=f"/api/outputs/{filename}",
+            input_text=request_text,
+            output_format=output_format,
+            duration_seconds=result.duration_seconds,
+            generation_seconds=result.generation_seconds,
+            resolved_speakers=result.resolved_speakers,
+        )
+        history.appendleft(record)
+        return record
+
+    @app.post("/api/generate", response_model=GenerationRecord)
+    def generate_audio(request: GenerateRequest) -> GenerationRecord:
+        try:
+            result = engine.generate_dialogue(
+                text=request.text,
+                output_format=request.output_format,
+                preferred_voice=request.voice,
+                voice_mapping=request.voice_mapping,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return _store_generation(request.text, request.output_format, result)
+
+    @app.get("/v1/voices", response_model=VoiceListResponse)
+    def list_openai_voices() -> VoiceListResponse:
+        return list_api_voices()
+
+    @app.get("/v1/voices/details", response_model=VoiceListResponse)
+    def list_openai_voice_details() -> VoiceListResponse:
+        return list_api_voices()
 
     @app.post("/v1/audio/speech")
-    async def create_speech(request: SpeechRequest):
-        """
-        单 speaker TTS 生成
-
-        Args:
-            request: SpeechRequest
-
-        Returns:
-            音频文件流
-        """
-        global engine
-
-        if len(request.input) > 65536:
-            raise HTTPException(
-                status_code=400,
-                detail="Input text exceeds 64KB limit"
-            )
-
-        # 使用默认 voice
-        voice = request.voice or config.defaults.voice
-        # 检查 voice 是否有效（本地文件或内置 voice）
-        is_local = engine.sample_manager.voice_exists(voice)
-        is_builtin = hasattr(engine, 'BUILTIN_VOICES') and voice in engine.BUILTIN_VOICES
-        if not is_local and not is_builtin:
-            available = engine.list_voices()
-            raise HTTPException(
-                status_code=400,
-                detail=f"Voice '{voice}' not found. Available: {available}"
-            )
-
-        try:
-            print(f"Generating speech: voice={voice}, length={len(request.input)} chars")
-            start = time.time()
-
-            audio_data = engine.generate_single(
-                text=request.input,
-                voice=voice,
-                output_format=request.response_format,
-                speed=request.speed
-            )
-
-            duration = time.time() - start
-            print(f"Generated: {len(audio_data)} bytes in {duration:.2f}s")
-
-            return StreamingResponse(
-                io.BytesIO(audio_data),
-                media_type=f"audio/{request.response_format}",
-                headers={
-                    "X-Generation-Time": f"{duration:.2f}",
-                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}"
-                }
-            )
-
-        except Exception as e:
-            print(f"TTS generation failed: {e}")
-            traceback.print_exc()
-            raise HTTPException(
-                status_code=500,
-                detail=f"TTS generation failed: {str(e)}"
-            )
+    def create_speech(request: SpeechRequest) -> StreamingResponse:
+        result = engine.generate_single(
+            text=request.input,
+            voice=request.voice or config.voices.default_voice,
+            output_format=request.response_format,
+        )
+        return StreamingResponse(
+            io.BytesIO(result.audio_bytes),
+            media_type=f"audio/{request.response_format}",
+            headers={
+                "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                "X-Generation-Time": f"{result.generation_seconds:.2f}",
+            },
+        )
 
     @app.post("/v1/audio/podcast")
-    async def create_podcast(request: PodcastRequest):
-        """
-        多 speaker 播客生成
-
-        Args:
-            request: PodcastRequest
-
-        Returns:
-            合并后的音频文件流
-        """
-        global engine
-
-        if len(request.input) > 65536:
-            raise HTTPException(
-                status_code=400,
-                detail="Input text exceeds 64KB limit"
-            )
-
-        # 验证所有 voice 是否有效（本地文件或内置 voice）
-        for speaker, voice in request.voice_mapping.items():
-            is_local = engine.sample_manager.voice_exists(voice)
-            is_builtin = hasattr(engine, 'BUILTIN_VOICES') and voice in engine.BUILTIN_VOICES
-            if not is_local and not is_builtin:
-                available = engine.list_voices()
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Voice '{voice}' for speaker '{speaker}' not found. Available: {available}"
-                )
-
-        try:
-            print(f"Generating podcast: mapping={request.voice_mapping}, length={len(request.input)} chars")
-            start = time.time()
-
-            audio_data = engine.generate_podcast(
-                text=request.input,
-                voice_mapping=request.voice_mapping,
-                output_format=request.response_format,
-                speed=request.speed
-            )
-
-            duration = time.time() - start
-            print(f"Generated podcast: {len(audio_data)} bytes in {duration:.2f}s")
-
-            return StreamingResponse(
-                io.BytesIO(audio_data),
-                media_type=f"audio/{request.response_format}",
-                headers={
-                    "X-Generation-Time": f"{duration:.2f}",
-                    "Content-Disposition": f"attachment; filename=podcast.{request.response_format}"
-                }
-            )
-
-        except Exception as e:
-            print(f"Podcast generation failed: {e}")
-            traceback.print_exc()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Podcast generation failed: {str(e)}"
-            )
-
-    # 错误处理
-    @app.exception_handler(Exception)
-    async def generic_exception_handler(request, exc):
-        return JSONResponse(
-            status_code=500,
-            content=ErrorResponse(
-                error="Internal Server Error",
-                message=str(exc),
-                details=traceback.format_exc() if config.server.log_level == "debug" else None
-            ).dict()
+    def create_podcast(request: PodcastRequest) -> StreamingResponse:
+        result = engine.generate_dialogue(
+            text=request.input,
+            output_format=request.response_format,
+            voice_mapping=request.voice_mapping,
+        )
+        return StreamingResponse(
+            io.BytesIO(result.audio_bytes),
+            media_type=f"audio/{request.response_format}",
+            headers={
+                "Content-Disposition": f"attachment; filename=podcast.{request.response_format}",
+                "X-Generation-Time": f"{result.generation_seconds:.2f}",
+            },
         )
 
     return app
-
-
-import io

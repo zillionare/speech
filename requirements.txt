@@ -1,20 +1,17 @@
-# TTS Web Service 依赖
+# Web app
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
 
-# Web Framework
-fastapi>=0.100.0
-uvicorn[standard]>=0.23.0
+# Config and validation
+pydantic>=2.8.0
+pyyaml>=6.0.2
 
-# CLI
-python-fire>=0.5.0
-
-# Data Validation
-pydantic>=2.0.0
-
-# Config
-pyyaml>=6.0
-
-# TTS Engine
-mlx-audio>=0.1.0
-
-# Optional (用于音频合并)
-# ffmpeg-python>=0.2.0
+# vibevoice-mlx runtime
+mlx>=0.22.0
+numpy>=1.26.0
+scipy>=1.13.0
+soundfile>=0.12.1
+transformers>=4.40.0
+huggingface_hub>=0.23.0
+safetensors>=0.4.3

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VibeVoice MLX Studio</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">VibeVoice MLX Studio</p>
+          <h1>本地中文对话生成与声音库管理</h1>
+          <p class="subtitle">基于 vibevoice-mlx 的 8-bit 生成引擎，使用 voices 目录中的本地声音样本与缓存。</p>
+        </div>
+        <div class="hero-card" id="config-card">
+          <div class="metric"><span>模型</span><strong id="config-model">-</strong></div>
+          <div class="metric"><span>量化</span><strong id="config-quantize">-</strong></div>
+          <div class="metric"><span>默认声音</span><strong id="config-default-voice">-</strong></div>
+          <div class="metric"><span>扩散步数</span><strong id="config-steps">-</strong></div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel library-panel">
+          <div class="panel-head">
+            <div>
+              <h2>声音库</h2>
+              <p>每个声音都由 <code>{speaker}.wav</code> 和 <code>{speaker}.txt</code> 组成。</p>
+            </div>
+            <button id="refresh-voices" class="ghost">刷新</button>
+          </div>
+
+          <form id="voice-upload-form" class="stack form-card">
+            <h3>添加或替换声音</h3>
+            <label>
+              Speaker
+              <input name="speaker" placeholder="例如 Aaron" required>
+            </label>
+            <label>
+              Transcript
+              <textarea name="transcript" rows="3" placeholder="这段文字对应音频里说的话"></textarea>
+            </label>
+            <label>
+              Audio file
+              <input name="audio_file" type="file" accept="audio/*" required>
+            </label>
+            <label class="inline-check">
+              <input name="overwrite" type="checkbox">
+              覆盖同名声音
+            </label>
+            <button type="submit">上传到 voices/</button>
+          </form>
+
+          <div id="voice-list" class="voice-list"></div>
+        </section>
+
+        <section class="panel generate-panel">
+          <div class="panel-head">
+            <div>
+              <h2>生成</h2>
+              <p>支持旁白，也支持 <code>Aaron: 这是我要说的话</code> 格式的对话。</p>
+            </div>
+          </div>
+
+          <form id="generate-form" class="stack form-card">
+            <label>
+              文本
+              <textarea id="generate-text" name="text" rows="10" placeholder="Aaron: 你好，这是中文测试。&#10;Bowen: 这是第二句。" required></textarea>
+            </label>
+            <div class="two-col">
+              <label>
+                旁白默认声音
+                <select id="preferred-voice" name="voice"></select>
+              </label>
+              <label>
+                输出格式
+                <select name="output_format">
+                  <option value="wav">wav</option>
+                  <option value="flac">flac</option>
+                  <option value="ogg">ogg</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              可选映射 JSON
+              <textarea id="voice-mapping" rows="4" placeholder='{"Aaron": "zh-Aaron_man", "Bowen": "zh-Bowen_man"}'></textarea>
+            </label>
+            <button type="submit">开始生成</button>
+          </form>
+
+          <div id="latest-result" class="result-card empty">尚未生成任何音频。</div>
+
+          <div class="panel-head compact">
+            <div>
+              <h2>最近输出</h2>
+              <p>保存在 outputs/，这里只保留最近 20 条。</p>
+            </div>
+          </div>
+          <div id="generation-history" class="history-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="voice-item-template">
+      <article class="voice-item">
+        <div class="voice-item-head">
+          <div>
+            <h3 class="voice-name"></h3>
+            <p class="voice-meta"></p>
+          </div>
+          <div class="pill-row">
+            <span class="pill default-pill" hidden>默认</span>
+            <span class="pill cache-pill"></span>
+          </div>
+        </div>
+        <audio class="voice-audio" controls preload="none"></audio>
+        <textarea class="voice-transcript" rows="3"></textarea>
+        <div class="action-row">
+          <button class="small save-transcript" type="button">保存 transcript</button>
+          <button class="small warm-cache" type="button">生成缓存</button>
+          <button class="small danger delete-voice" type="button">删除</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="history-item-template">
+      <article class="history-item">
+        <div class="history-head">
+          <div>
+            <h3 class="history-id"></h3>
+            <p class="history-meta"></p>
+          </div>
+          <a class="download-link" target="_blank" rel="noopener">下载</a>
+        </div>
+        <audio class="history-audio" controls preload="none"></audio>
+        <p class="history-text"></p>
+        <div class="resolution-list"></div>
+      </article>
+    </template>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+  </html>

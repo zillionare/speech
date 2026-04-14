@@ -4,6 +4,13 @@ const state = {
     history: [],
 };
 
+function setText(id, value) {
+    const node = document.getElementById(id);
+    if (node) {
+        node.textContent = value;
+    }
+}
+
 function parseJsonOrEmpty(text) {
     const value = text.trim();
     if (!value) {
@@ -40,10 +47,17 @@ function renderConfig() {
     if (!state.config) {
         return;
     }
-    document.getElementById("config-model").textContent = state.config.model;
-    document.getElementById("config-quantize").textContent = `${state.config.quantize_bits}-bit`;
-    document.getElementById("config-default-voice").textContent = state.config.default_voice;
-    document.getElementById("config-steps").textContent = String(state.config.diffusion_steps);
+    setText("config-model", state.config.model);
+    setText("config-quantize", `${state.config.quantize_bits}-bit`);
+    setText("config-default-voice", state.config.default_voice);
+    setText("config-steps", String(state.config.diffusion_steps));
+    setText("config-semantic-mode", state.config.use_coreml_semantic ? "CoreML" : "MLX");
+    setText("sidebar-default-voice", state.config.default_voice);
+}
+
+function renderCounters() {
+    setText("voice-count", String(state.voices.length));
+    setText("history-count", String(state.history.length));
 }
 
 function renderVoiceOptions() {
@@ -64,6 +78,13 @@ function renderVoices() {
     const list = document.getElementById("voice-list");
     const template = document.getElementById("voice-item-template");
     list.innerHTML = "";
+
+    if (state.voices.length === 0) {
+        list.innerHTML = '<div class="result-card empty">当前还没有本地声音样本。</div>';
+        renderCounters();
+        renderVoiceOptions();
+        return;
+    }
 
     for (const voice of state.voices) {
         const node = template.content.firstElementChild.cloneNode(true);
@@ -106,6 +127,7 @@ function renderVoices() {
     }
 
     renderVoiceOptions();
+    renderCounters();
 }
 
 function renderResolutions(container, record) {
@@ -143,6 +165,16 @@ function renderHistory() {
     const template = document.getElementById("history-item-template");
     list.innerHTML = "";
 
+    if (state.history.length === 0) {
+        const latest = document.getElementById("latest-result");
+        latest.classList.add("empty");
+        latest.classList.remove("error");
+        latest.textContent = "尚未生成任何音频。";
+        list.innerHTML = '<div class="result-card empty">最近输出为空，生成后会显示在这里。</div>';
+        renderCounters();
+        return;
+    }
+
     for (const record of state.history) {
         const node = template.content.firstElementChild.cloneNode(true);
         node.querySelector(".history-id").textContent = record.request_id;
@@ -157,6 +189,8 @@ function renderHistory() {
     if (state.history.length > 0) {
         renderLatest(state.history[0]);
     }
+
+    renderCounters();
 }
 
 async function loadConfig() {
@@ -234,7 +268,48 @@ async function handleGenerate(event) {
     }
 }
 
+function initNavigation() {
+    const links = Array.from(document.querySelectorAll(".nav-link[data-section]"));
+    const sections = links
+        .map((link) => document.getElementById(link.dataset.section))
+        .filter(Boolean);
+
+    const activateSection = (sectionId) => {
+        for (const link of links) {
+            link.classList.toggle("active", link.dataset.section === sectionId);
+        }
+    };
+
+    for (const link of links) {
+        link.addEventListener("click", () => activateSection(link.dataset.section));
+    }
+
+    if (!("IntersectionObserver" in window) || sections.length === 0) {
+        return;
+    }
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            const visible = entries
+                .filter((entry) => entry.isIntersecting)
+                .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+            if (visible) {
+                activateSection(visible.target.id);
+            }
+        },
+        {
+            rootMargin: "-25% 0px -55% 0px",
+            threshold: [0.2, 0.45, 0.7],
+        },
+    );
+
+    for (const section of sections) {
+        observer.observe(section);
+    }
+}
+
 async function bootstrap() {
+    initNavigation();
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
     document.getElementById("generate-form").addEventListener("submit", handleGenerate);
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);

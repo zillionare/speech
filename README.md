@@ -1,4 +1,4 @@
-# VibeVoice MLX Studio
+# test
 
 本目录是一个独立 worktree，用来重建基于 `vibevoice-mlx` 的本地中文语音生成服务。
 

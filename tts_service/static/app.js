@@ -1,3 +1,99 @@
+
+// 选择目录（使用原生文件选择器）
+function selectDirectory(type) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.directory = true;
+    input.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            const path = e.target.files[0].path || e.target.files[0].webkitRelativePath.split('/')[0];
+            document.getElementById(`config-${type}-path`).value = path;
+        }
+    });
+    input.click();
+}
+
+// 保存配置到服务器
+async function saveConfig() {
+    const config = {
+        voices_path: document.getElementById('config-voices-path').value,
+        outputs_path: document.getElementById('config-outputs-path').value,
+        default_voice: document.getElementById('config-default-voice-select').value,
+        diffusion_steps: parseInt(document.getElementById('config-steps-slider').value),
+        quantize_bits: parseInt(document.getElementById('config-quantize-select').value),
+        cfg_scale: parseFloat(document.getElementById('config-cfg-slider').value),
+        max_speech_tokens: parseInt(document.getElementById('config-max-tokens-slider').value),
+        use_semantic: document.getElementById('config-semantic-toggle').checked,
+        use_coreml_semantic: document.getElementById('config-coreml-toggle').checked,
+        seed: parseInt(document.getElementById('config-seed-input').value)
+    };
+    
+    try {
+        await requestJson('/api/config', {
+            method: 'POST',
+            body: JSON.stringify(config)
+        });
+        alert('配置已保存');
+    } catch (err) {
+        alert('保存失败: ' + err.message);
+    }
+}
+
+// 重置默认配置
+function resetConfig() {
+    if (confirm('确定要重置为默认配置吗？')) {
+        document.getElementById('config-voices-path').value = './voices';
+        document.getElementById('config-outputs-path').value = './outputs';
+        document.getElementById('config-steps-slider').value = 10;
+        document.getElementById('config-steps-value').textContent = '10';
+        document.getElementById('config-quantize-select').value = '8';
+        document.getElementById('config-cfg-slider').value = '1.3';
+        document.getElementById('config-cfg-value').textContent = '1.3';
+        document.getElementById('config-max-tokens-slider').value = '200';
+        document.getElementById('config-max-tokens-value').textContent = '200';
+        document.getElementById('config-semantic-toggle').checked = true;
+        document.getElementById('config-coreml-toggle').checked = false;
+        document.getElementById('config-seed-input').value = '42';
+    }
+}
+
+// 绑定滑块事件
+document.addEventListener('DOMContentLoaded', () => {
+    // 扩散步数滑块
+    const stepsSlider = document.getElementById('config-steps-slider');
+    const stepsValue = document.getElementById('config-steps-value');
+    if (stepsSlider && stepsValue) {
+        stepsSlider.addEventListener('input', (e) => {
+            stepsValue.textContent = e.target.value;
+        });
+    }
+    
+    // CFG滑块
+    const cfgSlider = document.getElementById('config-cfg-slider');
+    const cfgValue = document.getElementById('config-cfg-value');
+    if (cfgSlider && cfgValue) {
+        cfgSlider.addEventListener('input', (e) => {
+            cfgValue.textContent = e.target.value;
+        });
+    }
+    
+    // 最大令牌滑块
+    const maxTokensSlider = document.getElementById('config-max-tokens-slider');
+    const maxTokensValue = document.getElementById('config-max-tokens-value');
+    if (maxTokensSlider && maxTokensValue) {
+        maxTokensSlider.addEventListener('input', (e) => {
+            maxTokensValue.textContent = e.target.value;
+        });
+    }
+    
+    // 保存和重置按钮
+    const saveBtn = document.getElementById('save-config');
+    const resetBtn = document.getElementById('reset-config');
+    if (saveBtn) saveBtn.addEventListener('click', saveConfig);
+    if (resetBtn) resetBtn.addEventListener('click', resetConfig);
+});
+
 const state = {
     config: null,
     voices: [],

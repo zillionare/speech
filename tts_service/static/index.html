@@ -3,16 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>VibeVoice MLX Studio</title>
+    <title>Speech Studio</title>
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
     <div class="shell">
       <aside class="sidebar">
         <div class="brand-card">
-          <p class="eyebrow">VibeVoice MLX Studio</p>
-          <h1>面向 1440p 的本地音频工作台</h1>
-          <p class="subtitle">把系统设置、样本素材、文本转声音与预留中的声音转文本统一收进一页，适合桌面宽屏连续操作。</p>
+          <h1>Speech Studio</h1>
         </div>
 
         <nav class="section-nav" aria-label="页面导航">
@@ -20,28 +18,27 @@
             <span class="nav-index">01</span>
             <span class="nav-copy">
               <strong>系统设置</strong>
-              <small>现模型和参数</small>
             </span>
           </a>
           <a class="nav-link" href="#sample-library" data-section="sample-library">
             <span class="nav-index">02</span>
             <span class="nav-copy">
               <strong>样本素材</strong>
-              <small>现声音库</small>
+              <small>声音库</small>
             </span>
           </a>
           <a class="nav-link" href="#text-to-speech" data-section="text-to-speech">
             <span class="nav-index">03</span>
             <span class="nav-copy">
               <strong>文本转声音</strong>
-              <small>现生成和最近输出</small>
+              <small>生成和输出</small>
             </span>
           </a>
           <a class="nav-link" href="#speech-to-text" data-section="speech-to-text">
             <span class="nav-index">04</span>
             <span class="nav-copy">
               <strong>声音转文本</strong>
-              <small>暂示实现</small>
+              <small>语音识别</small>
             </span>
           </a>
         </nav>
@@ -63,68 +60,116 @@
       </aside>
 
       <main class="content">
-        <section class="hero-panel">
-          <div>
-            <p class="section-kicker">Studio Overview</p>
-            <h2>单页完成模型查看、样本管理与生成联调</h2>
-            <p>左侧导航负责快速切换工作区，右侧内容按桌面宽屏重新排版。你可以在同一视野内完成配置确认、声音维护与生成回放。</p>
-          </div>
-          <div class="hero-summary">
-            <div class="summary-chip">
-              <span>推理引擎</span>
-              <strong>vibevoice-mlx</strong>
-            </div>
-            <div class="summary-chip">
-              <span>语音素材</span>
-              <strong>voices/ + transcript</strong>
-            </div>
-            <div class="summary-chip">
-              <span>工作模式</span>
-              <strong>本地网页工作台</strong>
-            </div>
-          </div>
-        </section>
-
         <section id="system-settings" class="section-card anchor-section">
           <div class="section-head">
             <div>
               <p class="section-kicker">系统设置</p>
-              <h2>现模型和参数</h2>
-              <p>当前服务端配置会直接映射到这里，方便在生成前确认模型、量化和默认声音。</p>
+              <h2>模型参数配置</h2>
+              <p>配置 VibeVoice 模型参数，实时生效。</p>
+            </div>
+            <div class="section-actions">
+              <button id="save-config" class="primary">保存配置</button>
+              <button id="reset-config" class="secondary">重置</button>
             </div>
           </div>
 
           <div class="settings-grid">
-            <article class="info-card emphasis-card">
-              <span>当前模型</span>
-              <strong id="config-model">-</strong>
-              <p>直接取自服务端配置，保持和运行中的工作树一致。</p>
+            <article class="info-card full-width">
+              <h3>📁 路径配置</h3>
             </article>
+            
             <article class="info-card">
-              <span>量化等级</span>
-              <strong id="config-quantize">-</strong>
-              <p>用于平衡显存占用与实时生成速度。</p>
+              <span>声音库目录</span>
+              <div class="path-input-row">
+                <input type="text" id="config-voices-path" class="config-input" value="./voices" placeholder="./voices">
+                <button type="button" class="small" onclick="selectDirectory('voices')">选择</button>
+              </div>
+              <p>声音样本 (.wav + .txt) 存储位置</p>
             </article>
+            
+            <article class="info-card">
+              <span>输出目录</span>
+              <div class="path-input-row">
+                <input type="text" id="config-outputs-path" class="config-input" value="./outputs" placeholder="./outputs">
+                <button type="button" class="small" onclick="selectDirectory('outputs')">选择</button>
+              </div>
+              <p>生成音频文件的保存位置</p>
+            </article>
+            
+            <article class="info-card full-width">
+              <h3>⚙️ 模型参数配置</h3>
+            </article>
+            
             <article class="info-card">
               <span>默认声音</span>
-              <strong id="config-default-voice">-</strong>
-              <p>旁白回退与未命中映射时使用的本地声音。</p>
+              <select id="config-default-voice-select" class="config-select">
+                <option value="">暂无声音样本，请先上传</option>
+              </select>
+              <p>选择默认使用的声音样本</p>
             </article>
+            
             <article class="info-card">
-              <span>扩散步数</span>
-              <strong id="config-steps">-</strong>
-              <p>影响采样时长与最终音频稳定性。</p>
+              <span>扩散步数 (Diffusion Steps)</span>
+              <div class="slider-container">
+                <input type="range" id="config-steps-slider" min="5" max="50" value="10" class="config-slider">
+                <span id="config-steps-value" class="slider-value">10</span>
+              </div>
+              <p>影响采样时长与音频稳定性 (5-50)</p>
             </article>
+            
+            <article class="info-card">
+              <span>量化位数 (Quantize Bits)</span>
+              <select id="config-quantize-select" class="config-select">
+                <option value="4">4-bit</option>
+                <option value="8" selected>8-bit</option>
+                <option value="16">16-bit</option>
+              </select>
+              <p>平衡显存占用与生成速度</p>
+            </article>
+            
+            <article class="info-card">
+              <span>CFG Scale</span>
+              <div class="slider-container">
+                <input type="range" id="config-cfg-slider" min="1.0" max="3.0" step="0.1" value="1.3" class="config-slider">
+                <span id="config-cfg-value" class="slider-value">1.3</span>
+              </div>
+              <p>分类器自由引导强度 (1.0-3.0)</p>
+            </article>
+            
+            <article class="info-card">
+              <span>最大语音令牌</span>
+              <div class="slider-container">
+                <input type="range" id="config-max-tokens-slider" min="50" max="500" step="10" value="200" class="config-slider">
+                <span id="config-max-tokens-value" class="slider-value">200</span>
+              </div>
+              <p>限制生成音频的最大长度 (50-500)</p>
+            </article>
+            
             <article class="info-card">
               <span>语义编码</span>
-              <strong id="config-semantic-mode">-</strong>
-              <p>展示当前是否启用 CoreML 语义编码路径。</p>
+              <label class="toggle-switch">
+                <input type="checkbox" id="config-semantic-toggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <p>启用语义编码提升音质</p>
             </article>
-            <article class="info-card tips-card">
-              <span>桌面建议</span>
-              <strong>1440p 双列视野</strong>
-              <p>左侧做导航和摘要，右侧保留完整工作区，避免频繁切页。</p>
+            
+            <article class="info-card">
+              <span>CoreML 语义编码</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="config-coreml-toggle">
+                <span class="toggle-slider"></span>
+              </label>
+              <p>使用 Apple CoreML 加速 (仅 Mac)</p>
             </article>
+            
+            <article class="info-card">
+              <span>随机种子</span>
+              <input type="number" id="config-seed-input" value="42" class="config-input">
+              <p>固定种子可复现相同结果</p>
+            </article>
+            
+            
           </div>
         </section>
 
@@ -132,8 +177,8 @@
           <div class="section-head">
             <div>
               <p class="section-kicker">样本素材</p>
-              <h2>现声音库</h2>
-              <p>每个声音都由 <code>{speaker}.wav</code> 与 <code>{speaker}.txt</code> 组成，可在这里补录 transcript、预热缓存和清理冗余样本。</p>
+              <h2>声音库</h2>
+              <p>每个声音都由 <code>{speaker}.wav</code> 与 <code>{speaker}.txt</code> 组成。</p>
             </div>
             <button id="refresh-voices" class="ghost">刷新声音库</button>
           </div>
@@ -164,7 +209,7 @@
               <div class="subsection-head">
                 <div>
                   <h3>声音库内容</h3>
-                  <p>适合宽屏浏览的多卡片视图，默认显示音频、缓存状态和 transcript。</p>
+                  <p>多卡片视图，显示音频、缓存状态和 transcript。</p>
                 </div>
               </div>
               <div id="voice-list" class="voice-list"></div>
@@ -176,8 +221,8 @@
           <div class="section-head">
             <div>
               <p class="section-kicker">文本转声音</p>
-              <h2>现生成和最近输出</h2>
-              <p>支持单人旁白和多角色对话。宽屏布局下左侧专注提交参数，右侧同时展示最新生成和输出历史。</p>
+              <h2>生成和输出</h2>
+              <p>支持单人旁白和多角色对话。</p>
             </div>
           </div>
 
@@ -216,7 +261,7 @@
                 <div class="subsection-head compact">
                   <div>
                     <h3>最近输出</h3>
-                    <p>保存在 outputs/，这里只保留最近 20 条，方便回听和下载。</p>
+                    <p>保存在 outputs/，保留最近 20 条。</p>
                   </div>
                 </div>
                 <div id="generation-history" class="history-list"></div>
@@ -229,8 +274,8 @@
           <div class="section-head">
             <div>
               <p class="section-kicker">声音转文本</p>
-              <h2>暂示实现</h2>
-              <p>这里只预留未来的转写工作区结构，当前不接入真实模型与 API，只展示网页布局和交互占位。</p>
+              <h2>语音识别</h2>
+              <p>音频转写功能，支持 ASR 模型。</p>
             </div>
           </div>
 
@@ -238,7 +283,7 @@
             <article class="placeholder-card feature-card">
               <span class="feature-pill">规划中</span>
               <h3>音频上传与转写编排</h3>
-              <p>预留单文件转写、长音频切段、说话人分离与字幕导出的入口，便于后续接入完整语音理解链路。</p>
+              <p>支持单文件转写、长音频切段、说话人分离与字幕导出。</p>
               <div class="placeholder-list">
                 <span>音频上传</span>
                 <span>批量转写</span>
@@ -254,7 +299,7 @@
               </label>
               <label>
                 识别结果预览
-                <textarea rows="8" disabled placeholder="这里会显示未来的转写文本、时间戳与角色分段。"></textarea>
+                <textarea rows="8" disabled placeholder="这里会显示转写文本、时间戳与角色分段。"></textarea>
               </label>
               <button type="button" disabled>即将支持</button>
             </div>

@@ -7,7 +7,111 @@ import io
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import soundfile as sf
+from scipy.signal import butter, filtfilt, istft, stft
+
+
+_MIN_SIGNAL_LEVEL = 1e-4
+_TARGET_PEAK = 0.95
+
+
+def preprocess_reference_audio(audio_data: np.ndarray, sample_rate: int) -> np.ndarray:
+    audio = np.asarray(audio_data, dtype=np.float32)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32, copy=False)
+    if audio.size == 0:
+        raise ValueError("Uploaded audio is empty")
+    if not np.any(np.abs(audio) > _MIN_SIGNAL_LEVEL):
+        raise ValueError("Uploaded audio is silent")
+
+    audio = audio - float(np.mean(audio))
+    audio = _highpass_filter(audio, sample_rate)
+    audio = _spectral_denoise(audio, sample_rate)
+    audio = _trim_silence(audio, sample_rate)
+
+    peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+    if peak <= _MIN_SIGNAL_LEVEL:
+        raise ValueError("Uploaded audio is silent after preprocessing")
+    normalized = np.clip(audio / peak * _TARGET_PEAK, -1.0, 1.0)
+    return normalized.astype(np.float32, copy=False)
+
+
+def _highpass_filter(audio: np.ndarray, sample_rate: int, cutoff_hz: float = 70.0) -> np.ndarray:
+    if sample_rate <= cutoff_hz * 4 or audio.size < 64:
+        return audio
+    normalized_cutoff = cutoff_hz / (sample_rate * 0.5)
+    b_coeffs, a_coeffs = butter(2, normalized_cutoff, btype="highpass")
+    padlen = 3 * (max(len(a_coeffs), len(b_coeffs)) - 1)
+    if audio.size <= padlen:
+        return audio
+    return filtfilt(b_coeffs, a_coeffs, audio).astype(np.float32, copy=False)
+
+
+def _spectral_denoise(audio: np.ndarray, sample_rate: int) -> np.ndarray:
+    nperseg = min(1024, max(256, int(sample_rate * 0.032)))
+    if audio.size < nperseg:
+        return audio
+    noverlap = nperseg * 3 // 4
+    _, _, spectrum = stft(audio, fs=sample_rate, nperseg=nperseg, noverlap=noverlap)
+    if spectrum.size == 0:
+        return audio
+
+    magnitude = np.abs(spectrum)
+    noise_profile = _estimate_noise_profile(audio, magnitude, sample_rate, nperseg, noverlap)
+    gain = (magnitude - 0.9 * noise_profile) / (magnitude + 1e-6)
+    gain = np.clip(gain, 0.2, 1.0)
+    _, restored = istft(spectrum * gain, fs=sample_rate, nperseg=nperseg, noverlap=noverlap)
+    if restored.size < audio.size:
+        restored = np.pad(restored, (0, audio.size - restored.size))
+    return restored[:audio.size].astype(np.float32, copy=False)
+
+
+def _estimate_noise_profile(
+    audio: np.ndarray,
+    magnitude: np.ndarray,
+    sample_rate: int,
+    nperseg: int,
+    noverlap: int,
+) -> np.ndarray:
+    edge_size = min(int(sample_rate * 0.25), audio.size // 5)
+    if edge_size >= nperseg:
+        noise_source = np.concatenate([audio[:edge_size], audio[-edge_size:]])
+        _, _, noise_spectrum = stft(noise_source, fs=sample_rate, nperseg=nperseg, noverlap=noverlap)
+        if noise_spectrum.size:
+            return np.median(np.abs(noise_spectrum), axis=1, keepdims=True)
+
+    frame_energy = np.sqrt(np.mean(magnitude * magnitude, axis=0))
+    quiet_frame_count = max(1, min(magnitude.shape[1] // 5, 8))
+    quiet_indices = np.argsort(frame_energy)[:quiet_frame_count]
+    return np.median(magnitude[:, quiet_indices], axis=1, keepdims=True)
+
+
+def _trim_silence(audio: np.ndarray, sample_rate: int) -> np.ndarray:
+    frame_size = max(256, int(sample_rate * 0.02))
+    hop_size = max(128, frame_size // 2)
+    if audio.size < frame_size * 2:
+        return audio
+
+    frames = np.lib.stride_tricks.sliding_window_view(audio, frame_size)[::hop_size]
+    if frames.size == 0:
+        return audio
+
+    rms = np.sqrt(np.mean(frames * frames, axis=1))
+    noise_floor = float(np.percentile(rms, 20))
+    peak = float(np.max(np.abs(audio)))
+    threshold = max(noise_floor * 2.5, peak * 0.03, _MIN_SIGNAL_LEVEL)
+    speech_frames = np.flatnonzero(rms >= threshold)
+    if speech_frames.size == 0:
+        return audio
+
+    padding = int(sample_rate * 0.12)
+    start = max(0, speech_frames[0] * hop_size - padding)
+    end = min(audio.size, speech_frames[-1] * hop_size + frame_size + padding)
+    if end - start < int(sample_rate * 0.35):
+        return audio
+    return audio[start:end].astype(np.float32, copy=False)
 
 
 @dataclass(slots=True)
@@ -100,10 +204,11 @@ class SampleManager:
         if wav_path.exists() and not overwrite:
             raise FileExistsError(f"Voice '{safe_speaker}' already exists")
         try:
-            audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes), always_2d=False)
+            audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes), always_2d=False, dtype="float32")
         except Exception as exc:
             raise ValueError("Uploaded audio could not be decoded") from exc
-        sf.write(wav_path, audio_data, sample_rate, format="WAV")
+        processed_audio = preprocess_reference_audio(audio_data, sample_rate)
+        sf.write(wav_path, processed_audio, sample_rate, format="WAV", subtype="PCM_16")
         txt_path.write_text(transcript or "", encoding="utf-8")
         if cache_path.exists():
             cache_path.unlink()

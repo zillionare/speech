@@ -104,6 +104,7 @@ class TTSCLI:
         port: Optional[int] = None,
         daemon: bool = False,
         no_daemon: bool = False,
+        reload: bool = True,
     ):
         if no_daemon:
             daemon = False
@@ -142,7 +143,9 @@ class TTSCLI:
                 app,
                 host=cfg.server.host,
                 port=cfg.server.port,
-                log_level=cfg.server.log_level
+                log_level=cfg.server.log_level,
+                reload=reload,
+                reload_dirs=[os.path.dirname(os.path.dirname(__file__))] if reload else None
             )
 
     def stop(self):
@@ -203,6 +206,8 @@ def main():
     start_parser.add_argument('--port', type=int, help='Server port')
     start_parser.add_argument('--daemon', action='store_true', help='Run in background')
     start_parser.add_argument('--no-daemon', action='store_true', help='Run in foreground')
+    start_parser.add_argument('--reload', action='store_true', default=False, help='Enable auto-reload (default: True via function)')
+    start_parser.add_argument('--no-reload', action='store_false', dest='reload', help='Disable auto-reload')
 
     # stop 命令
     subparsers.add_parser('stop', help='Stop TTS service')
@@ -226,7 +231,7 @@ def main():
     cli = TTSCLI()
 
     if args.command == 'start':
-        cli.start(config=args.config, host=args.host, port=args.port, daemon=args.daemon, no_daemon=args.no_daemon)
+        cli.start(config=args.config, host=args.host, port=args.port, daemon=args.daemon, no_daemon=args.no_daemon, reload=args.reload if args.reload else True)
     elif args.command == 'stop':
         cli.stop()
     elif args.command == 'restart':

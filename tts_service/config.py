@@ -126,3 +126,17 @@ def load_config(config_path: Optional[str] = None, **overrides: Any) -> Config:
     if overrides:
         config.apply_overrides(overrides)
     return config
+
+
+def save_config_to_yaml(config: Config, path: str) -> None:
+    """Save configuration back to YAML file."""
+    config_path = Path(path)
+    data = {
+        "model": config.model.model_dump(),
+        "voices": config.voices.model_dump(),
+        "outputs": config.outputs.model_dump(),
+        "server": config.server.model_dump(),
+        "pid_file": config.pid_file,
+    }
+    with open(config_path, "w", encoding="utf-8") as handle:
+        yaml.dump(data, handle, allow_unicode=True, sort_keys=False, default_flow_style=False)

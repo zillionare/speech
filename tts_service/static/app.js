@@ -32,6 +32,7 @@ async function saveConfig() {
     try {
         await requestJson('/api/config', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         });
         alert('配置已保存');
@@ -122,7 +123,13 @@ async function requestJson(url, options = {}) {
         try {
             const payload = await response.json();
             if (payload.detail) {
-                message = payload.detail;
+                if (typeof payload.detail === "string") {
+                    message = payload.detail;
+                } else if (Array.isArray(payload.detail)) {
+                    message = payload.detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+                } else {
+                    message = JSON.stringify(payload.detail);
+                }
             }
         } catch {
             // Ignore parse errors.
@@ -134,6 +141,14 @@ async function requestJson(url, options = {}) {
 
 function setStatus(message, isError = false) {
     const card = document.getElementById("latest-result");
+    card.classList.toggle("error", isError);
+    card.classList.remove("empty");
+    card.innerHTML = `<p>${message}</p>`;
+}
+
+function setVoiceStatus(message, isError = false) {
+    const card = document.getElementById("voice-status");
+    if (!card) return;
     card.classList.toggle("error", isError);
     card.classList.remove("empty");
     card.innerHTML = `<p>${message}</p>`;
@@ -164,6 +179,30 @@ function renderVoiceOptions() {
         option.value = voice.speaker;
         option.textContent = voice.speaker;
         if (voice.is_default) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+}
+
+function renderDefaultVoiceSelect() {
+    const select = document.getElementById("config-default-voice-select");
+    const currentValue = select.value;
+    select.innerHTML = "";
+
+    if (state.voices.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "暂无声音样本，请先上传";
+        select.appendChild(option);
+        return;
+    }
+
+    for (const voice of state.voices) {
+        const option = document.createElement("option");
+        option.value = voice.speaker;
+        option.textContent = voice.speaker;
+        if (voice.speaker === currentValue || voice.is_default) {
             option.selected = true;
         }
         select.appendChild(option);
@@ -223,6 +262,7 @@ function renderVoices() {
     }
 
     renderVoiceOptions();
+    renderDefaultVoiceSelect();
     renderCounters();
 }
 
@@ -307,18 +347,75 @@ async function loadHistory() {
 
 async function handleVoiceUpload(event) {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitButton = form.querySelector("button[type='submit']");
+    const originalLabel = submitButton ? submitButton.textContent : null;
+
     try {
-        const form = event.currentTarget;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = "上传中...";
+        }
+
         const formData = new FormData(form);
-        await fetch("/api/voices", { method: "POST", body: formData }).then(async (response) => {
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(text || `Upload failed: ${response.status}`);
-            }
-        });
+        const speaker = formData.get("speaker");
+
+        const uploadResponse = await fetch("/api/voices", { method: "POST", body: formData });
+        if (!uploadResponse.ok) {
+            const text = await uploadResponse.text();
+            throw new Error(text || `Upload failed: ${uploadResponse.status}`);
+        }
+
+        setVoiceStatus(`声音 ${speaker} 已上传，正在生成缓存（首次需要加载模型，请耐心等待）...`, false);
+
+        // 自动预热缓存
+        const cacheResponse = await fetch(`/api/voices/${encodeURIComponent(speaker)}/cache`, { method: "POST" });
+        if (!cacheResponse.ok) {
+            const text = await cacheResponse.text();
+            throw new Error(`缓存生成失败: ${text || cacheResponse.status}`);
+        }
+
         form.reset();
         await loadVoices();
-        setStatus("声音已上传并写入 voices/。", false);
+        setVoiceStatus(`声音 ${speaker} 已上传并缓存就绪。`, false);
+    } catch (error) {
+        setVoiceStatus(error.message, true);
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+            if (originalLabel !== null) {
+                submitButton.textContent = originalLabel;
+            }
+        }
+    }
+}
+
+async function handlePruneOutputs() {
+    const historyCount = state.history.length;
+    if (historyCount <= 3) {
+        alert(`当前只有 ${historyCount} 条生成记录，不需要清理。`);
+        return;
+    }
+
+    const toDeleteCount = historyCount - 3;
+    const message = (
+        `清理旧输出将只保留最近 3 条生成的音频文件，其余 ${toDeleteCount} 条将被永久删除。\n\n` +
+        `此操作只删除 outputs/ 目录中的生成结果，不会影响声音库中的样本。\n\n` +
+        `此操作不可撤销，是否继续？`
+    );
+
+    if (!confirm(message)) {
+        return;
+    }
+
+    try {
+        const result = await requestJson("/api/outputs/prune", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ keep_count: 3 }),
+        });
+        await loadHistory();
+        setStatus(`已清理旧输出：删除 ${result.deleted.length} 条，保留 ${result.kept.length} 条。`, false);
     } catch (error) {
         setStatus(error.message, true);
     }
@@ -409,6 +506,8 @@ async function bootstrap() {
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
     document.getElementById("generate-form").addEventListener("submit", handleGenerate);
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);
+    const pruneBtn = document.getElementById("prune-outputs");
+    if (pruneBtn) pruneBtn.addEventListener("click", handlePruneOutputs);
     await Promise.all([loadConfig(), loadVoices(), loadHistory()]);
 }
 

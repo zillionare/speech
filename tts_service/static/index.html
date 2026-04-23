@@ -212,6 +212,7 @@
                   <p>多卡片视图，显示音频、缓存状态和 transcript。</p>
                 </div>
               </div>
+              <div id="voice-status" class="result-card empty" style="margin-bottom: 1rem;">声音库状态将显示在这里。</div>
               <div id="voice-list" class="voice-list"></div>
             </div>
           </div>
@@ -263,6 +264,7 @@
                     <h3>最近输出</h3>
                     <p>保存在 outputs/，保留最近 20 条。</p>
                   </div>
+                  <button id="prune-outputs" class="danger small" type="button">清理旧输出</button>
                 </div>
                 <div id="generation-history" class="history-list"></div>
               </div>

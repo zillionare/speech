@@ -68,6 +68,7 @@ class TTSEngine:
 
     def ensure_voice_cache_ready(self, speaker: str) -> VoiceSample:
         sample = self.sample_manager.resolve_or_default(speaker)
+        self._ensure_runtime_loaded()
         self._load_voice_embeddings(sample)
         return self.sample_manager.resolve_or_default(sample.speaker)
 

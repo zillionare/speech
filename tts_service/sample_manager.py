@@ -143,6 +143,16 @@ class SampleManager:
         self._aliases: dict[str, str] = {}
         self.refresh()
 
+    def update_settings(self, base_dir: Optional[Path] = None, default_voice: Optional[str] = None) -> None:
+        if base_dir is not None:
+            self.base_dir = Path(base_dir)
+            self.cache_dir = self.base_dir / ".cache"
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        if default_voice is not None:
+            self.default_voice = default_voice
+        self.refresh()
+
     def refresh(self) -> None:
         self._voices.clear()
         self._aliases.clear()
@@ -190,11 +200,15 @@ class SampleManager:
         if resolved is not None:
             return resolved
         default_sample = self.resolve(self.default_voice)
-        if default_sample is None:
-            raise FileNotFoundError(
-                f"Default voice '{self.default_voice}' is missing from {self.base_dir}"
-            )
-        return default_sample
+        if default_sample is not None:
+            return default_sample
+        # Fallback: use the first available voice if default is missing
+        samples = self.list_samples()
+        if samples:
+            return samples[0]
+        raise FileNotFoundError(
+            f"No voices available in {self.base_dir}"
+        )
 
     def add_voice(self, speaker: str, audio_bytes: bytes, transcript: str, overwrite: bool = False) -> VoiceSample:
         safe_speaker = self._sanitize_speaker_name(speaker)

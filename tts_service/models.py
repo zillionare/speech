@@ -77,3 +77,25 @@ class AppConfigResponse(BaseModel):
     default_voice: str
     diffusion_steps: int
     use_coreml_semantic: bool
+
+
+class AppConfigUpdateRequest(BaseModel):
+    voices_path: Optional[str] = None
+    outputs_path: Optional[str] = None
+    default_voice: Optional[str] = None
+    diffusion_steps: Optional[int] = None
+    quantize_bits: Optional[int] = None
+    cfg_scale: Optional[float] = None
+    max_speech_tokens: Optional[int] = None
+    use_semantic: Optional[bool] = None
+    use_coreml_semantic: Optional[bool] = None
+    seed: Optional[int] = None
+
+
+class PruneOutputsRequest(BaseModel):
+    keep_count: int = Field(default=3, ge=0)
+
+
+class PruneOutputsResponse(BaseModel):
+    deleted: List[str]
+    kept: List[str]

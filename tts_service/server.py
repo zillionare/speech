@@ -13,13 +13,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import load_config
+from .config import load_config, save_config_to_yaml
 from .models import (
     AppConfigResponse,
+    AppConfigUpdateRequest,
     GenerateRequest,
     GenerationRecord,
     HealthResponse,
     PodcastRequest,
+    PruneOutputsRequest,
+    PruneOutputsResponse,
     SpeechRequest,
     TranscriptUpdateRequest,
     VoiceInfo,
@@ -79,20 +82,72 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.get("/api/config", response_model=AppConfigResponse)
     def get_config() -> AppConfigResponse:
+        sample_manager.refresh()
+        # Return the actual effective default voice (fallback if configured one is missing)
+        effective_default = config.voices.default_voice
+        if sample_manager.resolve(effective_default) is None:
+            samples = sample_manager.list_samples()
+            if samples:
+                effective_default = samples[0].speaker
         return AppConfigResponse(
             model=config.model.model_id,
             quantize_bits=config.model.quantize_bits,
-            default_voice=config.voices.default_voice,
+            default_voice=effective_default,
             diffusion_steps=config.model.diffusion_steps,
             use_coreml_semantic=config.model.use_coreml_semantic,
         )
 
+    @app.post("/api/config", response_model=AppConfigResponse)
+    def update_config(request: AppConfigUpdateRequest) -> AppConfigResponse:
+        overrides = {}
+        if request.voices_path is not None:
+            overrides["voices"] = {"base_dir": request.voices_path}
+        if request.outputs_path is not None:
+            overrides["outputs"] = {"base_dir": request.outputs_path}
+        if request.default_voice is not None:
+            overrides["voices"] = overrides.get("voices", {})
+            overrides["voices"]["default_voice"] = request.default_voice
+        if request.diffusion_steps is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["diffusion_steps"] = request.diffusion_steps
+        if request.quantize_bits is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["quantize_bits"] = request.quantize_bits
+        if request.cfg_scale is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["cfg_scale"] = request.cfg_scale
+        if request.max_speech_tokens is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["max_speech_tokens"] = request.max_speech_tokens
+        if request.use_semantic is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["use_semantic"] = request.use_semantic
+        if request.use_coreml_semantic is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["use_coreml_semantic"] = request.use_coreml_semantic
+        if request.seed is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["seed"] = request.seed
+
+        config.apply_overrides(overrides)
+        if config_path:
+            save_config_to_yaml(config, config_path)
+        # Sync sample_manager with any changed voice settings
+        sample_manager.update_settings(
+            base_dir=config.voices.expanded_base_dir,
+            default_voice=config.voices.default_voice,
+        )
+        return get_config()
+
     @app.get("/api/voices", response_model=VoiceListResponse)
     def list_api_voices() -> VoiceListResponse:
         sample_manager.refresh()
-        return VoiceListResponse(
-            voices=[_voice_info(sample, config.voices.default_voice) for sample in sample_manager.list_samples()]
-        )
+        samples = sample_manager.list_samples()
+        voices = [_voice_info(sample, config.voices.default_voice) for sample in samples]
+        # If configured default voice doesn't exist, mark the first voice as default
+        if voices and not any(v.is_default for v in voices):
+            voices[0].is_default = True
+        return VoiceListResponse(voices=voices)
 
     @app.post("/api/voices", response_model=VoiceInfo)
     async def upload_voice(
@@ -104,7 +159,12 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if not audio_file.filename:
             raise HTTPException(status_code=400, detail="Audio file is required")
         audio_bytes = await audio_file.read()
-        sample = sample_manager.add_voice(speaker=speaker, audio_bytes=audio_bytes, transcript=transcript, overwrite=overwrite)
+        try:
+            sample = sample_manager.add_voice(speaker=speaker, audio_bytes=audio_bytes, transcript=transcript, overwrite=overwrite)
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return _voice_info(sample, config.voices.default_voice)
 
     @app.put("/api/voices/{speaker}/transcript", response_model=VoiceInfo)
@@ -121,8 +181,37 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     def delete_voice(speaker: str) -> dict[str, str]:
         if speaker == config.voices.default_voice:
             raise HTTPException(status_code=400, detail="Cannot delete the configured default voice")
-        sample_manager.delete_voice(speaker)
+        try:
+            sample_manager.delete_voice(speaker)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
         return {"status": "deleted", "speaker": speaker}
+
+    @app.post("/api/outputs/prune", response_model=PruneOutputsResponse)
+    def prune_outputs(request: PruneOutputsRequest) -> PruneOutputsResponse:
+        """Delete oldest generated audio files, keeping only the most recent *keep_count*."""
+        audio_exts = {".wav", ".flac", ".ogg"}
+        files = [f for f in outputs_dir.iterdir() if f.is_file() and f.suffix.lower() in audio_exts]
+        files_sorted = sorted(files, key=lambda f: f.stat().st_mtime, reverse=True)
+        to_keep = files_sorted[:request.keep_count]
+        to_delete = files_sorted[request.keep_count:]
+
+        deleted_names: list[str] = []
+        for f in to_delete:
+            f.unlink(missing_ok=True)
+            deleted_names.append(f.name)
+
+        # Sync in-memory history
+        keep_set = {f.name for f in to_keep}
+        for _ in range(len(history)):
+            record = history.popleft()
+            if record.filename in keep_set:
+                history.append(record)
+
+        return PruneOutputsResponse(
+            deleted=deleted_names,
+            kept=[f.name for f in to_keep],
+        )
 
     @app.get("/api/voices/{speaker}/audio")
     def get_voice_audio(speaker: str) -> FileResponse:

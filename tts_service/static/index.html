@@ -188,10 +188,12 @@
                 Transcript
                 <textarea name="transcript" rows="4" placeholder="这段文字对应音频里说的话"></textarea>
               </label>
-              <label>
-                Audio file
-                <input name="audio_file" type="file" accept="audio/*" required>
-              </label>
+              <div class="audio-select-row">
+                <label>Audio file</label>
+                <input name="audio_file" type="file" accept="audio/*" required style="display:none">
+                <button type="button" class="secondary" id="audio-select-btn">选择音频文件</button>
+                <span id="audio-selected-name" class="field-hint">未选择</span>
+              </div>
               <label class="inline-check">
                 <input name="overwrite" type="checkbox">
                 覆盖同名声音

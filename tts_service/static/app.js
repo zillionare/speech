@@ -355,6 +355,25 @@ async function handleVoiceUpload(event) {
     const submitButton = form.querySelector("button[type='submit']");
     const originalLabel = submitButton ? submitButton.textContent : null;
 
+    const speaker = form.querySelector("[name='speaker']").value.trim();
+    const audioInput = form.querySelector("[name='audio_file']");
+    const transcript = form.querySelector("[name='transcript']").value.trim();
+
+    if (!speaker) {
+        setVoiceStatus("请填写 Speaker 名称", true);
+        form.querySelector("[name='speaker']").focus();
+        return;
+    }
+    if (!audioInput.files || audioInput.files.length === 0) {
+        setVoiceStatus("请选择音频文件", true);
+        return;
+    }
+    if (!transcript) {
+        setVoiceStatus("请填写 Transcript，或点击'自动检测同名 .txt'读取", true);
+        form.querySelector("[name='transcript']").focus();
+        return;
+    }
+
     try {
         if (submitButton) {
             submitButton.disabled = true;
@@ -362,7 +381,6 @@ async function handleVoiceUpload(event) {
         }
 
         const formData = new FormData(form);
-        const speaker = formData.get("speaker");
 
         const uploadResponse = await fetch("/api/voices", { method: "POST", body: formData });
         if (!uploadResponse.ok) {
@@ -380,6 +398,7 @@ async function handleVoiceUpload(event) {
         }
 
         form.reset();
+        document.getElementById("audio-selected-name").textContent = "未选择";
         await loadVoices();
         setVoiceStatus(`声音 ${speaker} 已上传并缓存就绪。`, false);
     } catch (error) {

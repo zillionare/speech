@@ -253,8 +253,13 @@ function renderVoices() {
             if (!confirm(`删除声音 ${voice.speaker}？`)) {
                 return;
             }
-            await requestJson(`/api/voices/${encodeURIComponent(voice.speaker)}`, { method: "DELETE" });
-            await loadVoices();
+            try {
+                await requestJson(`/api/voices/${encodeURIComponent(voice.speaker)}`, { method: "DELETE" });
+                setVoiceStatus(`声音 ${voice.speaker} 已删除`, false);
+                await loadVoices();
+            } catch (err) {
+                setVoiceStatus(String(err), true);
+            }
         });
 
         list.appendChild(node);

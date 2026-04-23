@@ -501,36 +501,29 @@ function initNavigation() {
 }
 
 async function handleDirImport() {
-    const form = document.getElementById("voice-upload-form");
-    const audioInput = form.querySelector("[name='audio_file']");
-
     try {
         if (window.showDirectoryPicker) {
             const dirHandle = await window.showDirectoryPicker();
-            const wavFiles = [];
+            let found = null;
             for await (const [name, handle] of dirHandle.entries()) {
-                if (handle.kind === "file" && name.toLowerCase().endsWith(".wav")) {
-                    const speaker = name.slice(0, -4);
-                    let transcript = "";
-                    try {
-                        const txtHandle = await dirHandle.getFileHandle(speaker + ".txt");
-                        const txtFile = await txtHandle.getFile();
-                        transcript = await txtFile.text();
-                    } catch {
-                        // .txt not found
-                    }
-                    const audioFile = await handle.getFile();
-                    wavFiles.push({ speaker, transcript, audioFile });
+                if (handle.kind !== "file" || !name.toLowerCase().endsWith(".wav")) continue;
+                const speaker = name.slice(0, -4);
+                let transcript = "";
+                try {
+                    const txtHandle = await dirHandle.getFileHandle(speaker + ".txt");
+                    transcript = await (await txtHandle.getFile()).text();
+                } catch {
+                    // .txt not found
                 }
+                found = { speaker, transcript, audioFile: await handle.getFile() };
+                break; // only need the first one
             }
-            fillDirImportResult(wavFiles);
+            fillDirImportResult(found);
         } else {
-            // Fallback: trigger webkitdirectory input
             document.getElementById("voice-dir-input").click();
         }
-    } catch (err) {
-        // User cancelled or API not supported
-        console.log("Directory import cancelled:", err);
+    } catch {
+        // User cancelled
     }
 }
 
@@ -538,64 +531,43 @@ async function handleWebkitDirChange(event) {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
-    // Group by directory using webkitRelativePath
-    const dirMap = new Map();
-    for (const file of files) {
-        const relPath = file.webkitRelativePath || file.name;
-        const lastSlash = relPath.lastIndexOf("/");
-        const dir = lastSlash >= 0 ? relPath.substring(0, lastSlash) : "";
-        if (!dirMap.has(dir)) dirMap.set(dir, []);
-        dirMap.get(dir).push(file);
+    // Find the first .wav in the selected directory
+    const wavFile = files.find((f) => f.name.toLowerCase().endsWith(".wav"));
+    if (!wavFile) {
+        fillDirImportResult(null);
+        return;
     }
 
-    const wavFiles = [];
-    for (const [, dirFiles] of dirMap) {
-        for (const file of dirFiles) {
-            if (file.name.toLowerCase().endsWith(".wav")) {
-                const speaker = file.name.slice(0, -4);
-                const txtFile = dirFiles.find((f) => f.name === speaker + ".txt");
-                let transcript = "";
-                if (txtFile) {
-                    transcript = await txtFile.text();
-                }
-                wavFiles.push({ speaker, transcript, audioFile: file });
-            }
-        }
+    const speaker = wavFile.name.slice(0, -4);
+    const txtFile = files.find((f) => f.name === speaker + ".txt");
+    let transcript = "";
+    if (txtFile) {
+        transcript = await txtFile.text();
     }
-    fillDirImportResult(wavFiles);
+    fillDirImportResult({ speaker, transcript, audioFile: wavFile });
 }
 
-function fillDirImportResult(wavFiles) {
+function fillDirImportResult(found) {
     const form = document.getElementById("voice-upload-form");
     const audioInput = form.querySelector("[name='audio_file']");
 
-    if (wavFiles.length === 0) {
+    if (!found) {
         setVoiceStatus("目录中没有找到 .wav 文件。", true);
         return;
     }
 
-    // Use the first match
-    const first = wavFiles[0];
-    form.querySelector("[name='speaker']").value = first.speaker;
-    form.querySelector("[name='transcript']").value = first.transcript;
+    form.querySelector("[name='speaker']").value = found.speaker;
+    form.querySelector("[name='transcript']").value = found.transcript;
 
-    // Set file input
     const dt = new DataTransfer();
-    dt.items.add(first.audioFile);
+    dt.items.add(found.audioFile);
     audioInput.files = dt.files;
 
-    if (!first.transcript) {
-        setVoiceStatus(
-            `已选择 ${first.speaker}.wav，但未找到同名 .txt 文件，请手动输入 transcript`,
-            true
-        );
+    if (!found.transcript) {
+        setVoiceStatus(`已选择 ${found.speaker}.wav，未找到同名 .txt，请手动输入`, true);
         form.querySelector("[name='transcript']").focus();
     } else {
-        setVoiceStatus(
-            `已自动导入 ${first.speaker}.wav + ${first.speaker}.txt` +
-            (wavFiles.length > 1 ? `（目录中共有 ${wavFiles.length} 个声音，请逐个上传）` : ""),
-            false
-        );
+        setVoiceStatus(`已导入 ${found.speaker}.wav + .txt`, false);
     }
 }
 

@@ -500,6 +500,105 @@ function initNavigation() {
     }
 }
 
+async function handleDirImport() {
+    const form = document.getElementById("voice-upload-form");
+    const audioInput = form.querySelector("[name='audio_file']");
+
+    try {
+        if (window.showDirectoryPicker) {
+            const dirHandle = await window.showDirectoryPicker();
+            const wavFiles = [];
+            for await (const [name, handle] of dirHandle.entries()) {
+                if (handle.kind === "file" && name.toLowerCase().endsWith(".wav")) {
+                    const speaker = name.slice(0, -4);
+                    let transcript = "";
+                    try {
+                        const txtHandle = await dirHandle.getFileHandle(speaker + ".txt");
+                        const txtFile = await txtHandle.getFile();
+                        transcript = await txtFile.text();
+                    } catch {
+                        // .txt not found
+                    }
+                    const audioFile = await handle.getFile();
+                    wavFiles.push({ speaker, transcript, audioFile });
+                }
+            }
+            fillDirImportResult(wavFiles);
+        } else {
+            // Fallback: trigger webkitdirectory input
+            document.getElementById("voice-dir-input").click();
+        }
+    } catch (err) {
+        // User cancelled or API not supported
+        console.log("Directory import cancelled:", err);
+    }
+}
+
+async function handleWebkitDirChange(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    // Group by directory using webkitRelativePath
+    const dirMap = new Map();
+    for (const file of files) {
+        const relPath = file.webkitRelativePath || file.name;
+        const lastSlash = relPath.lastIndexOf("/");
+        const dir = lastSlash >= 0 ? relPath.substring(0, lastSlash) : "";
+        if (!dirMap.has(dir)) dirMap.set(dir, []);
+        dirMap.get(dir).push(file);
+    }
+
+    const wavFiles = [];
+    for (const [, dirFiles] of dirMap) {
+        for (const file of dirFiles) {
+            if (file.name.toLowerCase().endsWith(".wav")) {
+                const speaker = file.name.slice(0, -4);
+                const txtFile = dirFiles.find((f) => f.name === speaker + ".txt");
+                let transcript = "";
+                if (txtFile) {
+                    transcript = await txtFile.text();
+                }
+                wavFiles.push({ speaker, transcript, audioFile: file });
+            }
+        }
+    }
+    fillDirImportResult(wavFiles);
+}
+
+function fillDirImportResult(wavFiles) {
+    const form = document.getElementById("voice-upload-form");
+    const audioInput = form.querySelector("[name='audio_file']");
+
+    if (wavFiles.length === 0) {
+        setVoiceStatus("目录中没有找到 .wav 文件。", true);
+        return;
+    }
+
+    // Use the first match
+    const first = wavFiles[0];
+    form.querySelector("[name='speaker']").value = first.speaker;
+    form.querySelector("[name='transcript']").value = first.transcript;
+
+    // Set file input
+    const dt = new DataTransfer();
+    dt.items.add(first.audioFile);
+    audioInput.files = dt.files;
+
+    if (!first.transcript) {
+        setVoiceStatus(
+            `已选择 ${first.speaker}.wav，但未找到同名 .txt 文件，请手动输入 transcript`,
+            true
+        );
+        form.querySelector("[name='transcript']").focus();
+    } else {
+        setVoiceStatus(
+            `已自动导入 ${first.speaker}.wav + ${first.speaker}.txt` +
+            (wavFiles.length > 1 ? `（目录中共有 ${wavFiles.length} 个声音，请逐个上传）` : ""),
+            false
+        );
+    }
+}
+
 async function bootstrap() {
     initNavigation();
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
@@ -507,6 +606,10 @@ async function bootstrap() {
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);
     const pruneBtn = document.getElementById("prune-outputs");
     if (pruneBtn) pruneBtn.addEventListener("click", handlePruneOutputs);
+    const importBtn = document.getElementById("import-from-dir");
+    if (importBtn) importBtn.addEventListener("click", handleDirImport);
+    const dirInput = document.getElementById("voice-dir-input");
+    if (dirInput) dirInput.addEventListener("change", handleWebkitDirChange);
     await Promise.all([loadConfig(), loadVoices(), loadHistory()]);
 }
 

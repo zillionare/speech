@@ -147,11 +147,10 @@ function setStatus(message, isError = false) {
 }
 
 function setVoiceStatus(message, isError = false) {
-    const card = document.getElementById("voice-status");
-    if (!card) return;
-    card.classList.toggle("error", isError);
-    card.classList.remove("empty");
-    card.innerHTML = `<p>${message}</p>`;
+    const el = document.getElementById("voice-status");
+    if (!el) return;
+    el.classList.toggle("error", isError);
+    el.textContent = message;
 }
 
 function renderConfig() {

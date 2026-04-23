@@ -27,12 +27,44 @@ VIBEVOICE_MLX_ROOT = REPO_ROOT / "vibevoice-mlx"
 if str(VIBEVOICE_MLX_ROOT) not in sys.path:
     sys.path.insert(0, str(VIBEVOICE_MLX_ROOT))
 
-_DIGIT_RE = re.compile(r"\d+")
+_DIGITS = "零一二三四五六七八九"
+
+# Patterns that should be read digit-by-digit (codes, years, IDs)
+_YEAR_RE = re.compile(r"\b(\d{4})\s*年")
+_CODE_RE = re.compile(r"(?:编号|第|No\.?|API|版本|型号|代码|序列号|密码|身份证号|电话|手机|工号|学号|房间号|门牌号|航班号|车次|订单号|快递单号|ISBN|ISSN)(?:[:：是为])?\s*(\d+)")
+
+# General numbers (read by value: 48 -> 四十八)
+_NUM_RE = re.compile(r"\d+")
 
 
 def _convert_numbers_to_chinese(text: str) -> str:
-    """Replace Arabic numerals with Chinese readings for TTS."""
-    return _DIGIT_RE.sub(lambda m: cn2an.an2cn(m.group(0)), text)
+    """Replace Arabic numerals with context-aware Chinese readings for TTS.
+
+    Rules:
+      - 4-digit + "年"   -> digit-by-digit (2026年 -> 二零二六年)
+      - codes/IDs/No.    -> digit-by-digit (编号7392 -> 编号七三九二)
+      - everything else  -> value-based   (48 -> 四十八, 22 -> 二十二)
+    """
+
+    def replace_year(m: re.Match) -> str:
+        return "".join(_DIGITS[int(d)] for d in m.group(1)) + "年"
+
+    def replace_code(m: re.Match) -> str:
+        full = m.group(0)
+        digits = m.group(1)
+        prefix = full[: full.rfind(digits)]
+        return prefix + "".join(_DIGITS[int(d)] for d in digits)
+
+    # Phase 1: years (4 digits followed by 年)
+    text = _YEAR_RE.sub(replace_year, text)
+
+    # Phase 2: codes / IDs / serial numbers
+    text = _CODE_RE.sub(replace_code, text)
+
+    # Phase 3: remaining numbers read by value
+    text = _NUM_RE.sub(lambda m: cn2an.an2cn(m.group(0)), text)
+
+    return text
 
 from vibevoice_mlx.e2e_pipeline import (  # noqa: E402
     SAMPLE_RATE,

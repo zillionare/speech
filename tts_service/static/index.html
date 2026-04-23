@@ -190,9 +190,14 @@
               </label>
               <div class="audio-select-row">
                 <label>Audio file</label>
-                <input name="audio_file" type="file" accept="audio/*" required style="display:none">
+                <input name="audio_file" type="file" accept=".wav" required style="display:none">
                 <button type="button" class="secondary" id="audio-select-btn">选择音频文件</button>
                 <span id="audio-selected-name" class="field-hint">未选择</span>
+              </div>
+              <div class="audio-select-row">
+                <label>Transcript</label>
+                <button type="button" class="secondary" id="detect-transcript-btn">自动检测同名 .txt</button>
+                <span class="field-hint">选择音频后，可自动读取同目录同名 .txt</span>
               </div>
               <label class="inline-check">
                 <input name="overwrite" type="checkbox">

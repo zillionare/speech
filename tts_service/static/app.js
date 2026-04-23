@@ -505,59 +505,63 @@ function initNavigation() {
     }
 }
 
-async function handleAudioSelect() {
+function handleAudioFileChange(event) {
+    const file = event.target.files[0];
+    if (!file) return;
     const form = document.getElementById("voice-upload-form");
-    const audioInput = form.querySelector("[name='audio_file']");
+    const speakerInput = form.querySelector("[name='speaker']");
     const nameLabel = document.getElementById("audio-selected-name");
+    const base = file.name.replace(/\.[^/.]+$/, "");
+    if (!speakerInput.value) {
+        speakerInput.value = base;
+    }
+    nameLabel.textContent = file.name;
+}
 
+async function handleDetectTranscript() {
+    const form = document.getElementById("voice-upload-form");
+    const speaker = form.querySelector("[name='speaker']").value;
+    if (!speaker) {
+        setVoiceStatus("请先选择音频文件", true);
+        return;
+    }
+    if (!window.showDirectoryPicker) {
+        setVoiceStatus("您的浏览器不支持自动检测，请手动输入 transcript", true);
+        return;
+    }
     try {
         const dirHandle = await window.showDirectoryPicker();
-        let wavHandle = null;
-        let txtHandle = null;
-
         const files = {};
         for await (const [name, handle] of dirHandle.entries()) {
-            if (handle.kind === "file") files[name] = handle;
+            if (handle.kind === "file") files[name.toLowerCase()] = handle;
         }
-
-        const wavName = Object.keys(files).find(n => n.toLowerCase().endsWith(".wav"));
-        if (!wavName) {
-            setVoiceStatus("目录中没有找到 .wav 文件。", true);
-            nameLabel.textContent = "未选择";
-            return;
-        }
-
-        const speaker = wavName.slice(0, -4);
-        form.querySelector("[name='speaker']").value = speaker;
-
-        // Set audio file into hidden input for FormData upload
-        const audioFile = await files[wavName].getFile();
-        const dt = new DataTransfer();
-        dt.items.add(audioFile);
-        audioInput.files = dt.files;
-        nameLabel.textContent = audioFile.name;
-
-        // Read transcript if same-name .txt exists
-        const txtName = speaker + ".txt";
+        const txtName = (speaker + ".txt").toLowerCase();
         if (txtName in files) {
             const txtFile = await files[txtName].getFile();
             const transcript = await txtFile.text();
             form.querySelector("[name='transcript']").value = transcript;
-            setVoiceStatus(`已选择 ${wavName} 并自动读取同名 .txt`, false);
+            setVoiceStatus(`已自动读取 ${speaker}.txt`, false);
         } else {
-            setVoiceStatus(`已选择 ${wavName}，未找到同名 .txt，请手动输入`, true);
-            form.querySelector("[name='transcript']").focus();
+            setVoiceStatus(`目录中未找到 ${speaker}.txt，请手动输入`, true);
         }
     } catch {
         // User cancelled
     }
 }
 
+function handleAudioSelect() {
+    document.querySelector("#voice-upload-form [name='audio_file']").click();
+}
+
 async function bootstrap() {
     initNavigation();
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
+    const audioInput = document.querySelector("#voice-upload-form [name='audio_file']");
+    if (audioInput) audioInput.addEventListener("change", handleAudioFileChange);
     const audioBtn = document.getElementById("audio-select-btn");
     if (audioBtn) audioBtn.addEventListener("click", handleAudioSelect);
+    const detectBtn = document.getElementById("detect-transcript-btn");
+    if (detectBtn) detectBtn.addEventListener("click", handleDetectTranscript);
     document.getElementById("generate-form").addEventListener("submit", handleGenerate);
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);
     const pruneBtn = document.getElementById("prune-outputs");

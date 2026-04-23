@@ -15,3 +15,6 @@ soundfile>=0.12.1
 transformers>=4.40.0
 huggingface_hub>=0.23.0
 safetensors>=0.4.3
+
+# Number-to-Chinese for TTS
+cn2an>=0.5.0

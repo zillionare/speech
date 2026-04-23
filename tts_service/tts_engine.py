@@ -15,6 +15,8 @@ from typing import Optional
 import mlx.core as mx
 import soundfile as sf
 
+import cn2an
+
 from .config import Config
 from .models import SpeakerResolution
 from .sample_manager import SampleManager, VoiceSample
@@ -24,6 +26,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 VIBEVOICE_MLX_ROOT = REPO_ROOT / "vibevoice-mlx"
 if str(VIBEVOICE_MLX_ROOT) not in sys.path:
     sys.path.insert(0, str(VIBEVOICE_MLX_ROOT))
+
+_DIGIT_RE = re.compile(r"\d+")
+
+
+def _convert_numbers_to_chinese(text: str) -> str:
+    """Replace Arabic numerals with Chinese readings for TTS."""
+    return _DIGIT_RE.sub(lambda m: cn2an.an2cn(m.group(0)), text)
 
 from vibevoice_mlx.e2e_pipeline import (  # noqa: E402
     SAMPLE_RATE,
@@ -85,6 +94,7 @@ class TTSEngine:
         normalized_text = text.strip()
         if not normalized_text:
             raise ValueError("Input text cannot be empty")
+        normalized_text = _convert_numbers_to_chinese(normalized_text)
 
         with self._generation_lock:
             self._ensure_runtime_loaded()

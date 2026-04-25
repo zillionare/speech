@@ -122,6 +122,9 @@ class BaseEngine(ABC):
         max_chars: int,
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
+        speed: float = 1.0,
+        stereo: bool = False,
+        spatial_jitter: bool = False,
     ):
         """Generator that yields progress dicts and finally a complete result dict.
 
@@ -154,6 +157,17 @@ class BaseEngine(ABC):
                     voice=segments[0].speaker or preferred_voice,
                     output_format=output_format,
                 )
+                audio_bytes, duration = _apply_audio_effects(
+                    result.audio_bytes, output_format, speed, stereo, spatial_jitter
+                )
+                result = GenerationResult(
+                    audio_bytes=audio_bytes,
+                    output_format=result.output_format,
+                    generation_seconds=result.generation_seconds,
+                    duration_seconds=duration,
+                    resolved_speakers=result.resolved_speakers,
+                    segment_count=result.segment_count,
+                )
                 yield {"type": "complete", "result": result}
                 return
 
@@ -180,11 +194,14 @@ class BaseEngine(ABC):
                         all_resolutions.append(spk)
 
             final_audio = _concatenate_audio_segments(audio_parts, output_format)
+            final_audio, final_duration = _apply_audio_effects(
+                final_audio, output_format, speed, stereo, spatial_jitter
+            )
             complete_result = GenerationResult(
                 audio_bytes=final_audio,
                 output_format=output_format,
                 generation_seconds=total_gen_seconds,
-                duration_seconds=total_duration_seconds,
+                duration_seconds=final_duration,
                 resolved_speakers=all_resolutions,
                 segment_count=len(segments),
             )
@@ -229,6 +246,79 @@ def _concatenate_audio_segments(
         subprocess.run(cmd, check=True, capture_output=True)
 
         return output_path.read_bytes()
+
+
+def _build_atempo_chain(speed: float) -> str:
+    """Build ffmpeg atempo filter chain for any speed > 0."""
+    if speed <= 0:
+        return "atempo=1.0"
+    if 0.5 <= speed <= 2.0:
+        return f"atempo={speed}"
+    # Chain multiple atempo filters (each must be in [0.5, 2.0])
+    filters = []
+    remaining = speed
+    while remaining < 0.5:
+        filters.append("atempo=0.5")
+        remaining /= 0.5
+    while remaining > 2.0:
+        filters.append("atempo=2.0")
+        remaining /= 2.0
+    filters.append(f"atempo={remaining}")
+    return ",".join(filters)
+
+
+def _apply_audio_effects(
+    audio_bytes: bytes,
+    output_format: str,
+    speed: float = 1.0,
+    stereo: bool = False,
+    spatial_jitter: bool = False,
+) -> tuple[bytes, float]:
+    """Apply speed and stereo spatial effects via ffmpeg.
+
+    Returns (audio_bytes, duration_seconds).
+    """
+    if speed == 1.0 and not stereo and not spatial_jitter:
+        info = sf.info(io.BytesIO(audio_bytes))
+        return audio_bytes, info.duration
+
+    filters = []
+    if speed != 1.0:
+        filters.append(_build_atempo_chain(speed))
+    if stereo:
+        filters.append("pan=stereo|c0=c0|c1=c0")
+    if spatial_jitter and stereo:
+        # Slow subtle LFO panning for naturalness
+        filters.append("apulsator=hz=0.3:width=0.08:offset_l=0.05:offset_r=0.05")
+
+    af = ",".join(filters)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        input_path = tmp_path / f"input.{output_format}"
+        input_path.write_bytes(audio_bytes)
+        output_path = tmp_path / f"output.{output_format}"
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(input_path),
+            "-af", af,
+            "-c:a", "copy" if (not stereo and not spatial_jitter) else "pcm_s16le",
+            str(output_path),
+        ]
+        # For ogg/flac with re-encoding we need to handle codec properly
+        if output_format == "ogg":
+            cmd[-2] = "libvorbis"
+        elif output_format == "flac":
+            cmd[-2] = "flac"
+        elif output_format == "wav":
+            cmd[-2] = "pcm_s16le"
+
+        subprocess.run(cmd, check=True, capture_output=True)
+        result_bytes = output_path.read_bytes()
+        info = sf.info(io.BytesIO(result_bytes))
+        return result_bytes, info.duration
 
 
 def create_engine(config, sample_manager) -> BaseEngine:

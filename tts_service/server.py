@@ -53,9 +53,9 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
 
     app = FastAPI(
-        title="VibeVoice MLX Studio",
-        description="vibevoice-mlx based dialogue generation and voice management UI",
-        version="0.2.0",
+        title="Speech Studio",
+        description="Qwen-TTS primary dialogue generation and voice management UI with local MLX fallback",
+        version="0.3.0",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -104,6 +104,9 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             use_remote_qwen=getattr(config.model, "use_remote_qwen", False),
             qwen_base_url=getattr(config.model, "qwen_base_url", ""),
             max_segment_chars=getattr(config.model, "max_segment_chars", 200),
+            speed=getattr(config.model, "speed", 1.0),
+            stereo=getattr(config.model, "stereo", False),
+            spatial_jitter=getattr(config.model, "spatial_jitter", False),
         )
 
     @app.post("/api/config", response_model=AppConfigResponse)
@@ -146,6 +149,15 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.max_segment_chars is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["max_segment_chars"] = request.max_segment_chars
+        if request.speed is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["speed"] = request.speed
+        if request.stereo is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["stereo"] = request.stereo
+        if request.spatial_jitter is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["spatial_jitter"] = request.spatial_jitter
 
         config.apply_overrides(overrides)
         if config_path:
@@ -304,6 +316,10 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
         max_chars = getattr(config.model, "max_segment_chars", 200)
 
+        speed = getattr(config.model, "speed", 1.0)
+        stereo = getattr(config.model, "stereo", False)
+        spatial_jitter = getattr(config.model, "spatial_jitter", False)
+
         def event_generator():
             for event in target_engine.generate_with_segmentation_stream(
                 text=request.text,
@@ -311,6 +327,9 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 max_chars=max_chars,
                 preferred_voice=request.voice,
                 voice_mapping=request.voice_mapping,
+                speed=speed,
+                stereo=stereo,
+                spatial_jitter=spatial_jitter,
             ):
                 if event["type"] == "complete":
                     result = event["result"]

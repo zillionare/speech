@@ -28,6 +28,9 @@ async function saveConfig() {
         use_coreml_semantic: document.getElementById('config-coreml-toggle').checked,
         seed: parseInt(document.getElementById('config-seed-input').value),
         max_segment_chars: parseInt(document.getElementById('config-max-segment-slider').value),
+        speed: parseFloat(document.getElementById('config-speed-slider').value),
+        stereo: document.getElementById('config-stereo-toggle').checked,
+        spatial_jitter: document.getElementById('config-jitter-toggle').checked,
     };
     
     try {
@@ -59,6 +62,10 @@ function resetConfig() {
         document.getElementById('config-seed-input').value = '42';
         document.getElementById('config-max-segment-slider').value = '200';
         document.getElementById('config-max-segment-value').textContent = '200';
+        document.getElementById('config-speed-slider').value = '1.0';
+        document.getElementById('config-speed-value').textContent = '1.0x';
+        document.getElementById('config-stereo-toggle').checked = false;
+        document.getElementById('config-jitter-toggle').checked = false;
     }
 }
 
@@ -97,6 +104,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (maxSegmentSlider && maxSegmentValue) {
         maxSegmentSlider.addEventListener('input', (e) => {
             maxSegmentValue.textContent = e.target.value;
+        });
+    }
+
+    // 语速滑块
+    const speedSlider = document.getElementById('config-speed-slider');
+    const speedValue = document.getElementById('config-speed-value');
+    if (speedSlider && speedValue) {
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = e.target.value + 'x';
         });
     }
 
@@ -209,6 +225,19 @@ function renderConfig() {
         const maxSegmentValue = document.getElementById("config-max-segment-value");
         if (maxSegmentValue) maxSegmentValue.textContent = String(state.config.max_segment_chars);
     }
+
+    const speedSlider = document.getElementById("config-speed-slider");
+    if (speedSlider) {
+        speedSlider.value = state.config.speed;
+        const speedValue = document.getElementById("config-speed-value");
+        if (speedValue) speedValue.textContent = state.config.speed.toFixed(1) + "x";
+    }
+
+    const stereoToggle = document.getElementById("config-stereo-toggle");
+    if (stereoToggle) stereoToggle.checked = state.config.stereo;
+
+    const jitterToggle = document.getElementById("config-jitter-toggle");
+    if (jitterToggle) jitterToggle.checked = state.config.spatial_jitter;
 
     // Selects and toggles
     const quantizeSelect = document.getElementById("config-quantize-select");

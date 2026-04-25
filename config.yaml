@@ -10,6 +10,9 @@ model:
   use_remote_qwen: false
   qwen_base_url: http://192.168.0.102:8000
   max_segment_chars: 500
+  speed: 1.0
+  stereo: false
+  spatial_jitter: false
 voices:
   base_dir: /Users/aaronyang/workspace/speech/voices
   default_voice: Aaron

@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VibeVoice MLX Studio — a local Chinese TTS and voice-cloning web service built on Microsoft's VibeVoice model, running on Apple Silicon via MLX. The backend is Python (FastAPI), and the frontend is vanilla HTML/CSS/JS served as static files (no Node.js build step).
+Speech Studio — a Chinese TTS and voice-cloning web service with dual-engine support:
+- **Primary:** Remote Qwen3-TTS via OpenAI-compatible API (hosted on `192.168.0.102:8000`)
+- **Fallback:** Local MLX inference using the VibeVoice model (Apple Silicon only)
+
+The backend is Python (FastAPI), and the frontend is vanilla HTML/CSS/JS served as static files (no Node.js build step). Users can toggle between engines per-generation.
 
 ## Common Commands
 
@@ -34,9 +38,11 @@ There is no pytest, Makefile, or centralized test runner. Integration test scrip
   - OpenAI-compatible: `/v1/audio/speech`, `/v1/audio/podcast`, `/v1/voices`
 - A `deque` with `maxlen=config.outputs.history_limit` holds recent generation records in memory.
 
-### TTS Engine (`tts_service/tts_engine.py`)
-- `TTSEngine` loads the MLX model on first generation and manages voice embedding caches.
-- It imports `vibevoice_mlx.e2e_pipeline` at runtime. The `vibevoice-mlx/` directory is vendored and added to `sys.path` at module load time (`VIBEVOICE_MLX_ROOT`).
+### TTS Engines (`tts_service/engines/`)
+- **`QwenRemoteEngine`** (primary): Calls the remote Qwen3-TTS service at `config.model.qwen_base_url`. Sends `ref_audio` (base64) + `ref_text` for voice cloning. ~10x faster than local MLX.
+- **`LocalVibeVoiceEngine`** (fallback): Direct Python integration with `vibevoice-mlx` on Apple Silicon via MLX. Loads the model on first generation.
+- **Engine factory** (`create_engine()` in `base.py`): Returns the remote engine if `use_remote_qwen=true`, else local. Users can override per-request via the `engine` field.
+- **`BaseEngine`** provides shared utilities: text segmentation for long inputs, ffmpeg-based audio concatenation, and post-processing (speed via `atempo`, mono→stereo, spatial jitter via `apulsator`).
 - **Dialogue parsing:** Input in `Speaker: text` format is split by speaker. Speaker resolution order: exact local voice match → alias matching → default voice (`config.voices.default_voice`).
 - **Number-to-Chinese:** Arabic numerals are converted to Chinese text before TTS. Years (4 digits + "年") and codes/IDs are read digit-by-digit; other numbers are read by value via `cn2an`.
 
@@ -55,8 +61,9 @@ There is no pytest, Makefile, or centralized test runner. Integration test scrip
 
 ## Important Design Constraints
 
-- **Apple Silicon only** — MLX is a hard dependency.
+- **Primary engine is remote Qwen-TTS** — local MLX is a fallback for offline use or when the remote server is unavailable.
+- **Apple Silicon only for local engine** — MLX is a hard dependency of the local path, not the remote path.
 - **No `mlx-audio` dependency** — this was an explicit architectural decision to avoid the old path.
 - **No Node.js frontend build** — the UI in `tts_service/static/` is vanilla HTML/CSS/JS served directly by FastAPI. Do not introduce a bundler.
 - **Voice assets are local-first** — the service does not auto-download remote `.safetensors` presets by speaker name. Bundled voices ship as local `.wav` files.
-- Transcript `.txt` files are managed alongside `.wav` files even though the current `vibevoice-mlx` inference only uses audio for cloning.
+- Transcript `.txt` files are managed alongside `.wav` files; the remote Qwen engine uses them as `ref_text`, while the local MLX engine only uses audio for cloning.

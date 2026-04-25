@@ -19,7 +19,7 @@ import cn2an
 from ..config import Config
 from ..models import SpeakerResolution
 from ..sample_manager import SampleManager, VoiceSample
-from .base import BaseEngine, GenerationResult
+from .base import BaseEngine, GenerationResult, _apply_audio_effects
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -108,7 +108,8 @@ class LocalVibeVoiceEngine(BaseEngine):
                     transcript_preview=sample.transcript_preview,
                 )
             ]
-            return self._generate_one(script, [sample], resolutions, output_format)
+            result = self._generate_one(script, [sample], resolutions, output_format)
+            return self._post_process(result)
 
     def generate_dialogue(
         self,
@@ -124,13 +125,14 @@ class LocalVibeVoiceEngine(BaseEngine):
 
         max_chars = getattr(self.config.model, "max_segment_chars", 200)
         if len(normalized_text) > max_chars:
-            return self._generate_with_segmentation(
+            result = self._generate_with_segmentation(
                 text=normalized_text,
                 output_format=output_format,
                 max_chars=max_chars,
                 preferred_voice=preferred_voice,
                 voice_mapping=voice_mapping,
             )
+            return self._post_process(result)
 
         with self._generation_lock:
             self._ensure_runtime_loaded()
@@ -141,7 +143,25 @@ class LocalVibeVoiceEngine(BaseEngine):
                 voice_mapping=voice_mapping or {},
                 default_sample=default_sample,
             )
-            return self._generate_one(normalized_script, ordered_samples, resolutions, output_format)
+            result = self._generate_one(normalized_script, ordered_samples, resolutions, output_format)
+            return self._post_process(result)
+
+    def _post_process(self, result: GenerationResult) -> GenerationResult:
+        audio_bytes, duration = _apply_audio_effects(
+            result.audio_bytes,
+            result.output_format,
+            speed=getattr(self.config.model, "speed", 1.0),
+            stereo=getattr(self.config.model, "stereo", False),
+            spatial_jitter=getattr(self.config.model, "spatial_jitter", False),
+        )
+        return GenerationResult(
+            audio_bytes=audio_bytes,
+            output_format=result.output_format,
+            generation_seconds=result.generation_seconds,
+            duration_seconds=duration,
+            resolved_speakers=result.resolved_speakers,
+            segment_count=result.segment_count,
+        )
 
     def _generate_one(
         self,

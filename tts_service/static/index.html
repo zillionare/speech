@@ -290,6 +290,35 @@
                 </div>
                 <p class="field-hint">超过此长度自动分段生成再合成 (50-500)</p>
               </div>
+
+              <h3 class="settings-group-title">🎧 音频效果</h3>
+
+              <div class="setting-row">
+                <label>语速倍率</label>
+                <div class="slider-container">
+                  <input type="range" id="config-speed-slider" min="0.5" max="2.0" step="0.1" value="1.0" class="config-slider">
+                  <span id="config-speed-value" class="slider-value">1.0x</span>
+                </div>
+                <p class="field-hint">0.5x 慢速 ~ 2.0x 快速，生成后通过时域拉伸处理</p>
+              </div>
+
+              <div class="setting-row">
+                <label>立体声输出</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="config-stereo-toggle">
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="field-hint">将单声道输出转换为双声道立体声</p>
+              </div>
+
+              <div class="setting-row">
+                <label>空间微抖动</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="config-jitter-toggle">
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="field-hint">给左右声道添加缓慢的音量起伏，增加自然感</p>
+              </div>
             </div>
           </div>
         </section>

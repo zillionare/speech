@@ -131,6 +131,8 @@ class LocalVibeVoiceEngine(BaseEngine):
                 max_chars=max_chars,
                 preferred_voice=preferred_voice,
                 voice_mapping=voice_mapping,
+                segment_gap=getattr(self.config.model, "segment_gap_seconds", 1.0),
+                speaker_gap=getattr(self.config.model, "speaker_gap_seconds", 1.0),
             )
             return self._post_process(result)
 

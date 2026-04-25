@@ -54,6 +54,8 @@ class BaseEngine(ABC):
         max_chars: int,
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
+        segment_gap: float = 1.0,
+        speaker_gap: float = 1.0,
     ) -> GenerationResult:
         """Segment long text, generate each part, concatenate with ffmpeg.
 
@@ -105,7 +107,8 @@ class BaseEngine(ABC):
                     seen_speakers.add(spk.resolved_voice)
                     all_resolutions.append(spk)
 
-        final_audio = _concatenate_audio_segments(audio_parts, output_format)
+        gaps = _compute_gaps(segments, segment_gap, speaker_gap)
+        final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
         return GenerationResult(
             audio_bytes=final_audio,
             output_format=output_format,
@@ -125,6 +128,8 @@ class BaseEngine(ABC):
         speed: float = 1.0,
         stereo: bool = False,
         spatial_jitter: bool = False,
+        segment_gap: float = 1.0,
+        speaker_gap: float = 1.0,
     ):
         """Generator that yields progress dicts and finally a complete result dict.
 
@@ -193,7 +198,8 @@ class BaseEngine(ABC):
                         seen_speakers.add(spk.resolved_voice)
                         all_resolutions.append(spk)
 
-            final_audio = _concatenate_audio_segments(audio_parts, output_format)
+            gaps = _compute_gaps(segments, segment_gap, speaker_gap)
+            final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
             final_audio, final_duration = _apply_audio_effects(
                 final_audio, output_format, speed, stereo, spatial_jitter
             )
@@ -210,26 +216,66 @@ class BaseEngine(ABC):
             yield {"type": "error", "message": str(exc)}
 
 
+def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path) -> None:
+    """Generate a silent audio file of given duration."""
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl=mono",
+        "-t", str(duration_seconds),
+        "-acodec", "pcm_s16le",
+        str(output_path),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+def _compute_gaps(segments, segment_gap: float, speaker_gap: float) -> list[float]:
+    """Return list of silence durations before each segment.
+
+    gaps[0] is always 0.0. Subsequent gaps depend on whether the speaker
+    changed from the previous segment.
+    """
+    gaps = [0.0]
+    for i in range(1, len(segments)):
+        prev = getattr(segments[i - 1], "speaker", None)
+        curr = getattr(segments[i], "speaker", None)
+        if prev != curr and (prev is not None or curr is not None):
+            gaps.append(speaker_gap)
+        else:
+            gaps.append(segment_gap)
+    return gaps
+
+
 def _concatenate_audio_segments(
     segments: list[bytes],
     output_format: str,
     sample_rate: int = 24000,
+    gaps: list[float] | None = None,
 ) -> bytes:
-    """Concatenate multiple audio byte segments using ffmpeg concat demuxer."""
+    """Concatenate multiple audio byte segments using ffmpeg concat demuxer.
+
+    If *gaps* is provided, inserts silence of the specified duration (seconds)
+    before each segment. gaps[0] is ignored (first segment starts immediately).
+    """
     if len(segments) == 1:
         return segments[0]
 
+    gaps = gaps or [0.0] * len(segments)
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
-        segment_files: list[Path] = []
+        all_files: list[Path] = []
         for i, seg_bytes in enumerate(segments):
+            if gaps[i] > 0:
+                silence_path = tmp_path / f"sil_{i:04d}.wav"
+                _generate_silence(gaps[i], sample_rate, silence_path)
+                all_files.append(silence_path)
             seg_path = tmp_path / f"seg_{i:04d}.{output_format}"
             seg_path.write_bytes(seg_bytes)
-            segment_files.append(seg_path)
+            all_files.append(seg_path)
 
         list_file = tmp_path / "concat_list.txt"
         list_file.write_text(
-            "\n".join(f"file '{f.name}'" for f in segment_files),
+            "\n".join(f"file '{f.name}'" for f in all_files),
             encoding="utf-8",
         )
 
@@ -240,7 +286,6 @@ def _concatenate_audio_segments(
             "-f", "concat",
             "-safe", "0",
             "-i", str(list_file),
-            "-c", "copy",
             str(output_path),
         ]
         subprocess.run(cmd, check=True, capture_output=True)

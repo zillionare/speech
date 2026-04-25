@@ -13,6 +13,8 @@ model:
   speed: 1.0
   stereo: false
   spatial_jitter: false
+  segment_gap_seconds: 1.0
+  speaker_gap_seconds: 1.0
 voices:
   base_dir: /Users/aaronyang/workspace/speech/voices
   default_voice: Aaron

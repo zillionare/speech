@@ -107,6 +107,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             speed=getattr(config.model, "speed", 1.0),
             stereo=getattr(config.model, "stereo", False),
             spatial_jitter=getattr(config.model, "spatial_jitter", False),
+            segment_gap_seconds=getattr(config.model, "segment_gap_seconds", 1.0),
+            speaker_gap_seconds=getattr(config.model, "speaker_gap_seconds", 1.0),
         )
 
     @app.post("/api/config", response_model=AppConfigResponse)
@@ -158,6 +160,12 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.spatial_jitter is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["spatial_jitter"] = request.spatial_jitter
+        if request.segment_gap_seconds is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["segment_gap_seconds"] = request.segment_gap_seconds
+        if request.speaker_gap_seconds is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["speaker_gap_seconds"] = request.speaker_gap_seconds
 
         config.apply_overrides(overrides)
         if config_path:
@@ -319,6 +327,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         speed = getattr(config.model, "speed", 1.0)
         stereo = getattr(config.model, "stereo", False)
         spatial_jitter = getattr(config.model, "spatial_jitter", False)
+        segment_gap = getattr(config.model, "segment_gap_seconds", 1.0)
+        speaker_gap = getattr(config.model, "speaker_gap_seconds", 1.0)
 
         def event_generator():
             for event in target_engine.generate_with_segmentation_stream(
@@ -330,6 +340,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 speed=speed,
                 stereo=stereo,
                 spatial_jitter=spatial_jitter,
+                segment_gap=segment_gap,
+                speaker_gap=speaker_gap,
             ):
                 if event["type"] == "complete":
                     result = event["result"]

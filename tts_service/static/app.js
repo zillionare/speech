@@ -31,6 +31,8 @@ async function saveConfig() {
         speed: parseFloat(document.getElementById('config-speed-slider').value),
         stereo: document.getElementById('config-stereo-toggle').checked,
         spatial_jitter: document.getElementById('config-jitter-toggle').checked,
+        segment_gap_seconds: parseFloat(document.getElementById('config-segment-gap-slider').value),
+        speaker_gap_seconds: parseFloat(document.getElementById('config-speaker-gap-slider').value),
     };
     
     try {
@@ -66,6 +68,10 @@ function resetConfig() {
         document.getElementById('config-speed-value').textContent = '1.0x';
         document.getElementById('config-stereo-toggle').checked = false;
         document.getElementById('config-jitter-toggle').checked = false;
+        document.getElementById('config-segment-gap-slider').value = '1.0';
+        document.getElementById('config-segment-gap-value').textContent = '1.0s';
+        document.getElementById('config-speaker-gap-slider').value = '1.0';
+        document.getElementById('config-speaker-gap-value').textContent = '1.0s';
     }
 }
 
@@ -113,6 +119,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (speedSlider && speedValue) {
         speedSlider.addEventListener('input', (e) => {
             speedValue.textContent = e.target.value + 'x';
+        });
+    }
+
+    // 段落间隔滑块
+    const segGapSlider = document.getElementById('config-segment-gap-slider');
+    const segGapValue = document.getElementById('config-segment-gap-value');
+    if (segGapSlider && segGapValue) {
+        segGapSlider.addEventListener('input', (e) => {
+            segGapValue.textContent = e.target.value + 's';
+        });
+    }
+
+    // Speaker 切换间隔滑块
+    const spkGapSlider = document.getElementById('config-speaker-gap-slider');
+    const spkGapValue = document.getElementById('config-speaker-gap-value');
+    if (spkGapSlider && spkGapValue) {
+        spkGapSlider.addEventListener('input', (e) => {
+            spkGapValue.textContent = e.target.value + 's';
         });
     }
 
@@ -238,6 +262,20 @@ function renderConfig() {
 
     const jitterToggle = document.getElementById("config-jitter-toggle");
     if (jitterToggle) jitterToggle.checked = state.config.spatial_jitter;
+
+    const segGapSlider = document.getElementById("config-segment-gap-slider");
+    if (segGapSlider) {
+        segGapSlider.value = state.config.segment_gap_seconds;
+        const segGapValue = document.getElementById("config-segment-gap-value");
+        if (segGapValue) segGapValue.textContent = state.config.segment_gap_seconds.toFixed(1) + "s";
+    }
+
+    const spkGapSlider = document.getElementById("config-speaker-gap-slider");
+    if (spkGapSlider) {
+        spkGapSlider.value = state.config.speaker_gap_seconds;
+        const spkGapValue = document.getElementById("config-speaker-gap-value");
+        if (spkGapValue) spkGapValue.textContent = state.config.speaker_gap_seconds.toFixed(1) + "s";
+    }
 
     // Selects and toggles
     const quantizeSelect = document.getElementById("config-quantize-select");

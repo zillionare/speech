@@ -27,6 +27,8 @@ class ModelConfig(BaseModel):
     speed: float = 1.0
     stereo: bool = False
     spatial_jitter: bool = False
+    segment_gap_seconds: float = 1.0
+    speaker_gap_seconds: float = 1.0
 
 
 class VoicesConfig(BaseModel):

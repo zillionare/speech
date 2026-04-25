@@ -319,6 +319,24 @@
                 </label>
                 <p class="field-hint">给左右声道添加缓慢的音量起伏，增加自然感</p>
               </div>
+
+              <div class="setting-row">
+                <label>段落间隔（秒）</label>
+                <div class="slider-container">
+                  <input type="range" id="config-segment-gap-slider" min="0" max="3" step="0.1" value="1.0" class="config-slider">
+                  <span id="config-segment-gap-value" class="slider-value">1.0s</span>
+                </div>
+                <p class="field-hint">分段生成时，相邻段落之间的静音时长</p>
+              </div>
+
+              <div class="setting-row">
+                <label>Speaker 切换间隔（秒）</label>
+                <div class="slider-container">
+                  <input type="range" id="config-speaker-gap-slider" min="0" max="3" step="0.1" value="1.0" class="config-slider">
+                  <span id="config-speaker-gap-value" class="slider-value">1.0s</span>
+                </div>
+                <p class="field-hint">多角色对话时，不同 speaker 切换时的静音时长</p>
+              </div>
             </div>
           </div>
         </section>

@@ -91,6 +91,8 @@ class AppConfigResponse(BaseModel):
     speed: float
     stereo: bool
     spatial_jitter: bool
+    segment_gap_seconds: float
+    speaker_gap_seconds: float
 
 
 class AppConfigUpdateRequest(BaseModel):
@@ -110,6 +112,8 @@ class AppConfigUpdateRequest(BaseModel):
     speed: Optional[float] = None
     stereo: Optional[bool] = None
     spatial_jitter: Optional[bool] = None
+    segment_gap_seconds: Optional[float] = None
+    speaker_gap_seconds: Optional[float] = None
 
 
 class PruneOutputsRequest(BaseModel):

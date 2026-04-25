@@ -36,6 +36,7 @@ class GenerationRecord(BaseModel):
     duration_seconds: float
     generation_seconds: float
     resolved_speakers: List[SpeakerResolution]
+    segment_count: int = 1
 
 
 class GenerateRequest(BaseModel):
@@ -43,6 +44,7 @@ class GenerateRequest(BaseModel):
     output_format: Literal["wav", "flac", "ogg"] = "wav"
     voice: Optional[str] = None
     voice_mapping: Dict[str, str] = Field(default_factory=dict)
+    engine: Optional[Literal["local", "remote"]] = None
 
 
 class SpeechRequest(BaseModel):
@@ -76,7 +78,16 @@ class AppConfigResponse(BaseModel):
     quantize_bits: int
     default_voice: str
     diffusion_steps: int
+    cfg_scale: float
+    max_speech_tokens: int
+    use_semantic: bool
     use_coreml_semantic: bool
+    seed: int
+    voices_path: str
+    outputs_path: str
+    use_remote_qwen: bool
+    qwen_base_url: str
+    max_segment_chars: int
 
 
 class AppConfigUpdateRequest(BaseModel):
@@ -90,6 +101,9 @@ class AppConfigUpdateRequest(BaseModel):
     use_semantic: Optional[bool] = None
     use_coreml_semantic: Optional[bool] = None
     seed: Optional[int] = None
+    use_remote_qwen: Optional[bool] = None
+    qwen_base_url: Optional[str] = None
+    max_segment_chars: Optional[int] = None
 
 
 class PruneOutputsRequest(BaseModel):

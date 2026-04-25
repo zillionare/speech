@@ -713,7 +713,9 @@ button.primary:hover {
     background: var(--accent-dark);
 }
 
-button.secondary {
+button.secondary,
+.button.secondary {
+    display: inline-block;
     background: var(--panel-strong);
     color: var(--text);
     border: 1px solid var(--stroke-strong);
@@ -725,7 +727,8 @@ button.secondary {
     transition: background 0.2s;
 }
 
-button.secondary:hover {
+button.secondary:hover,
+.button.secondary:hover {
     background: var(--bg-strong);
 }
 
@@ -735,6 +738,115 @@ button.secondary:hover {
     gap: 12px;
     justify-content: flex-start;
     align-items: center;
+}
+
+/* Engine Toggle */
+.engine-toggle-row {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    background: var(--accent-soft);
+    border: 1px solid var(--stroke);
+    border-radius: 16px;
+}
+
+.engine-toggle-row label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.engine-toggle {
+    display: flex;
+    gap: 8px;
+}
+
+.engine-btn {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--stroke-strong);
+    background: var(--panel-strong);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.engine-btn:hover {
+    background: var(--bg-strong);
+}
+
+.engine-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* Collapsible Settings */
+.section-card.collapsed .collapsible-content {
+    display: none;
+}
+
+#system-settings {
+    transition: opacity 0.2s ease;
+}
+
+#system-settings.collapsed {
+    opacity: 0.85;
+}
+
+#system-settings.collapsed:hover {
+    opacity: 1;
+}
+
+/* Latest Result Highlight */
+#latest-result:not(.empty) {
+    border-color: rgba(14, 138, 125, 0.35);
+    background: linear-gradient(180deg, rgba(14, 138, 125, 0.06), var(--panel));
+}
+
+/* Path input row */
+.path-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.path-input-row input {
+    flex: 1;
+}
+
+.path-input-row button {
+    white-space: nowrap;
+}
+
+/* Progress bar */
+.progress-bar-wrap {
+    display: grid;
+    gap: 8px;
+}
+
+.progress-track {
+    height: 8px;
+    background: var(--stroke);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
 }
 
 /* Hide hero panel */

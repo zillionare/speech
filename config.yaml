@@ -1,25 +1,32 @@
 model:
-  model_id: "gafiatulin/vibevoice-1.5b-mlx"
+  model_id: gafiatulin/vibevoice-1.5b-mlx
   quantize_bits: 8
-  diffusion_steps: 10
-  cfg_scale: 1.3
+  diffusion_steps: 30
+  cfg_scale: 1.0
   max_speech_tokens: 200
   seed: 42
   use_semantic: true
   use_coreml_semantic: false
-
+  use_remote_qwen: false
+  qwen_base_url: http://192.168.0.102:8000
+  max_segment_chars: 500
 voices:
-  base_dir: "./voices"
-  default_voice: "zh-Bowen_man"
-  cache_subdir: ".cache"
-
+  base_dir: /Users/aaronyang/workspace/speech/voices
+  default_voice: Aaron
+  cache_subdir: .cache
+  bundled_chinese_voices:
+  - zh-007_man
+  - zh-007_woman
+  - zh-Anchen_man_bgm
+  - zh-Aaron_man
+  - zh-Bowen_man
+  - zh-Xinran_woman
+  - zh-Zxx_man
 outputs:
-  base_dir: "./outputs"
+  base_dir: /Users/aaronyang/workspace/speech/outputs
   history_limit: 20
-
 server:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8123
-  log_level: "info"
-
-pid_file: "/tmp/tts_service.pid"
+  log_level: info
+pid_file: /tmp/tts_service.pid

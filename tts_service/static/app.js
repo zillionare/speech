@@ -26,7 +26,8 @@ async function saveConfig() {
         max_speech_tokens: parseInt(document.getElementById('config-max-tokens-slider').value),
         use_semantic: document.getElementById('config-semantic-toggle').checked,
         use_coreml_semantic: document.getElementById('config-coreml-toggle').checked,
-        seed: parseInt(document.getElementById('config-seed-input').value)
+        seed: parseInt(document.getElementById('config-seed-input').value),
+        max_segment_chars: parseInt(document.getElementById('config-max-segment-slider').value),
     };
     
     try {
@@ -46,8 +47,8 @@ function resetConfig() {
     if (confirm('确定要重置为默认配置吗？')) {
         document.getElementById('config-voices-path').value = './voices';
         document.getElementById('config-outputs-path').value = './outputs';
-        document.getElementById('config-steps-slider').value = 10;
-        document.getElementById('config-steps-value').textContent = '10';
+        document.getElementById('config-steps-slider').value = 30;
+        document.getElementById('config-steps-value').textContent = '30';
         document.getElementById('config-quantize-select').value = '8';
         document.getElementById('config-cfg-slider').value = '1.3';
         document.getElementById('config-cfg-value').textContent = '1.3';
@@ -56,6 +57,8 @@ function resetConfig() {
         document.getElementById('config-semantic-toggle').checked = true;
         document.getElementById('config-coreml-toggle').checked = false;
         document.getElementById('config-seed-input').value = '42';
+        document.getElementById('config-max-segment-slider').value = '200';
+        document.getElementById('config-max-segment-value').textContent = '200';
     }
 }
 
@@ -87,7 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
             maxTokensValue.textContent = e.target.value;
         });
     }
-    
+
+    // 分段最大字符数滑块
+    const maxSegmentSlider = document.getElementById('config-max-segment-slider');
+    const maxSegmentValue = document.getElementById('config-max-segment-value');
+    if (maxSegmentSlider && maxSegmentValue) {
+        maxSegmentSlider.addEventListener('input', (e) => {
+            maxSegmentValue.textContent = e.target.value;
+        });
+    }
+
     // 保存和重置按钮
     const saveBtn = document.getElementById('save-config');
     const resetBtn = document.getElementById('reset-config');
@@ -99,6 +111,12 @@ const state = {
     config: null,
     voices: [],
     history: [],
+    engine: "local",
+};
+
+// 存储从目录选择器或文件选择器中暂定的音频文件，供上传使用
+let pendingVoiceFiles = {
+    audio: null,
 };
 
 function setText(id, value) {
@@ -160,9 +178,53 @@ function renderConfig() {
     setText("config-model", state.config.model);
     setText("config-quantize", `${state.config.quantize_bits}-bit`);
     setText("config-default-voice", state.config.default_voice);
-    setText("config-steps", String(state.config.diffusion_steps));
     setText("config-semantic-mode", state.config.use_coreml_semantic ? "CoreML" : "MLX");
     setText("sidebar-default-voice", state.config.default_voice);
+
+    // Sliders and numeric inputs
+    const stepsSlider = document.getElementById("config-steps-slider");
+    if (stepsSlider) {
+        stepsSlider.value = state.config.diffusion_steps;
+        const stepsValue = document.getElementById("config-steps-value");
+        if (stepsValue) stepsValue.textContent = String(state.config.diffusion_steps);
+    }
+    const cfgSlider = document.getElementById("config-cfg-slider");
+    if (cfgSlider) {
+        cfgSlider.value = state.config.cfg_scale;
+        const cfgValue = document.getElementById("config-cfg-value");
+        if (cfgValue) cfgValue.textContent = String(state.config.cfg_scale);
+    }
+    const maxTokensSlider = document.getElementById("config-max-tokens-slider");
+    if (maxTokensSlider) {
+        maxTokensSlider.value = state.config.max_speech_tokens;
+        const maxTokensValue = document.getElementById("config-max-tokens-value");
+        if (maxTokensValue) maxTokensValue.textContent = String(state.config.max_speech_tokens);
+    }
+    const seedInput = document.getElementById("config-seed-input");
+    if (seedInput) seedInput.value = state.config.seed;
+
+    const maxSegmentSlider = document.getElementById("config-max-segment-slider");
+    if (maxSegmentSlider) {
+        maxSegmentSlider.value = state.config.max_segment_chars;
+        const maxSegmentValue = document.getElementById("config-max-segment-value");
+        if (maxSegmentValue) maxSegmentValue.textContent = String(state.config.max_segment_chars);
+    }
+
+    // Selects and toggles
+    const quantizeSelect = document.getElementById("config-quantize-select");
+    if (quantizeSelect) quantizeSelect.value = String(state.config.quantize_bits);
+    const semanticToggle = document.getElementById("config-semantic-toggle");
+    if (semanticToggle) semanticToggle.checked = state.config.use_semantic;
+    const coremlToggle = document.getElementById("config-coreml-toggle");
+    if (coremlToggle) coremlToggle.checked = state.config.use_coreml_semantic;
+
+    // Paths and default voice
+    const voicesPath = document.getElementById("config-voices-path");
+    if (voicesPath) voicesPath.value = state.config.voices_path || "./voices";
+    const outputsPath = document.getElementById("config-outputs-path");
+    if (outputsPath) outputsPath.value = state.config.outputs_path || "./outputs";
+    const defaultVoiceSelect = document.getElementById("config-default-voice-select");
+    if (defaultVoiceSelect) defaultVoiceSelect.value = state.config.default_voice;
 }
 
 function renderCounters() {
@@ -289,7 +351,7 @@ function renderLatest(record) {
     <div class="history-head">
       <div>
         <h3>最新生成: ${record.request_id}</h3>
-        <p>${record.generation_seconds.toFixed(2)}s 生成，音频时长 ${record.duration_seconds.toFixed(2)}s</p>
+        <p>${record.generation_seconds.toFixed(2)}s 生成，音频时长 ${record.duration_seconds.toFixed(2)}s${record.segment_count > 1 ? `，分段 ${record.segment_count}` : ''}</p>
       </div>
       <a class="download-link" href="${record.audio_url}" target="_blank" rel="noopener">下载</a>
     </div>
@@ -318,7 +380,7 @@ function renderHistory() {
     for (const record of state.history) {
         const node = template.content.firstElementChild.cloneNode(true);
         node.querySelector(".history-id").textContent = record.request_id;
-        node.querySelector(".history-meta").textContent = `${record.generation_seconds.toFixed(2)}s 生成 · ${record.duration_seconds.toFixed(2)}s 音频 · ${record.output_format}`;
+        node.querySelector(".history-meta").textContent = `${record.generation_seconds.toFixed(2)}s 生成 · ${record.duration_seconds.toFixed(2)}s 音频 · ${record.output_format}${record.segment_count > 1 ? ' · 分段 ' + record.segment_count : ''}`;
         node.querySelector(".download-link").href = record.audio_url;
         node.querySelector(".history-audio").src = record.audio_url;
         node.querySelector(".history-text").textContent = record.input_text;
@@ -333,9 +395,60 @@ function renderHistory() {
     renderCounters();
 }
 
+function initEngineToggle() {
+    const localBtn = document.getElementById("engine-local");
+    const remoteBtn = document.getElementById("engine-remote");
+    const hint = document.getElementById("engine-hint");
+    if (!localBtn || !remoteBtn) return;
+
+    const update = () => {
+        localBtn.classList.toggle("active", state.engine === "local");
+        remoteBtn.classList.toggle("active", state.engine === "remote");
+        if (hint) {
+            hint.textContent = state.engine === "local"
+                ? "模型参数仅影响本地引擎"
+                : "使用远程 Qwen 引擎，模型参数被忽略";
+        }
+    };
+
+    localBtn.addEventListener("click", () => {
+        state.engine = "local";
+        update();
+    });
+    remoteBtn.addEventListener("click", () => {
+        state.engine = "remote";
+        update();
+    });
+
+    // If server default is remote, reflect that
+    if (state.config && state.config.use_remote_qwen) {
+        state.engine = "remote";
+    }
+    update();
+}
+
+function initSettingsToggle() {
+    const section = document.getElementById("system-settings");
+    const btn = document.getElementById("toggle-settings");
+    if (!section || !btn) return;
+
+    const update = () => {
+        const isCollapsed = section.classList.contains("collapsed");
+        btn.textContent = isCollapsed ? "展开" : "收起";
+    };
+
+    btn.addEventListener("click", () => {
+        section.classList.toggle("collapsed");
+        update();
+    });
+
+    update();
+}
+
 async function loadConfig() {
     state.config = await requestJson("/api/config");
     renderConfig();
+    initEngineToggle();
 }
 
 async function loadVoices() {
@@ -356,7 +469,6 @@ async function handleVoiceUpload(event) {
     const originalLabel = submitButton ? submitButton.textContent : null;
 
     const speaker = form.querySelector("[name='speaker']").value.trim();
-    const audioInput = form.querySelector("[name='audio_file']");
     const transcript = form.querySelector("[name='transcript']").value.trim();
 
     if (!speaker) {
@@ -364,12 +476,25 @@ async function handleVoiceUpload(event) {
         form.querySelector("[name='speaker']").focus();
         return;
     }
-    if (!audioInput.files || audioInput.files.length === 0) {
-        setVoiceStatus("请选择音频文件", true);
+
+    let audioFile = pendingVoiceFiles.audio;
+    if (!audioFile) {
+        const audioInput = form.querySelector("[name='audio_file']");
+        if (!audioInput.files || audioInput.files.length === 0) {
+            setVoiceStatus("请选择音频文件", true);
+            return;
+        }
+        const files = Array.from(audioInput.files);
+        audioFile = files.find((f) => f.name.toLowerCase().endsWith(".wav"));
+    }
+
+    if (!audioFile) {
+        setVoiceStatus("请至少选择一个 .wav 音频文件", true);
         return;
     }
+
     if (!transcript) {
-        setVoiceStatus("请填写 Transcript，或点击'自动检测同名 .txt'读取", true);
+        setVoiceStatus("请填写 Transcript，或同时选择同名的 .txt 文件", true);
         form.querySelector("[name='transcript']").focus();
         return;
     }
@@ -380,7 +505,14 @@ async function handleVoiceUpload(event) {
             submitButton.textContent = "上传中...";
         }
 
-        const formData = new FormData(form);
+        const formData = new FormData();
+        formData.append("speaker", speaker);
+        formData.append("audio_file", audioFile);
+        formData.append("transcript", transcript);
+        const overwriteCheckbox = form.querySelector("[name='overwrite']");
+        if (overwriteCheckbox && overwriteCheckbox.checked) {
+            formData.append("overwrite", "on");
+        }
 
         const uploadResponse = await fetch("/api/voices", { method: "POST", body: formData });
         if (!uploadResponse.ok) {
@@ -399,6 +531,7 @@ async function handleVoiceUpload(event) {
 
         form.reset();
         document.getElementById("audio-selected-name").textContent = "未选择";
+        pendingVoiceFiles = { audio: null };
         await loadVoices();
         setVoiceStatus(`声音 ${speaker} 已上传并缓存就绪。`, false);
     } catch (error) {
@@ -444,6 +577,65 @@ async function handlePruneOutputs() {
     }
 }
 
+async function streamGenerate(payload, onProgress, onComplete, onError) {
+    const response = await fetch("/api/generate/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Request failed: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            if (line.startsWith("event:")) {
+                const eventType = line.slice(6).trim();
+                const dataLine = lines[i + 1];
+                if (dataLine && dataLine.trim().startsWith("data:")) {
+                    const raw = dataLine.trim().slice(5).trim();
+                    try {
+                        const data = JSON.parse(raw);
+                        if (eventType === "progress") onProgress(data);
+                        else if (eventType === "complete") onComplete(data);
+                        else if (eventType === "error") onError(data.message);
+                    } catch {
+                        // ignore malformed JSON
+                    }
+                    i++;
+                }
+            }
+        }
+    }
+}
+
+function setProgressVisible(visible, current, total, text) {
+    const wrap = document.getElementById("generate-progress");
+    const fill = document.getElementById("generate-progress-fill");
+    const label = document.getElementById("generate-progress-text");
+    if (!wrap || !fill || !label) return;
+    wrap.hidden = !visible;
+    if (visible) {
+        const pct = total > 0 ? (current / total) * 100 : 0;
+        fill.style.width = pct + "%";
+        label.textContent = `正在生成第 ${current}/${total} 段: ${text}`;
+    }
+}
+
 async function handleGenerate(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -457,22 +649,48 @@ async function handleGenerate(event) {
         }
     }
 
+    const payload = {
+        text: document.getElementById("generate-text").value,
+        output_format: form.output_format.value,
+        voice: document.getElementById("preferred-voice").value || null,
+        voice_mapping: parseJsonOrEmpty(document.getElementById("voice-mapping").value),
+        engine: state.engine,
+    };
+
+    const maxChars = state.config ? state.config.max_segment_chars : 200;
+    const useStream = payload.text.length > maxChars;
+
     try {
-        const payload = {
-            text: document.getElementById("generate-text").value,
-            output_format: form.output_format.value,
-            voice: document.getElementById("preferred-voice").value || null,
-            voice_mapping: parseJsonOrEmpty(document.getElementById("voice-mapping").value),
-        };
-        setStatus("正在生成，请等待...", false);
-        const record = await requestJson("/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        state.history.unshift(record);
-        renderHistory();
+        if (useStream) {
+            setStatus("", false);
+            setProgressVisible(true, 0, 1, "准备中...");
+            await streamGenerate(
+                payload,
+                (data) => {
+                    setProgressVisible(true, data.current, data.total, data.text);
+                },
+                (record) => {
+                    setProgressVisible(false, 0, 0, "");
+                    state.history.unshift(record);
+                    renderHistory();
+                },
+                (msg) => {
+                    setProgressVisible(false, 0, 0, "");
+                    setStatus(msg, true);
+                }
+            );
+        } else {
+            setStatus("正在生成，请等待...", false);
+            const record = await requestJson("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            state.history.unshift(record);
+            renderHistory();
+        }
     } catch (error) {
+        setProgressVisible(false, 0, 0, "");
         setStatus(error.message, true);
     } finally {
         if (submitButton) {
@@ -524,63 +742,133 @@ function initNavigation() {
     }
 }
 
-function handleAudioFileChange(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+async function loadVoiceFromDirectory(dirHandle) {
+    const entries = {};
+    for await (const [name, handle] of dirHandle.entries()) {
+        if (handle.kind === "file") {
+            entries[name.toLowerCase()] = handle;
+        }
+    }
+
+    const wavNames = Object.keys(entries).filter((n) => n.endsWith(".wav"));
+    if (wavNames.length === 0) {
+        setVoiceStatus("目录中没有找到 .wav 文件", true);
+        pendingVoiceFiles = { audio: null };
+        return;
+    }
+
+    let wavName;
+    if (wavNames.length === 1) {
+        wavName = wavNames[0];
+    } else {
+        const speakers = wavNames.map((n) => n.slice(0, -4)).join(", ");
+        const choice = prompt(`目录中有多个音频文件，请输入 Speaker 名称：\n可选：${speakers}`);
+        if (!choice) {
+            pendingVoiceFiles = { audio: null };
+            return;
+        }
+        wavName = (choice + ".wav").toLowerCase();
+        if (!entries[wavName]) {
+            setVoiceStatus(`目录中未找到 ${choice}.wav`, true);
+            pendingVoiceFiles = { audio: null };
+            return;
+        }
+    }
+
+    const speaker = wavName.slice(0, -4);
+    const wavHandle = entries[wavName];
+    const wavFile = await wavHandle.getFile();
+
     const form = document.getElementById("voice-upload-form");
     const speakerInput = form.querySelector("[name='speaker']");
     const nameLabel = document.getElementById("audio-selected-name");
-    const base = file.name.replace(/\.[^/.]+$/, "");
-    if (!speakerInput.value) {
-        speakerInput.value = base;
+
+    speakerInput.value = speaker;
+
+    const txtName = (speaker + ".txt").toLowerCase();
+    let transcript = "";
+    if (entries[txtName]) {
+        const txtFile = await entries[txtName].getFile();
+        transcript = await txtFile.text();
+        form.querySelector("[name='transcript']").value = transcript;
+        nameLabel.textContent = `${wavFile.name}, ${speaker}.txt`;
+        setVoiceStatus(`已从目录读取 ${wavFile.name} 和 ${speaker}.txt`, false);
+    } else {
+        nameLabel.textContent = wavFile.name;
+        setVoiceStatus(`已选择 ${wavFile.name}，未找到同名 .txt，请手动输入 transcript`, false);
     }
-    nameLabel.textContent = file.name;
+
+    // 将 File System Access API 的惰性 File 转为内存中的标准 File，
+    // 避免 fetch/FormData 序列化时卡住
+    const arrayBuffer = await wavFile.arrayBuffer();
+    const audioFile = new File([arrayBuffer], wavFile.name, { type: wavFile.type || "audio/wav" });
+    pendingVoiceFiles = { audio: audioFile };
 }
 
-async function handleDetectTranscript() {
+function handleAudioFileChange(event) {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
+
+    // 找 .wav 文件
+    const wavFile = files.find((f) => f.name.toLowerCase().endsWith(".wav"));
+    if (!wavFile) {
+        setVoiceStatus("请至少选择一个 .wav 音频文件", true);
+        event.target.value = "";
+        pendingVoiceFiles = { audio: null };
+        return;
+    }
+
     const form = document.getElementById("voice-upload-form");
-    const speaker = form.querySelector("[name='speaker']").value;
-    if (!speaker) {
-        setVoiceStatus("请先选择音频文件", true);
-        return;
+    const speakerInput = form.querySelector("[name='speaker']");
+    const nameLabel = document.getElementById("audio-selected-name");
+    const speaker = wavFile.name.slice(0, -4);
+    if (!speakerInput.value) {
+        speakerInput.value = speaker;
     }
-    if (!window.showDirectoryPicker) {
-        setVoiceStatus("您的浏览器不支持自动检测，请手动输入 transcript", true);
-        return;
-    }
-    try {
-        const dirHandle = await window.showDirectoryPicker();
-        const files = {};
-        for await (const [name, handle] of dirHandle.entries()) {
-            if (handle.kind === "file") files[name.toLowerCase()] = handle;
-        }
-        const txtName = (speaker + ".txt").toLowerCase();
-        if (txtName in files) {
-            const txtFile = await files[txtName].getFile();
-            const transcript = await txtFile.text();
-            form.querySelector("[name='transcript']").value = transcript;
-            setVoiceStatus(`已自动读取 ${speaker}.txt`, false);
-        } else {
-            setVoiceStatus(`目录中未找到 ${speaker}.txt，请手动输入`, true);
-        }
-    } catch {
-        // User cancelled
+
+    // 找同名的 .txt（不区分大小写）
+    const txtFile = files.find(
+        (f) => f.name.toLowerCase() === (speaker + ".txt").toLowerCase(),
+    );
+
+    if (txtFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            form.querySelector("[name='transcript']").value = e.target.result;
+            pendingVoiceFiles = { audio: wavFile };
+            nameLabel.textContent = `${wavFile.name}, ${txtFile.name}`;
+            setVoiceStatus(`已选择 ${wavFile.name} 并读取 ${txtFile.name}`, false);
+        };
+        reader.readAsText(txtFile);
+    } else {
+        pendingVoiceFiles = { audio: wavFile };
+        nameLabel.textContent = wavFile.name;
+        setVoiceStatus(`已选择 ${wavFile.name}，未找到同名 .txt，请手动输入 transcript`, false);
     }
 }
 
-function handleAudioSelect() {
-    document.querySelector("#voice-upload-form [name='audio_file']").click();
+async function handleAudioSelect() {
+    if (window.showDirectoryPicker) {
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            await loadVoiceFromDirectory(dirHandle);
+            return;
+        } catch {
+            return;
+        }
+    }
+    const input = document.getElementById("audio-file-input");
+    if (input) input.click();
 }
 
 async function bootstrap() {
     initNavigation();
+    initSettingsToggle();
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
-    const audioInput = document.querySelector("#voice-upload-form [name='audio_file']");
+    const audioInput = document.getElementById("audio-file-input");
     if (audioInput) audioInput.addEventListener("change", handleAudioFileChange);
     const audioBtn = document.getElementById("audio-select-btn");
     if (audioBtn) audioBtn.addEventListener("click", handleAudioSelect);
-    const detectBtn = document.getElementById("detect-transcript-btn");
-    if (detectBtn) detectBtn.addEventListener("click", handleDetectTranscript);
     document.getElementById("generate-form").addEventListener("submit", handleGenerate);
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);
     const pruneBtn = document.getElementById("prune-outputs");

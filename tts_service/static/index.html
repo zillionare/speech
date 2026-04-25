@@ -14,10 +14,11 @@
         </div>
 
         <nav class="section-nav" aria-label="页面导航">
-          <a class="nav-link active" href="#system-settings" data-section="system-settings">
+          <a class="nav-link active" href="#text-to-speech" data-section="text-to-speech">
             <span class="nav-index">01</span>
             <span class="nav-copy">
-              <strong>系统设置</strong>
+              <strong>文本转声音</strong>
+              <small>生成和输出</small>
             </span>
           </a>
           <a class="nav-link" href="#sample-library" data-section="sample-library">
@@ -27,11 +28,10 @@
               <small>声音库</small>
             </span>
           </a>
-          <a class="nav-link" href="#text-to-speech" data-section="text-to-speech">
+          <a class="nav-link" href="#system-settings" data-section="system-settings">
             <span class="nav-index">03</span>
             <span class="nav-copy">
-              <strong>文本转声音</strong>
-              <small>生成和输出</small>
+              <strong>系统设置</strong>
             </span>
           </a>
           <a class="nav-link" href="#speech-to-text" data-section="speech-to-text">
@@ -60,109 +60,70 @@
       </aside>
 
       <main class="content">
-        <section id="system-settings" class="section-card anchor-section">
+        <section id="text-to-speech" class="section-card anchor-section">
           <div class="section-head">
             <div>
-              <p class="section-kicker">系统设置</p>
-              <h2>模型参数配置</h2>
-              <p>配置 VibeVoice 模型参数，实时生效。</p>
-            </div>
-            <div class="section-actions">
-              <button id="save-config" class="primary">保存配置</button>
-              <button id="reset-config" class="secondary">重置</button>
+              <p class="section-kicker">文本转声音</p>
+              <h2>生成和输出</h2>
+              <p>支持单人旁白和多角色对话。文本过长时会自动分段生成再合成。</p>
             </div>
           </div>
 
-          <div class="settings-grid">
-            <h3 class="settings-group-title">📁 路径配置</h3>
-            
-            <div class="setting-row">
-              <label>声音库目录</label>
-              <div class="path-input-row">
-                <input type="text" id="config-voices-path" class="config-input" value="./voices" placeholder="./voices">
-                <button type="button" class="small" onclick="selectDirectory('voices')">选择</button>
+          <div class="section-layout tts-layout">
+            <form id="generate-form" class="stack form-card generator-card">
+              <h3>生成请求</h3>
+              <div class="engine-toggle-row">
+                <label>生成引擎</label>
+                <div class="engine-toggle">
+                  <button type="button" id="engine-local" class="engine-btn active">本地 MLX</button>
+                  <button type="button" id="engine-remote" class="engine-btn">Qwen 远程</button>
+                </div>
+                <p class="field-hint" id="engine-hint">模型参数仅影响本地引擎</p>
               </div>
-              <p class="field-hint">声音样本 (.wav + .txt) 存储位置</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>输出目录</label>
-              <div class="path-input-row">
-                <input type="text" id="config-outputs-path" class="config-input" value="./outputs" placeholder="./outputs">
-                <button type="button" class="small" onclick="selectDirectory('outputs')">选择</button>
-              </div>
-              <p class="field-hint">生成音频文件的保存位置</p>
-            </div>
-            
-            <h3 class="settings-group-title">⚙️ 模型参数配置</h3>
-            
-            <div class="setting-row">
-              <label>默认声音</label>
-              <select id="config-default-voice-select" class="config-select">
-                <option value="">暂无声音样本，请先上传</option>
-              </select>
-              <p class="field-hint">选择默认使用的声音样本</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>扩散步数 (Diffusion Steps)</label>
-              <div class="slider-container">
-                <input type="range" id="config-steps-slider" min="5" max="50" value="10" class="config-slider">
-                <span id="config-steps-value" class="slider-value">10</span>
-              </div>
-              <p class="field-hint">影响采样时长与音频稳定性 (5-50)</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>量化位数 (Quantize Bits)</label>
-              <select id="config-quantize-select" class="config-select">
-                <option value="4">4-bit</option>
-                <option value="8" selected>8-bit</option>
-                <option value="16">16-bit</option>
-              </select>
-              <p class="field-hint">平衡显存占用与生成速度</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>CFG Scale</label>
-              <div class="slider-container">
-                <input type="range" id="config-cfg-slider" min="1.0" max="3.0" step="0.1" value="1.3" class="config-slider">
-                <span id="config-cfg-value" class="slider-value">1.3</span>
-              </div>
-              <p class="field-hint">分类器自由引导强度 (1.0-3.0)</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>最大语音令牌</label>
-              <div class="slider-container">
-                <input type="range" id="config-max-tokens-slider" min="50" max="500" step="10" value="200" class="config-slider">
-                <span id="config-max-tokens-value" class="slider-value">200</span>
-              </div>
-              <p class="field-hint">限制生成音频的最大长度 (50-500)</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>语义编码</label>
-              <label class="toggle-switch">
-                <input type="checkbox" id="config-semantic-toggle" checked>
-                <span class="toggle-slider"></span>
+              <label>
+                文本
+                <textarea id="generate-text" name="text" rows="12" placeholder="Aaron: 你好，这是中文测试。&#10;Bowen: 这是第二句。" required></textarea>
               </label>
-              <p class="field-hint">启用语义编码提升音质</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>CoreML 语义编码</label>
-              <label class="toggle-switch">
-                <input type="checkbox" id="config-coreml-toggle">
-                <span class="toggle-slider"></span>
+              <div class="two-col">
+                <label>
+                  旁白默认声音
+                  <select id="preferred-voice" name="voice"></select>
+                </label>
+                <label>
+                  输出格式
+                  <select name="output_format">
+                    <option value="wav">wav</option>
+                    <option value="flac">flac</option>
+                    <option value="ogg">ogg</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                可选映射 JSON
+                <textarea id="voice-mapping" rows="5" placeholder='{"Aaron": "zh-Aaron_man", "Bowen": "zh-Bowen_man"}'></textarea>
               </label>
-              <p class="field-hint">使用 Apple CoreML 加速 (仅 Mac)</p>
-            </div>
-            
-            <div class="setting-row">
-              <label>随机种子</label>
-              <input type="number" id="config-seed-input" value="42" class="config-input">
-              <p class="field-hint">固定种子可复现相同结果</p>
+              <button type="submit">开始生成</button>
+              <div id="generate-progress" class="progress-bar-wrap" hidden>
+                <div class="progress-track">
+                  <div id="generate-progress-fill" class="progress-fill"></div>
+                </div>
+                <p id="generate-progress-text" class="progress-text">准备中...</p>
+              </div>
+            </form>
+
+            <div class="result-stack">
+              <div id="latest-result" class="result-card empty">尚未生成任何音频。</div>
+
+              <div class="history-block">
+                <div class="subsection-head compact">
+                  <div>
+                    <h3>最近输出</h3>
+                    <p>保存在 outputs/，保留最近 20 条。</p>
+                  </div>
+                  <button id="prune-outputs" class="danger small" type="button">清理旧输出</button>
+                </div>
+                <div id="generation-history" class="history-list"></div>
+              </div>
             </div>
           </div>
         </section>
@@ -190,14 +151,9 @@
               </label>
               <div class="audio-select-row">
                 <label>Audio file</label>
-                <input name="audio_file" type="file" accept=".wav" required style="display:none">
-                <button type="button" class="secondary" id="audio-select-btn">选择音频文件</button>
+                <input id="audio-file-input" name="audio_file" type="file" accept=".wav,.txt" multiple style="visibility:hidden; position:absolute;">
+                <button type="button" class="secondary" id="audio-select-btn">选择文件</button>
                 <span id="audio-selected-name" class="field-hint">未选择</span>
-              </div>
-              <div class="audio-select-row">
-                <label>Transcript</label>
-                <button type="button" class="secondary" id="detect-transcript-btn">自动检测同名 .txt</button>
-                <span class="field-hint">选择音频后，可自动读取同目录同名 .txt</span>
               </div>
               <label class="inline-check">
                 <input name="overwrite" type="checkbox">
@@ -219,55 +175,120 @@
           </div>
         </section>
 
-        <section id="text-to-speech" class="section-card anchor-section">
+        <section id="system-settings" class="section-card anchor-section collapsed">
           <div class="section-head">
             <div>
-              <p class="section-kicker">文本转声音</p>
-              <h2>生成和输出</h2>
-              <p>支持单人旁白和多角色对话。</p>
+              <p class="section-kicker">系统设置</p>
+              <h2>模型参数配置</h2>
+              <p>配置仅影响本地 MLX 引擎，远程引擎忽略这些参数。</p>
+            </div>
+            <div class="section-actions">
+              <button id="toggle-settings" class="ghost small" type="button">展开</button>
+              <button id="save-config" class="primary">保存配置</button>
+              <button id="reset-config" class="secondary">重置</button>
             </div>
           </div>
 
-          <div class="section-layout tts-layout">
-            <form id="generate-form" class="stack form-card generator-card">
-              <h3>生成请求</h3>
-              <label>
-                文本
-                <textarea id="generate-text" name="text" rows="12" placeholder="Aaron: 你好，这是中文测试。&#10;Bowen: 这是第二句。" required></textarea>
-              </label>
-              <div class="two-col">
-                <label>
-                  旁白默认声音
-                  <select id="preferred-voice" name="voice"></select>
-                </label>
-                <label>
-                  输出格式
-                  <select name="output_format">
-                    <option value="wav">wav</option>
-                    <option value="flac">flac</option>
-                    <option value="ogg">ogg</option>
-                  </select>
-                </label>
-              </div>
-              <label>
-                可选映射 JSON
-                <textarea id="voice-mapping" rows="5" placeholder='{"Aaron": "zh-Aaron_man", "Bowen": "zh-Bowen_man"}'></textarea>
-              </label>
-              <button type="submit">开始生成</button>
-            </form>
+          <div class="collapsible-content">
+            <div class="settings-grid">
+              <h3 class="settings-group-title">📁 路径配置</h3>
 
-            <div class="result-stack">
-              <div id="latest-result" class="result-card empty">尚未生成任何音频。</div>
-
-              <div class="history-block">
-                <div class="subsection-head compact">
-                  <div>
-                    <h3>最近输出</h3>
-                    <p>保存在 outputs/，保留最近 20 条。</p>
-                  </div>
-                  <button id="prune-outputs" class="danger small" type="button">清理旧输出</button>
+              <div class="setting-row">
+                <label>声音库目录</label>
+                <div class="path-input-row">
+                  <input type="text" id="config-voices-path" class="config-input" value="./voices" placeholder="./voices">
+                  <button type="button" class="small" onclick="selectDirectory('voices')">选择</button>
                 </div>
-                <div id="generation-history" class="history-list"></div>
+                <p class="field-hint">声音样本 (.wav + .txt) 存储位置</p>
+              </div>
+
+              <div class="setting-row">
+                <label>输出目录</label>
+                <div class="path-input-row">
+                  <input type="text" id="config-outputs-path" class="config-input" value="./outputs" placeholder="./outputs">
+                  <button type="button" class="small" onclick="selectDirectory('outputs')">选择</button>
+                </div>
+                <p class="field-hint">生成音频文件的保存位置</p>
+              </div>
+
+              <h3 class="settings-group-title">⚙️ 模型参数配置</h3>
+
+              <div class="setting-row">
+                <label>默认声音</label>
+                <select id="config-default-voice-select" class="config-select">
+                  <option value="">暂无声音样本，请先上传</option>
+                </select>
+                <p class="field-hint">选择默认使用的声音样本</p>
+              </div>
+
+              <div class="setting-row">
+                <label>扩散步数 (Diffusion Steps)</label>
+                <div class="slider-container">
+                  <input type="range" id="config-steps-slider" min="5" max="50" value="30" class="config-slider">
+                  <span id="config-steps-value" class="slider-value">30</span>
+                </div>
+                <p class="field-hint">影响采样时长与音频稳定性 (5-50)</p>
+              </div>
+
+              <div class="setting-row">
+                <label>量化位数 (Quantize Bits)</label>
+                <select id="config-quantize-select" class="config-select">
+                  <option value="4">4-bit</option>
+                  <option value="8" selected>8-bit</option>
+                  <option value="16">16-bit</option>
+                </select>
+                <p class="field-hint">平衡显存占用与生成速度</p>
+              </div>
+
+              <div class="setting-row">
+                <label>CFG Scale</label>
+                <div class="slider-container">
+                  <input type="range" id="config-cfg-slider" min="1.0" max="3.0" step="0.1" value="1.3" class="config-slider">
+                  <span id="config-cfg-value" class="slider-value">1.3</span>
+                </div>
+                <p class="field-hint">分类器自由引导强度 (1.0-3.0)</p>
+              </div>
+
+              <div class="setting-row">
+                <label>最大语音令牌</label>
+                <div class="slider-container">
+                  <input type="range" id="config-max-tokens-slider" min="50" max="500" step="10" value="200" class="config-slider">
+                  <span id="config-max-tokens-value" class="slider-value">200</span>
+                </div>
+                <p class="field-hint">限制生成音频的最大长度 (50-500)</p>
+              </div>
+
+              <div class="setting-row">
+                <label>语义编码</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="config-semantic-toggle" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="field-hint">启用语义编码提升音质</p>
+              </div>
+
+              <div class="setting-row">
+                <label>CoreML 语义编码</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="config-coreml-toggle">
+                  <span class="toggle-slider"></span>
+                </label>
+                <p class="field-hint">使用 Apple CoreML 加速 (仅 Mac)</p>
+              </div>
+
+              <div class="setting-row">
+                <label>随机种子</label>
+                <input type="number" id="config-seed-input" value="42" class="config-input">
+                <p class="field-hint">固定种子可复现相同结果</p>
+              </div>
+
+              <div class="setting-row">
+                <label>分段最大字符数</label>
+                <div class="slider-container">
+                  <input type="range" id="config-max-segment-slider" min="50" max="500" step="10" value="200" class="config-slider">
+                  <span id="config-max-segment-value" class="slider-value">200</span>
+                </div>
+                <p class="field-hint">超过此长度自动分段生成再合成 (50-500)</p>
               </div>
             </div>
           </div>

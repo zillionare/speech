@@ -29,7 +29,7 @@ from .models import (
     VoiceListResponse,
 )
 from .sample_manager import SampleManager, VoiceSample
-from .tts_engine import TTSEngine
+from .tts_engine import create_engine
 
 
 def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
@@ -46,7 +46,7 @@ def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
 def create_app(config_path: Optional[str] = None) -> FastAPI:
     config = load_config(config_path)
     sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
-    engine = TTSEngine(config, sample_manager)
+    engine = create_engine(config, sample_manager)
     static_dir = Path(__file__).resolve().parent / "static"
     outputs_dir = config.outputs.expanded_base_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
@@ -94,7 +94,16 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             quantize_bits=config.model.quantize_bits,
             default_voice=effective_default,
             diffusion_steps=config.model.diffusion_steps,
+            cfg_scale=config.model.cfg_scale,
+            max_speech_tokens=config.model.max_speech_tokens,
+            use_semantic=config.model.use_semantic,
             use_coreml_semantic=config.model.use_coreml_semantic,
+            seed=config.model.seed,
+            voices_path=str(config.voices.base_dir),
+            outputs_path=str(config.outputs.base_dir),
+            use_remote_qwen=getattr(config.model, "use_remote_qwen", False),
+            qwen_base_url=getattr(config.model, "qwen_base_url", ""),
+            max_segment_chars=getattr(config.model, "max_segment_chars", 200),
         )
 
     @app.post("/api/config", response_model=AppConfigResponse)
@@ -128,6 +137,15 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.seed is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["seed"] = request.seed
+        if request.use_remote_qwen is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["use_remote_qwen"] = request.use_remote_qwen
+        if request.qwen_base_url is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["qwen_base_url"] = request.qwen_base_url
+        if request.max_segment_chars is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["max_segment_chars"] = request.max_segment_chars
 
         config.apply_overrides(overrides)
         if config_path:
@@ -245,14 +263,24 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             duration_seconds=result.duration_seconds,
             generation_seconds=result.generation_seconds,
             resolved_speakers=result.resolved_speakers,
+            segment_count=getattr(result, "segment_count", 1),
         )
         history.appendleft(record)
         return record
 
     @app.post("/api/generate", response_model=GenerationRecord)
     def generate_audio(request: GenerateRequest) -> GenerationRecord:
+        target_engine = engine
+        if request.engine is not None:
+            is_remote = getattr(config.model, "use_remote_qwen", False)
+            if request.engine == "remote" and not is_remote:
+                from .engines.qwen_remote import QwenRemoteEngine
+                target_engine = QwenRemoteEngine(config, sample_manager)
+            elif request.engine == "local" and is_remote:
+                from .engines.local_vibevoice import LocalVibeVoiceEngine
+                target_engine = LocalVibeVoiceEngine(config, sample_manager)
         try:
-            result = engine.generate_dialogue(
+            result = target_engine.generate_dialogue(
                 text=request.text,
                 output_format=request.output_format,
                 preferred_voice=request.voice,
@@ -261,6 +289,49 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         return _store_generation(request.text, request.output_format, result)
+
+    @app.post("/api/generate/stream")
+    def generate_audio_stream(request: GenerateRequest) -> StreamingResponse:
+        target_engine = engine
+        if request.engine is not None:
+            is_remote = getattr(config.model, "use_remote_qwen", False)
+            if request.engine == "remote" and not is_remote:
+                from .engines.qwen_remote import QwenRemoteEngine
+                target_engine = QwenRemoteEngine(config, sample_manager)
+            elif request.engine == "local" and is_remote:
+                from .engines.local_vibevoice import LocalVibeVoiceEngine
+                target_engine = LocalVibeVoiceEngine(config, sample_manager)
+
+        max_chars = getattr(config.model, "max_segment_chars", 200)
+
+        def event_generator():
+            for event in target_engine.generate_with_segmentation_stream(
+                text=request.text,
+                output_format=request.output_format,
+                max_chars=max_chars,
+                preferred_voice=request.voice,
+                voice_mapping=request.voice_mapping,
+            ):
+                if event["type"] == "complete":
+                    result = event["result"]
+                    record = _store_generation(request.text, request.output_format, result)
+                    import json
+                    yield f"event: complete\ndata: {json.dumps(record.model_dump(), default=str)}\n\n"
+                elif event["type"] == "error":
+                    import json
+                    yield f"event: error\ndata: {json.dumps({'message': event['message']})}\n\n"
+                else:
+                    import json
+                    yield f"event: progress\ndata: {json.dumps(event)}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        )
 
     @app.get("/v1/voices", response_model=VoiceListResponse)
     def list_openai_voices() -> VoiceListResponse:

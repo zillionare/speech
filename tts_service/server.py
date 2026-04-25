@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import uuid
 from collections import deque
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -271,7 +272,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     def _store_generation(request_text: str, output_format: str, result) -> GenerationRecord:
         request_id = uuid.uuid4().hex[:12]
-        filename = f"{request_id}.{output_format}"
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{timestamp}-{request_id}.{output_format}"
         output_path = outputs_dir / filename
         output_path.write_bytes(result.audio_bytes)
         record = GenerationRecord(
@@ -284,6 +286,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             generation_seconds=result.generation_seconds,
             resolved_speakers=result.resolved_speakers,
             segment_count=getattr(result, "segment_count", 1),
+            created_at=datetime.now().isoformat(),
         )
         history.appendleft(record)
         return record

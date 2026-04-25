@@ -256,6 +256,12 @@ code {
     margin-bottom: 14px;
 }
 
+.time-badge {
+    color: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
 .settings-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -69,7 +69,16 @@ class QwenRemoteEngine(BaseEngine):
         voice_mapping: Optional[dict[str, str]] = None,
     ) -> GenerationResult:
         max_chars = getattr(self.config.model, "max_segment_chars", 200)
-        if len(text) > max_chars:
+
+        # Detect dialogue format (Speaker: prefix or "Speaker N:" prefix)
+        is_dialogue = any(
+            line.strip().startswith("Speaker ") or ":" in line.strip()
+            for line in text.splitlines()
+            if line.strip()
+        )
+
+        # Use segmentation for long text OR dialogue with multiple speakers
+        if len(text) > max_chars or is_dialogue:
             result = self._generate_with_segmentation(
                 text=text,
                 output_format=output_format,
@@ -80,8 +89,8 @@ class QwenRemoteEngine(BaseEngine):
                 speaker_gap=getattr(self.config.model, "speaker_gap_seconds", 1.0),
             )
             return self._post_process(result)
-        # Qwen remote API handles voice cloning via ref_audio; for multi-speaker
-        # dialogue we fall back to the preferred/default voice.
+
+        # Short non-dialogue text: single voice fast path
         target_voice = preferred_voice or self.config.voices.default_voice
         return self.generate_single(text=text, voice=target_voice, output_format=output_format)
 

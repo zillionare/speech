@@ -411,14 +411,30 @@ function renderResolutions(container, record) {
     }
 }
 
+function formatTimeLabel(isoString) {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const isToday = d.getFullYear() === now.getFullYear() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getDate() === now.getDate();
+    if (isToday) {
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function renderLatest(record) {
     const card = document.getElementById("latest-result");
     card.classList.remove("empty", "error");
+    const timeLabel = formatTimeLabel(record.created_at);
+    const timeHtml = timeLabel ? `<span class="time-badge">${timeLabel}</span> · ` : "";
     card.innerHTML = `
     <div class="history-head">
       <div>
         <h3>最新生成: ${record.request_id}</h3>
-        <p>${record.generation_seconds.toFixed(2)}s 生成，音频时长 ${record.duration_seconds.toFixed(2)}s${record.segment_count > 1 ? `，分段 ${record.segment_count}` : ''}</p>
+        <p>${timeHtml}${record.generation_seconds.toFixed(2)}s 生成，音频时长 ${record.duration_seconds.toFixed(2)}s${record.segment_count > 1 ? `，分段 ${record.segment_count}` : ''}</p>
       </div>
       <a class="download-link" href="${record.audio_url}" target="_blank" rel="noopener">下载</a>
     </div>
@@ -447,7 +463,9 @@ function renderHistory() {
     for (const record of state.history) {
         const node = template.content.firstElementChild.cloneNode(true);
         node.querySelector(".history-id").textContent = record.request_id;
-        node.querySelector(".history-meta").textContent = `${record.generation_seconds.toFixed(2)}s 生成 · ${record.duration_seconds.toFixed(2)}s 音频 · ${record.output_format}${record.segment_count > 1 ? ' · 分段 ' + record.segment_count : ''}`;
+        const timeLabel = formatTimeLabel(record.created_at);
+        const timePrefix = timeLabel ? `${timeLabel} · ` : "";
+        node.querySelector(".history-meta").textContent = `${timePrefix}${record.generation_seconds.toFixed(2)}s 生成 · ${record.duration_seconds.toFixed(2)}s 音频 · ${record.output_format}${record.segment_count > 1 ? ' · 分段 ' + record.segment_count : ''}`;
         node.querySelector(".download-link").href = record.audio_url;
         node.querySelector(".history-audio").src = record.audio_url;
         node.querySelector(".history-text").textContent = record.input_text;

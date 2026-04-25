@@ -96,9 +96,10 @@ class BaseEngine(ABC):
         seen_speakers: set[str] = set()
 
         for seg in segments:
+            mapped_voice = voice_mapping.get(seg.speaker) if voice_mapping and seg.speaker else seg.speaker
             result = self.generate_single(
                 text=seg.text,
-                voice=seg.speaker or preferred_voice,
+                voice=mapped_voice or preferred_voice,
                 output_format=output_format,
             )
             audio_parts.append(result.audio_bytes)
@@ -187,9 +188,10 @@ class BaseEngine(ABC):
             for i, seg in enumerate(segments, start=1):
                 preview = seg.text[:60] + ("..." if len(seg.text) > 60 else "")
                 yield {"type": "progress", "current": i, "total": len(segments), "text": preview}
+                mapped_voice = voice_mapping.get(seg.speaker) if voice_mapping and seg.speaker else seg.speaker
                 result = self.generate_single(
                     text=seg.text,
-                    voice=seg.speaker or preferred_voice,
+                    voice=mapped_voice or preferred_voice,
                     output_format=output_format,
                 )
                 audio_parts.append(result.audio_bytes)

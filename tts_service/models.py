@@ -37,6 +37,7 @@ class GenerationRecord(BaseModel):
     generation_seconds: float
     resolved_speakers: List[SpeakerResolution]
     segment_count: int = 1
+    created_at: Optional[str] = None
 
 
 class GenerateRequest(BaseModel):

@@ -11,7 +11,7 @@ model:
   qwen_base_url: http://192.168.0.102:8000
   max_segment_chars: 500
   speed: 1.0
-  stereo: true
+  stereo: false
   spatial_jitter: false
   segment_gap_seconds: 1.1
   speaker_gap_seconds: 1.0

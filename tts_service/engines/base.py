@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import math
 import subprocess
 import tempfile
 from abc import ABC, abstractmethod
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import soundfile as sf
 
 from ..models import SpeakerResolution
@@ -312,6 +314,51 @@ def _build_atempo_chain(speed: float) -> str:
     return ",".join(filters)
 
 
+def _apply_spatial_jitter(audio: np.ndarray, sr: int) -> np.ndarray:
+    """Apply very slow complementary gain modulation to L/R channels.
+
+    Simulates a speaker's head subtly turning left/right while talking.
+    Frequency ~0.15 Hz (6.7 s per cycle), depth ±3% (about ±0.5 dB).
+    This is inaudible as an "effect" but adds a gentle sense of movement.
+    """
+    if audio.ndim == 1:
+        audio = np.column_stack([audio, audio])
+    elif audio.shape[1] == 1:
+        audio = np.repeat(audio, 2, axis=1)
+
+    t = np.arange(len(audio)) / sr
+    freq = 0.15  # ~6.7 seconds per full cycle
+    depth = 0.03  # ±3% — barely perceptible, no quality loss
+
+    left_gain = 1.0 + depth * np.sin(2 * math.pi * freq * t)
+    right_gain = 1.0 - depth * np.sin(2 * math.pi * freq * t)
+
+    audio[:, 0] *= left_gain
+    audio[:, 1] *= right_gain
+    return audio
+
+
+def _apply_ffmpeg_speed(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
+    """Apply tempo change via ffmpeg atempo."""
+    af = _build_atempo_chain(speed)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        input_path = tmp_path / "input.wav"
+        input_path.write_bytes(audio_bytes)
+        output_path = tmp_path / f"output.{output_format}"
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", str(input_path),
+            "-af", af,
+            str(output_path),
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        result_bytes = output_path.read_bytes()
+        info = sf.info(io.BytesIO(result_bytes))
+        return result_bytes, info.duration
+
+
 def _apply_audio_effects(
     audio_bytes: bytes,
     output_format: str,
@@ -319,7 +366,10 @@ def _apply_audio_effects(
     stereo: bool = False,
     spatial_jitter: bool = False,
 ) -> tuple[bytes, float]:
-    """Apply speed and stereo spatial effects via ffmpeg.
+    """Apply speed, stereo conversion, and spatial jitter.
+
+    Stereo + spatial jitter are done in numpy (lossless quality).
+    Speed change is done via ffmpeg atempo.
 
     Returns (audio_bytes, duration_seconds).
     """
@@ -327,44 +377,29 @@ def _apply_audio_effects(
         info = sf.info(io.BytesIO(audio_bytes))
         return audio_bytes, info.duration
 
-    filters = []
-    if speed != 1.0:
-        filters.append(_build_atempo_chain(speed))
-    if stereo:
-        filters.append("pan=stereo|c0=c0|c1=c0")
-    # NOTE: apulsator was removed because it causes audible periodic volume pulsing
-    # (amplitude modulation) which severely degrades TTS quality.  If spatial
-    # enhancement is needed in the future, consider aecho (subtle reverb) or
-    # chorus instead of AM-based effects.
+    # Step 1: numpy-based stereo + spatial jitter (no quality loss)
+    if stereo or spatial_jitter:
+        audio, sr = sf.read(io.BytesIO(audio_bytes))
+        if audio.ndim == 1:
+            audio = np.column_stack([audio, audio])
+        elif audio.shape[1] == 1:
+            audio = np.repeat(audio, 2, axis=1)
 
-    af = ",".join(filters)
+        if spatial_jitter:
+            audio = _apply_spatial_jitter(audio, sr)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_path = Path(tmpdir)
-        input_path = tmp_path / f"input.{output_format}"
-        input_path.write_bytes(audio_bytes)
-        output_path = tmp_path / f"output.{output_format}"
+        # Write back as WAV for ffmpeg pipeline
+        buf = io.BytesIO()
+        sf.write(buf, audio, sr, format="WAV")
+        buf.seek(0)
+        audio_bytes = buf.read()
 
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(input_path),
-            "-af", af,
-            "-c:a", "copy" if (not stereo and not spatial_jitter) else "pcm_s16le",
-            str(output_path),
-        ]
-        # For ogg/flac with re-encoding we need to handle codec properly
-        if output_format == "ogg":
-            cmd[-2] = "libvorbis"
-        elif output_format == "flac":
-            cmd[-2] = "flac"
-        elif output_format == "wav":
-            cmd[-2] = "pcm_s16le"
+    # Step 2: ffmpeg for speed and/or format conversion
+    if speed != 1.0 or output_format != "wav":
+        return _apply_ffmpeg_speed(audio_bytes, output_format, speed)
 
-        subprocess.run(cmd, check=True, capture_output=True)
-        result_bytes = output_path.read_bytes()
-        info = sf.info(io.BytesIO(result_bytes))
-        return result_bytes, info.duration
+    info = sf.info(io.BytesIO(audio_bytes))
+    return audio_bytes, info.duration
 
 
 def create_engine(config, sample_manager) -> BaseEngine:

@@ -332,9 +332,10 @@ def _apply_audio_effects(
         filters.append(_build_atempo_chain(speed))
     if stereo:
         filters.append("pan=stereo|c0=c0|c1=c0")
-    if spatial_jitter and stereo:
-        # Slow subtle LFO panning for naturalness
-        filters.append("apulsator=hz=0.3:width=0.08:offset_l=0.05:offset_r=0.05")
+    # NOTE: apulsator was removed because it causes audible periodic volume pulsing
+    # (amplitude modulation) which severely degrades TTS quality.  If spatial
+    # enhancement is needed in the future, consider aecho (subtle reverb) or
+    # chorus instead of AM-based effects.
 
     af = ",".join(filters)
 

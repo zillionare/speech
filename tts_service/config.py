@@ -21,7 +21,7 @@ class ModelConfig(BaseModel):
     seed: int = 42
     use_semantic: bool = True
     use_coreml_semantic: bool = False
-    use_remote_qwen: bool = False
+    use_remote_qwen: bool = True
     qwen_base_url: str = "http://192.168.0.102:8000"
     max_segment_chars: int = 200
     speed: float = 1.0

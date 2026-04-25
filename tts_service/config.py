@@ -25,8 +25,8 @@ class ModelConfig(BaseModel):
     qwen_base_url: str = "http://192.168.0.102:8000"
     max_segment_chars: int = 200
     speed: float = 1.0
-    stereo: bool = False
-    spatial_jitter: bool = False
+    stereo: bool = True
+    spatial_jitter: bool = True
     segment_gap_seconds: float = 1.0
     speaker_gap_seconds: float = 1.0
 

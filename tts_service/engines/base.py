@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import math
+import shutil
 import subprocess
 import tempfile
 from abc import ABC, abstractmethod
@@ -15,6 +16,24 @@ import numpy as np
 import soundfile as sf
 
 from ..models import SpeakerResolution
+
+
+def _find_ffmpeg() -> str:
+    """Locate ffmpeg binary; fallback to common paths."""
+    path = shutil.which("ffmpeg")
+    if path:
+        return path
+    for candidate in (
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return "ffmpeg"
+
+
+_FFMPEG_PATH = _find_ffmpeg()
 
 
 @dataclass(slots=True)
@@ -223,7 +242,7 @@ class BaseEngine(ABC):
 def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path) -> None:
     """Generate a silent audio file of given duration."""
     cmd = [
-        "ffmpeg", "-y",
+        _FFMPEG_PATH, "-y",
         "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl=mono",
         "-t", str(duration_seconds),
         "-acodec", "pcm_s16le",
@@ -285,7 +304,7 @@ def _concatenate_audio_segments(
 
         output_path = tmp_path / f"output.{output_format}"
         cmd = [
-            "ffmpeg",
+            _FFMPEG_PATH,
             "-y",
             "-f", "concat",
             "-safe", "0",
@@ -350,7 +369,7 @@ def _apply_ffmpeg_speed(audio_bytes: bytes, output_format: str, speed: float) ->
         output_path = tmp_path / f"output.{output_format}"
 
         cmd = [
-            "ffmpeg", "-y",
+            _FFMPEG_PATH, "-y",
             "-i", str(input_path),
             "-af", af,
             str(output_path),

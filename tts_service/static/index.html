@@ -80,6 +80,12 @@
                 </div>
                 <p class="field-hint" id="engine-hint">模型参数仅影响本地引擎</p>
               </div>
+              <div class="markdown-select-row">
+                <label>Markdown 文件</label>
+                <input id="markdown-file-input" type="file" accept=".md,.markdown" style="visibility:hidden; position:absolute;">
+                <button type="button" class="secondary" id="markdown-select-btn">选择文件</button>
+                <span id="markdown-selected-name" class="field-hint">未选择</span>
+              </div>
               <label>
                 文本
                 <textarea id="generate-text" name="text" rows="12" placeholder="Aaron: 你好，这是中文测试。&#10;Bowen: 这是第二句。" required></textarea>
@@ -416,6 +422,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=2" defer></script>
   </body>
   </html>

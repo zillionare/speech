@@ -734,8 +734,11 @@ async function handleGenerate(event) {
         }
     }
 
+    const rawText = document.getElementById("generate-text").value;
+    const cleanedText = stripMarkdown(rawText);
+    document.getElementById("generate-text").value = cleanedText;
     const payload = {
-        text: document.getElementById("generate-text").value,
+        text: cleanedText,
         output_format: form.output_format.value,
         voice: document.getElementById("preferred-voice").value || null,
         voice_mapping: parseJsonOrEmpty(document.getElementById("voice-mapping").value),
@@ -946,6 +949,46 @@ async function handleAudioSelect() {
     if (input) input.click();
 }
 
+function stripMarkdown(text) {
+    if (typeof text !== "string") return "";
+    // Decode common HTML entities in case content was escaped
+    text = text.replace(/&lt;/g, "<")
+               .replace(/&gt;/g, ">")
+               .replace(/&amp;/g, "&")
+               .replace(/&quot;/g, '"')
+               .replace(/&#39;/g, "'");
+    // Remove YAML frontmatter at the very beginning
+    text = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    // Remove HTML comments
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+    // Remove Markdown headers (lines starting with # or fullwidth ＃)
+    text = text.replace(/^[ \t]*[#＃]+\s+.*$/gm, "");
+    // Collapse multiple blank lines into one
+    text = text.replace(/\n{3,}/g, "\n\n");
+    console.log("[stripMarkdown] output:", JSON.stringify(text.trim()));
+    return text.trim();
+}
+
+function handleMarkdownFileChange(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const raw = e.target.result;
+        const cleaned = stripMarkdown(raw);
+        document.getElementById("generate-text").value = cleaned;
+        document.getElementById("markdown-selected-name").textContent = file.name;
+    };
+    reader.readAsText(file);
+}
+
+function handleMarkdownSelect() {
+    const input = document.getElementById("markdown-file-input");
+    if (input) input.click();
+}
+
 async function bootstrap() {
     initNavigation();
     initSettingsToggle();
@@ -954,6 +997,10 @@ async function bootstrap() {
     if (audioInput) audioInput.addEventListener("change", handleAudioFileChange);
     const audioBtn = document.getElementById("audio-select-btn");
     if (audioBtn) audioBtn.addEventListener("click", handleAudioSelect);
+    const markdownInput = document.getElementById("markdown-file-input");
+    if (markdownInput) markdownInput.addEventListener("change", handleMarkdownFileChange);
+    const markdownBtn = document.getElementById("markdown-select-btn");
+    if (markdownBtn) markdownBtn.addEventListener("click", handleMarkdownSelect);
     document.getElementById("generate-form").addEventListener("submit", handleGenerate);
     document.getElementById("refresh-voices").addEventListener("click", loadVoices);
     const pruneBtn = document.getElementById("prune-outputs");

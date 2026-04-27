@@ -122,6 +122,12 @@ code {
     color: var(--muted);
 }
 
+.history-text {
+    max-height: 200px;
+    overflow-y: auto;
+    word-break: break-word;
+}
+
 .section-nav {
     display: grid;
     gap: 10px;

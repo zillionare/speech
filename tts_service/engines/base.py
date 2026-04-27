@@ -56,6 +56,7 @@ class BaseEngine(ABC):
         voice: Optional[str],
         output_format: str = "wav",
         instructions: Optional[str] = None,
+        speed: Optional[float] = None,
     ) -> GenerationResult:
         ...
 
@@ -83,6 +84,7 @@ class BaseEngine(ABC):
         segment_gap: float = 1.0,
         speaker_gap: float = 1.0,
         instructions: Optional[str] = None,
+        speed: Optional[float] = None,
     ) -> GenerationResult:
         """Segment long text, generate each part, concatenate with ffmpeg.
 
@@ -113,6 +115,7 @@ class BaseEngine(ABC):
                 voice=segments[0].speaker or preferred_voice,
                 output_format=output_format,
                 instructions=instructions,
+                speed=speed,
             )
 
         audio_parts: list[bytes] = []
@@ -128,6 +131,7 @@ class BaseEngine(ABC):
                 voice=mapped_voice or preferred_voice,
                 output_format=output_format,
                 instructions=instructions,
+                speed=speed,
             )
             audio_parts.append(result.audio_bytes)
             total_gen_seconds += result.generation_seconds
@@ -193,8 +197,9 @@ class BaseEngine(ABC):
                     voice=segments[0].speaker or preferred_voice,
                     output_format=output_format,
                     instructions=instructions,
+                    speed=speed,
                 )
-                audio_bytes, duration = _apply_audio_effects(
+                audio_bytes, duration = self._apply_postprocess_effects(
                     result.audio_bytes, output_format, speed, stereo, spatial_jitter
                 )
                 result = GenerationResult(
@@ -223,6 +228,7 @@ class BaseEngine(ABC):
                     voice=mapped_voice or preferred_voice,
                     output_format=output_format,
                     instructions=instructions,
+                    speed=speed,
                 )
                 audio_parts.append(result.audio_bytes)
                 total_gen_seconds += result.generation_seconds
@@ -234,7 +240,7 @@ class BaseEngine(ABC):
 
             gaps = _compute_gaps(segments, segment_gap, speaker_gap)
             final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
-            final_audio, final_duration = _apply_audio_effects(
+            final_audio, final_duration = self._apply_postprocess_effects(
                 final_audio, output_format, speed, stereo, spatial_jitter
             )
             complete_result = GenerationResult(
@@ -248,6 +254,20 @@ class BaseEngine(ABC):
             yield {"type": "complete", "result": complete_result}
         except Exception as exc:
             yield {"type": "error", "message": str(exc)}
+
+    def _apply_postprocess_effects(
+        self,
+        audio_bytes: bytes,
+        output_format: str,
+        speed: float,
+        stereo: bool,
+        spatial_jitter: bool,
+    ) -> tuple[bytes, float]:
+        """Hook for subclasses to customize post-processing.
+
+        Default delegates to _apply_audio_effects.
+        """
+        return _apply_audio_effects(audio_bytes, output_format, speed, stereo, spatial_jitter)
 
 
 def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path, channels: int = 1) -> None:

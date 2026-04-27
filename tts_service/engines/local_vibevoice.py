@@ -94,6 +94,7 @@ class LocalVibeVoiceEngine(BaseEngine):
         voice: Optional[str],
         output_format: str = "wav",
         instructions: Optional[str] = None,
+        speed: Optional[float] = None,
     ) -> GenerationResult:
         normalized_text = text.strip()
         if not normalized_text:

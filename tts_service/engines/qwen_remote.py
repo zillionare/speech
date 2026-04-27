@@ -39,6 +39,7 @@ class QwenRemoteEngine(BaseEngine):
         voice: Optional[str],
         output_format: str = "wav",
         instructions: Optional[str] = None,
+        speed: Optional[float] = None,
     ) -> GenerationResult:
         resolved_name, wav_path, ref_text = self._resolve_voice(voice)
         start = time.perf_counter()
@@ -48,6 +49,7 @@ class QwenRemoteEngine(BaseEngine):
             ref_text=ref_text,
             output_format=output_format,
             instructions=instructions,
+            speed=speed,
         )
         generation_seconds = time.perf_counter() - start
         duration_seconds = self._estimate_duration(audio_bytes)
@@ -104,13 +106,14 @@ class QwenRemoteEngine(BaseEngine):
 
         # Short non-dialogue text: single voice fast path
         target_voice = preferred_voice or self.config.voices.default_voice
-        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions)
+        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions, speed=speed)
 
     def _post_process(self, result: GenerationResult, speed_override: Optional[float] = None) -> GenerationResult:
+        # Speed is handled natively by the Qwen API; only apply stereo/spatial_jitter here.
         audio_bytes, duration = _apply_audio_effects(
             result.audio_bytes,
             result.output_format,
-            speed=speed_override if speed_override is not None else getattr(self.config.model, "speed", 1.0),
+            speed=1.0,
             stereo=getattr(self.config.model, "stereo", False),
             spatial_jitter=getattr(self.config.model, "spatial_jitter", False),
         )
@@ -123,6 +126,17 @@ class QwenRemoteEngine(BaseEngine):
             segment_count=result.segment_count,
         )
 
+    def _apply_postprocess_effects(
+        self,
+        audio_bytes: bytes,
+        output_format: str,
+        speed: float,
+        stereo: bool,
+        spatial_jitter: bool,
+    ) -> tuple[bytes, float]:
+        # Qwen API already applied speed natively; skip ffmpeg atempo.
+        return _apply_audio_effects(audio_bytes, output_format, 1.0, stereo, spatial_jitter)
+
     def _call_remote(
         self,
         text: str,
@@ -130,6 +144,7 @@ class QwenRemoteEngine(BaseEngine):
         ref_text: str,
         output_format: str,
         instructions: Optional[str] = None,
+        speed: Optional[float] = None,
     ) -> bytes:
         with open(wav_path, "rb") as f:
             audio_b64 = base64.b64encode(f.read()).decode()
@@ -144,6 +159,8 @@ class QwenRemoteEngine(BaseEngine):
         }
         if instructions:
             payload["instructions"] = instructions
+        if speed is not None:
+            payload["speed"] = speed
 
         req = urllib.request.Request(
             f"{self.base_url}/v1/audio/speech",

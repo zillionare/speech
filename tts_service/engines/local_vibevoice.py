@@ -88,7 +88,13 @@ class LocalVibeVoiceEngine(BaseEngine):
         self._load_voice_embeddings(sample)
         return self.sample_manager.resolve_or_default(sample.speaker)
 
-    def generate_single(self, text: str, voice: Optional[str], output_format: str = "wav") -> GenerationResult:
+    def generate_single(
+        self,
+        text: str,
+        voice: Optional[str],
+        output_format: str = "wav",
+        instructions: Optional[str] = None,
+    ) -> GenerationResult:
         normalized_text = text.strip()
         if not normalized_text:
             raise ValueError("Input text cannot be empty")
@@ -117,6 +123,10 @@ class LocalVibeVoiceEngine(BaseEngine):
         output_format: str = "wav",
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+        speed: Optional[float] = None,
+        segment_gap: Optional[float] = None,
+        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
         normalized_text = text.strip()
         if not normalized_text:
@@ -131,8 +141,9 @@ class LocalVibeVoiceEngine(BaseEngine):
                 max_chars=max_chars,
                 preferred_voice=preferred_voice,
                 voice_mapping=voice_mapping,
-                segment_gap=getattr(self.config.model, "segment_gap_seconds", 1.0),
-                speaker_gap=getattr(self.config.model, "speaker_gap_seconds", 1.0),
+                segment_gap=segment_gap if segment_gap is not None else getattr(self.config.model, "segment_gap_seconds", 1.0),
+                speaker_gap=speaker_gap if speaker_gap is not None else getattr(self.config.model, "speaker_gap_seconds", 1.0),
+                instructions=instructions,
             )
             return self._post_process(result)
 

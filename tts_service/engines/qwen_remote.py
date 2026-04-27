@@ -33,7 +33,13 @@ class QwenRemoteEngine(BaseEngine):
         transcript = sample.txt_path.read_text(encoding="utf-8").strip() if sample.txt_path.exists() else ""
         return sample.speaker, sample.wav_path, transcript
 
-    def generate_single(self, text: str, voice: Optional[str], output_format: str = "wav") -> GenerationResult:
+    def generate_single(
+        self,
+        text: str,
+        voice: Optional[str],
+        output_format: str = "wav",
+        instructions: Optional[str] = None,
+    ) -> GenerationResult:
         resolved_name, wav_path, ref_text = self._resolve_voice(voice)
         start = time.perf_counter()
         audio_bytes = self._call_remote(
@@ -41,6 +47,7 @@ class QwenRemoteEngine(BaseEngine):
             wav_path=wav_path,
             ref_text=ref_text,
             output_format=output_format,
+            instructions=instructions,
         )
         generation_seconds = time.perf_counter() - start
         duration_seconds = self._estimate_duration(audio_bytes)
@@ -67,6 +74,10 @@ class QwenRemoteEngine(BaseEngine):
         output_format: str = "wav",
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+        speed: Optional[float] = None,
+        segment_gap: Optional[float] = None,
+        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
         max_chars = getattr(self.config.model, "max_segment_chars", 200)
 
@@ -85,20 +96,21 @@ class QwenRemoteEngine(BaseEngine):
                 max_chars=max_chars,
                 preferred_voice=preferred_voice,
                 voice_mapping=voice_mapping,
-                segment_gap=getattr(self.config.model, "segment_gap_seconds", 1.0),
-                speaker_gap=getattr(self.config.model, "speaker_gap_seconds", 1.0),
+                segment_gap=segment_gap if segment_gap is not None else getattr(self.config.model, "segment_gap_seconds", 1.0),
+                speaker_gap=speaker_gap if speaker_gap is not None else getattr(self.config.model, "speaker_gap_seconds", 1.0),
+                instructions=instructions,
             )
-            return self._post_process(result)
+            return self._post_process(result, speed_override=speed)
 
         # Short non-dialogue text: single voice fast path
         target_voice = preferred_voice or self.config.voices.default_voice
-        return self.generate_single(text=text, voice=target_voice, output_format=output_format)
+        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions)
 
-    def _post_process(self, result: GenerationResult) -> GenerationResult:
+    def _post_process(self, result: GenerationResult, speed_override: Optional[float] = None) -> GenerationResult:
         audio_bytes, duration = _apply_audio_effects(
             result.audio_bytes,
             result.output_format,
-            speed=getattr(self.config.model, "speed", 1.0),
+            speed=speed_override if speed_override is not None else getattr(self.config.model, "speed", 1.0),
             stereo=getattr(self.config.model, "stereo", False),
             spatial_jitter=getattr(self.config.model, "spatial_jitter", False),
         )
@@ -117,6 +129,7 @@ class QwenRemoteEngine(BaseEngine):
         wav_path: Path,
         ref_text: str,
         output_format: str,
+        instructions: Optional[str] = None,
     ) -> bytes:
         with open(wav_path, "rb") as f:
             audio_b64 = base64.b64encode(f.read()).decode()
@@ -129,6 +142,8 @@ class QwenRemoteEngine(BaseEngine):
             "ref_text": ref_text,
             "response_format": output_format,
         }
+        if instructions:
+            payload["instructions"] = instructions
 
         req = urllib.request.Request(
             f"{self.base_url}/v1/audio/speech",

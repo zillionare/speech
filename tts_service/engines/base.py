@@ -55,6 +55,7 @@ class BaseEngine(ABC):
         text: str,
         voice: Optional[str],
         output_format: str = "wav",
+        instructions: Optional[str] = None,
     ) -> GenerationResult:
         ...
 
@@ -65,6 +66,10 @@ class BaseEngine(ABC):
         output_format: str = "wav",
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
+        instructions: Optional[str] = None,
+        speed: Optional[float] = None,
+        segment_gap: Optional[float] = None,
+        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
         ...
 
@@ -77,6 +82,7 @@ class BaseEngine(ABC):
         voice_mapping: Optional[dict[str, str]] = None,
         segment_gap: float = 1.0,
         speaker_gap: float = 1.0,
+        instructions: Optional[str] = None,
     ) -> GenerationResult:
         """Segment long text, generate each part, concatenate with ffmpeg.
 
@@ -106,6 +112,7 @@ class BaseEngine(ABC):
                 text=segments[0].text,
                 voice=segments[0].speaker or preferred_voice,
                 output_format=output_format,
+                instructions=instructions,
             )
 
         audio_parts: list[bytes] = []
@@ -120,6 +127,7 @@ class BaseEngine(ABC):
                 text=seg.text,
                 voice=mapped_voice or preferred_voice,
                 output_format=output_format,
+                instructions=instructions,
             )
             audio_parts.append(result.audio_bytes)
             total_gen_seconds += result.generation_seconds
@@ -152,6 +160,7 @@ class BaseEngine(ABC):
         spatial_jitter: bool = False,
         segment_gap: float = 1.0,
         speaker_gap: float = 1.0,
+        instructions: Optional[str] = None,
     ):
         """Generator that yields progress dicts and finally a complete result dict.
 
@@ -183,6 +192,7 @@ class BaseEngine(ABC):
                     text=segments[0].text,
                     voice=segments[0].speaker or preferred_voice,
                     output_format=output_format,
+                    instructions=instructions,
                 )
                 audio_bytes, duration = _apply_audio_effects(
                     result.audio_bytes, output_format, speed, stereo, spatial_jitter
@@ -212,6 +222,7 @@ class BaseEngine(ABC):
                     text=seg.text,
                     voice=mapped_voice or preferred_voice,
                     output_format=output_format,
+                    instructions=instructions,
                 )
                 audio_parts.append(result.audio_bytes)
                 total_gen_seconds += result.generation_seconds
@@ -239,11 +250,12 @@ class BaseEngine(ABC):
             yield {"type": "error", "message": str(exc)}
 
 
-def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path) -> None:
+def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path, channels: int = 1) -> None:
     """Generate a silent audio file of given duration."""
+    layout = "mono" if channels == 1 else "stereo"
     cmd = [
         _FFMPEG_PATH, "-y",
-        "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl=mono",
+        "-f", "lavfi", "-i", f"anullsrc=r={sample_rate}:cl={layout}",
         "-t", str(duration_seconds),
         "-acodec", "pcm_s16le",
         str(output_path),
@@ -284,13 +296,21 @@ def _concatenate_audio_segments(
 
     gaps = gaps or [0.0] * len(segments)
 
+    # Detect channel count from the first segment so silence matches
+    channels = 1
+    try:
+        info = sf.info(io.BytesIO(segments[0]))
+        channels = info.channels
+    except Exception:
+        pass
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         all_files: list[Path] = []
         for i, seg_bytes in enumerate(segments):
             if gaps[i] > 0:
                 silence_path = tmp_path / f"sil_{i:04d}.wav"
-                _generate_silence(gaps[i], sample_rate, silence_path)
+                _generate_silence(gaps[i], sample_rate, silence_path, channels=channels)
                 all_files.append(silence_path)
             seg_path = tmp_path / f"seg_{i:04d}.{output_format}"
             seg_path.write_bytes(seg_bytes)

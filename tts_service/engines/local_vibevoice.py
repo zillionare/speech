@@ -19,7 +19,14 @@ import cn2an
 from ..config import Config
 from ..models import SpeakerResolution
 from ..sample_manager import SampleManager, VoiceSample
-from .base import BaseEngine, GenerationResult, _apply_audio_effects
+from .base import (
+    BaseEngine,
+    GenerationResult,
+    TONE_INSTRUCTIONS,
+    _apply_audio_effects,
+    _concatenate_audio_segments,
+    _parse_tagged_dialogue,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -116,7 +123,7 @@ class LocalVibeVoiceEngine(BaseEngine):
                 )
             ]
             result = self._generate_one(script, [sample], resolutions, output_format)
-            return self._post_process(result)
+            return self._post_process(result, speed_override=speed)
 
     def generate_dialogue(
         self,
@@ -134,6 +141,17 @@ class LocalVibeVoiceEngine(BaseEngine):
             raise ValueError("Input text cannot be empty")
         normalized_text = _convert_numbers_to_chinese(normalized_text)
 
+        # Try new tagged dialogue format first: Speaker[tone>>]: text
+        tagged_segments, is_tagged = _parse_tagged_dialogue(normalized_text)
+        if is_tagged:
+            return self._generate_tagged_segments(
+                tagged_segments,
+                output_format=output_format,
+                voice_mapping=voice_mapping,
+                segment_gap=segment_gap,
+                speaker_gap=speaker_gap,
+            )
+
         max_chars = getattr(self.config.model, "max_segment_chars", 200)
         if len(normalized_text) > max_chars:
             result = self._generate_with_segmentation(
@@ -146,7 +164,7 @@ class LocalVibeVoiceEngine(BaseEngine):
                 speaker_gap=speaker_gap if speaker_gap is not None else getattr(self.config.model, "speaker_gap_seconds", 1.0),
                 instructions=instructions,
             )
-            return self._post_process(result)
+            return self._post_process(result, speed_override=speed)
 
         with self._generation_lock:
             self._ensure_runtime_loaded()
@@ -158,13 +176,62 @@ class LocalVibeVoiceEngine(BaseEngine):
                 default_sample=default_sample,
             )
             result = self._generate_one(normalized_script, ordered_samples, resolutions, output_format)
-            return self._post_process(result)
+            return self._post_process(result, speed_override=speed)
 
-    def _post_process(self, result: GenerationResult) -> GenerationResult:
+    def _generate_tagged_segments(
+        self,
+        segments: list[dict],
+        output_format: str,
+        voice_mapping: Optional[dict[str, str]] = None,
+        segment_gap: Optional[float] = None,
+        speaker_gap: Optional[float] = None,
+    ) -> GenerationResult:
+        """Generate each tagged segment with its own voice and speed.
+
+        Local MLX does not support instructions (tone), so tone mapping is ignored.
+        """
+        audio_parts: list[bytes] = []
+        total_gen_seconds = 0.0
+        total_duration_seconds = 0.0
+        all_resolutions: list[SpeakerResolution] = []
+        seen_speakers: set[str] = set()
+
+        for seg in segments:
+            mapped_voice = voice_mapping.get(seg["speaker"]) if voice_mapping else seg["speaker"]
+            resolved = self.sample_manager.resolve(mapped_voice)
+            voice = mapped_voice if resolved else self.config.voices.default_voice
+
+            result = self.generate_single(
+                text=seg["text"],
+                voice=voice,
+                output_format=output_format,
+                speed=seg["speed"],
+            )
+            audio_parts.append(result.audio_bytes)
+            total_gen_seconds += result.generation_seconds
+            total_duration_seconds += result.duration_seconds
+            for spk in result.resolved_speakers:
+                if spk.resolved_voice not in seen_speakers:
+                    seen_speakers.add(spk.resolved_voice)
+                    all_resolutions.append(spk)
+
+        gap = segment_gap if segment_gap is not None else getattr(self.config.model, "segment_gap_seconds", 1.0)
+        gaps = [0.0] + [gap] * (len(segments) - 1)
+        final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
+        return GenerationResult(
+            audio_bytes=final_audio,
+            output_format=output_format,
+            generation_seconds=total_gen_seconds,
+            duration_seconds=total_duration_seconds,
+            resolved_speakers=all_resolutions,
+            segment_count=len(segments),
+        )
+
+    def _post_process(self, result: GenerationResult, speed_override: Optional[float] = None) -> GenerationResult:
         audio_bytes, duration = _apply_audio_effects(
             result.audio_bytes,
             result.output_format,
-            speed=getattr(self.config.model, "speed", 1.0),
+            speed=speed_override if speed_override is not None else getattr(self.config.model, "speed", 1.0),
             stereo=getattr(self.config.model, "stereo", False),
             spatial_jitter=getattr(self.config.model, "spatial_jitter", False),
         )

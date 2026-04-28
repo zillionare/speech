@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +17,91 @@ import numpy as np
 import soundfile as sf
 
 from ..models import SpeakerResolution
+
+
+# Mapping from short tone tags to full natural-language instructions for Qwen3-TTS.
+TONE_INSTRUCTIONS = {
+    "兴奋": "用开心兴奋的语气说，语调轻快上扬，充满热情",
+    "压抑": "用压抑沉重的语气说，音调低沉，带着克制和压抑感",
+    "温柔": "用温柔亲切的语气说，语调柔和，像轻声安慰",
+    "严肃": "用严肃正式的语气说，语调平稳，吐字清晰有力，不带多余情绪",
+    "悲伤": "用悲伤低落的语气说，带着叹息和停顿，情绪低落",
+    "愤怒": "用生气愤怒的语气说，语调急促有力，带着不满",
+    "惊讶": "用惊讶意外的语气说，语调先上扬后停顿，带着不可置信的感觉",
+    "冷静": "用冷静理智的语气说，语调平稳，不带情绪起伏",
+    "活泼": "用活泼俏皮的语气说，语调轻快跳跃，带着笑意",
+    "沉稳": "用沉稳成熟的语气说，语调低沉有力，从容不迫",
+    "欢快": "用欢快愉悦的语气说，语调上扬，带着喜悦",
+    "惊叹": "用惊叹赞叹的语气说，语调先高后低，带着惊讶和佩服",
+    "亲切": "用亲切随和的语气说，语调柔和自然，像和老朋友聊天",
+    "冷漠": "用冷漠疏离的语气说，语调平淡，不带情感",
+    "紧张": "用紧张焦虑的语气说，语调不稳定，带着不安",
+    "慵懒": "用慵懒散漫的语气说，语调低沉，带着倦意",
+    "激昂": "用激昂振奋的语气说，语调有力上扬，充满力量",
+    "俏皮": "用俏皮可爱的语气说，语调轻快跳跃，偶尔带笑，活泼灵动",
+    "笑意": "带着笑意的语气说，语调轻松上扬，像在微笑",
+    "低沉": "用低沉浑厚的语气说，语调在低音区，稳重有力",
+    "轻快": "用轻快明朗的语气说，语调明亮跳跃",
+}
+
+# Parse lines like: Speaker[tone>>]: text  or  Speaker[tone<<]: text  or  Speaker[tone]: text
+_TAGGED_LINE_RE = re.compile(r"^([^\[\n]{1,80})\[([^\[\]]+)\]:\s*(.+)$")
+
+
+def _parse_tagged_dialogue(text: str) -> tuple[list[dict], bool]:
+    """Parse text in Speaker[tone<<>>]: text format.
+
+    Returns (segments, is_tagged). Each segment dict has:
+        speaker: str
+        tone: str
+        speed: float   (1.15 for >>, 0.85 for <<, 1.0 otherwise)
+        text: str
+    """
+    segments: list[dict] = []
+    current_meta: dict | None = None
+    current_lines: list[str] = []
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if current_meta and current_lines:
+                segments.append({**current_meta, "text": "\n".join(current_lines)})
+                current_meta = None
+                current_lines = []
+            continue
+
+        match = _TAGGED_LINE_RE.match(stripped)
+        if match:
+            if current_meta and current_lines:
+                segments.append({**current_meta, "text": "\n".join(current_lines)})
+
+            speaker = match.group(1).strip()
+            tone_speed = match.group(2).strip()
+            text_part = match.group(3).strip()
+
+            if tone_speed.endswith(">>"):
+                tone = tone_speed[:-2].strip()
+                speed = 1.15
+            elif tone_speed.endswith("<<"):
+                tone = tone_speed[:-2].strip()
+                speed = 0.85
+            else:
+                tone = tone_speed
+                speed = 1.0
+
+            current_meta = {"speaker": speaker, "tone": tone, "speed": speed}
+            current_lines = [text_part]
+        else:
+            if current_meta:
+                current_lines.append(stripped)
+            else:
+                # First non-empty line is not tagged → not a tagged dialogue
+                return [], False
+
+    if current_meta and current_lines:
+        segments.append({**current_meta, "text": "\n".join(current_lines)})
+
+    return segments, len(segments) > 0
 
 
 def _find_ffmpeg() -> str:

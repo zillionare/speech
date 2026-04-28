@@ -90,7 +90,10 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(static_dir / "index.html")
+        return FileResponse(
+            static_dir / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
+        )
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:

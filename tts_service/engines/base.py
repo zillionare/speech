@@ -33,7 +33,22 @@ def _find_ffmpeg() -> str:
     return "ffmpeg"
 
 
+def _find_rubberband() -> str | None:
+    """Locate rubberband binary for high-quality time-stretching."""
+    path = shutil.which("rubberband")
+    if path:
+        return path
+    for candidate in (
+        "/opt/homebrew/bin/rubberband",
+        "/usr/local/bin/rubberband",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
 _FFMPEG_PATH = _find_ffmpeg()
+_RUBBERBAND_PATH = _find_rubberband()
 
 
 @dataclass(slots=True)
@@ -399,6 +414,39 @@ def _apply_spatial_jitter(audio: np.ndarray, sr: int) -> np.ndarray:
     return audio
 
 
+def _apply_rubberband_speed(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
+    """Apply tempo change via rubberband (higher quality than ffmpeg atempo)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        input_path = tmp_path / "input.wav"
+        input_path.write_bytes(audio_bytes)
+        output_path = tmp_path / "output.wav"
+
+        cmd = [
+            _RUBBERBAND_PATH, "-q",
+            "-T", str(speed),
+            str(input_path),
+            str(output_path),
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+
+        # Convert format if needed
+        if output_format != "wav":
+            fmt_output = tmp_path / f"output.{output_format}"
+            conv_cmd = [
+                _FFMPEG_PATH, "-y",
+                "-i", str(output_path),
+                str(fmt_output),
+            ]
+            subprocess.run(conv_cmd, check=True, capture_output=True)
+            result_bytes = fmt_output.read_bytes()
+        else:
+            result_bytes = output_path.read_bytes()
+
+        info = sf.info(io.BytesIO(result_bytes))
+        return result_bytes, info.duration
+
+
 def _apply_ffmpeg_speed(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
     """Apply tempo change via ffmpeg atempo."""
     af = _build_atempo_chain(speed)
@@ -420,6 +468,13 @@ def _apply_ffmpeg_speed(audio_bytes: bytes, output_format: str, speed: float) ->
         return result_bytes, info.duration
 
 
+def _apply_speed_adjustment(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
+    """Apply tempo change using rubberband if available, else ffmpeg atempo."""
+    if _RUBBERBAND_PATH is not None:
+        return _apply_rubberband_speed(audio_bytes, output_format, speed)
+    return _apply_ffmpeg_speed(audio_bytes, output_format, speed)
+
+
 def _apply_audio_effects(
     audio_bytes: bytes,
     output_format: str,
@@ -430,7 +485,7 @@ def _apply_audio_effects(
     """Apply speed, stereo conversion, and spatial jitter.
 
     Stereo + spatial jitter are done in numpy (lossless quality).
-    Speed change is done via ffmpeg atempo.
+    Speed change prefers rubberband (if installed) over ffmpeg atempo.
 
     Returns (audio_bytes, duration_seconds).
     """
@@ -449,15 +504,15 @@ def _apply_audio_effects(
         if spatial_jitter:
             audio = _apply_spatial_jitter(audio, sr)
 
-        # Write back as WAV for ffmpeg pipeline
+        # Write back as WAV for processing pipeline
         buf = io.BytesIO()
         sf.write(buf, audio, sr, format="WAV")
         buf.seek(0)
         audio_bytes = buf.read()
 
-    # Step 2: ffmpeg for speed and/or format conversion
+    # Step 2: speed and/or format conversion
     if speed != 1.0 or output_format != "wav":
-        return _apply_ffmpeg_speed(audio_bytes, output_format, speed)
+        return _apply_speed_adjustment(audio_bytes, output_format, speed)
 
     info = sf.info(io.BytesIO(audio_bytes))
     return audio_bytes, info.duration

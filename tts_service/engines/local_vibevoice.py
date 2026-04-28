@@ -22,7 +22,6 @@ from ..sample_manager import SampleManager, VoiceSample
 from .base import (
     BaseEngine,
     GenerationResult,
-    TONE_INSTRUCTIONS,
     _apply_audio_effects,
     _concatenate_audio_segments,
     _parse_tagged_dialogue,

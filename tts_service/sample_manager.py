@@ -122,12 +122,22 @@ class VoiceSample:
     cache_path: Path
     transcript: str
     aliases: set[str]
+    is_tone_voice: bool = False
+    base_speaker: str = ""
+    tone: str = ""
 
     @property
     def transcript_preview(self) -> str:
         if not self.transcript:
             return ""
         return self.transcript[:120]
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable name showing base speaker + tone if applicable."""
+        if self.is_tone_voice and self.tone:
+            return f"{self.base_speaker} ({self.tone})"
+        return self.speaker
 
 
 class SampleManager:
@@ -156,11 +166,19 @@ class SampleManager:
     def refresh(self) -> None:
         self._voices.clear()
         self._aliases.clear()
+        all_stems: list[str] = []
         for wav_path in sorted(self.base_dir.glob("*.wav")):
             speaker = wav_path.stem
+            all_stems.append(speaker)
+            # Find transcript: exact match first, then fallback to tone-parent
             txt_path = wav_path.with_suffix(".txt")
             if not txt_path.exists():
-                txt_path.write_text("", encoding="utf-8")
+                # Try parent tone voice, e.g. Aaron-sad-fast -> Aaron-sad
+                parent_txt = self._find_tone_parent_txt(wav_path, all_stems)
+                if parent_txt:
+                    txt_path = parent_txt
+                else:
+                    txt_path.write_text("", encoding="utf-8")
             transcript = txt_path.read_text(encoding="utf-8").strip()
             aliases = self._build_aliases(speaker)
             sample = VoiceSample(
@@ -174,6 +192,13 @@ class SampleManager:
             self._voices[speaker] = sample
             for alias in aliases:
                 self._aliases[alias] = speaker
+        # Second pass: identify tone voices
+        for sample in self._voices.values():
+            base, tone = self._parse_tone_voice(sample.speaker, all_stems)
+            if base and tone:
+                sample.is_tone_voice = True
+                sample.base_speaker = base
+                sample.tone = tone
 
     def list_samples(self) -> list[VoiceSample]:
         return [self._voices[key] for key in sorted(self._voices)]
@@ -183,32 +208,6 @@ class SampleManager:
 
     def get(self, speaker: str) -> Optional[VoiceSample]:
         return self._voices.get(speaker)
-
-    def resolve(self, speaker: str) -> Optional[VoiceSample]:
-        if not speaker:
-            return None
-        if speaker in self._voices:
-            return self._voices[speaker]
-        normalized = self._normalize_alias(speaker)
-        resolved = self._aliases.get(normalized)
-        if resolved:
-            return self._voices[resolved]
-        return None
-
-    def resolve_or_default(self, speaker: str) -> VoiceSample:
-        resolved = self.resolve(speaker)
-        if resolved is not None:
-            return resolved
-        default_sample = self.resolve(self.default_voice)
-        if default_sample is not None:
-            return default_sample
-        # Fallback: use the first available voice if default is missing
-        samples = self.list_samples()
-        if samples:
-            return samples[0]
-        raise FileNotFoundError(
-            f"No voices available in {self.base_dir}"
-        )
 
     def add_voice(self, speaker: str, audio_bytes: bytes, transcript: str, overwrite: bool = False) -> VoiceSample:
         safe_speaker = self._sanitize_speaker_name(speaker)
@@ -248,6 +247,90 @@ class SampleManager:
 
     def voice_exists(self, speaker: str) -> bool:
         return self.resolve(speaker) is not None
+
+    def list_tone_voices(self, base_speaker: str) -> list[VoiceSample]:
+        """Return all tone-variant voices for a given base speaker (case-insensitive)."""
+        base_lower = base_speaker.lower()
+        return [
+            sample for sample in self._voices.values()
+            if sample.is_tone_voice and sample.base_speaker.lower() == base_lower
+        ]
+
+    def get_base_speaker(self, tone_voice: str) -> str:
+        """Extract base speaker from a tone voice name (case-insensitive)."""
+        sample = self._voices.get(tone_voice)
+        if sample and sample.is_tone_voice:
+            return sample.base_speaker
+        # Try case-insensitive lookup
+        for key, val in self._voices.items():
+            if key.lower() == tone_voice.lower() and val.is_tone_voice:
+                return val.base_speaker
+        return tone_voice
+
+    def _find_tone_parent_txt(self, wav_path: Path, all_stems: list[str]) -> Path | None:
+        """For a tone-speed variant like Aaron-sad-fast, find Aaron-sad.txt if it exists."""
+        stem = wav_path.stem
+        parts = stem.split("-")
+        # Try progressively shorter prefixes: Aaron-sad-fast -> Aaron-sad -> Aaron
+        for i in range(len(parts) - 1, 0, -1):
+            parent = "-".join(parts[:i])
+            candidate = wav_path.with_name(f"{parent}.txt")
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _parse_tone_voice(self, speaker: str, all_stems: list[str]) -> tuple[str, str]:
+        """Parse a tone voice name like 'Aaron-sad-fast' into (base, tone).
+
+        Returns (base_speaker, tone_tag) or ("", "") if not a tone voice.
+        """
+        parts = speaker.split("-")
+        if len(parts) < 2:
+            return "", ""
+        # Try longest prefix that matches an existing base voice
+        all_lower = {s.lower(): s for s in all_stems}
+        for i in range(len(parts) - 1, 0, -1):
+            prefix = "-".join(parts[:i])
+            if prefix.lower() in all_lower and prefix.lower() != speaker.lower():
+                base = all_lower[prefix.lower()]
+                tone = "-".join(parts[i:])
+                return base, tone
+        return "", ""
+
+    def resolve(self, speaker: str) -> Optional[VoiceSample]:
+        if not speaker:
+            return None
+        # Exact match (case-sensitive first)
+        if speaker in self._voices:
+            return self._voices[speaker]
+        # Case-insensitive match
+        for key, sample in self._voices.items():
+            if key.lower() == speaker.lower():
+                return sample
+        normalized = self._normalize_alias(speaker)
+        resolved = self._aliases.get(normalized)
+        if resolved:
+            return self._voices[resolved]
+        # Case-insensitive alias fallback
+        for alias, spk in self._aliases.items():
+            if alias.lower() == normalized.lower():
+                return self._voices[spk]
+        return None
+
+    def resolve_or_default(self, speaker: str) -> VoiceSample:
+        resolved = self.resolve(speaker)
+        if resolved is not None:
+            return resolved
+        default_sample = self.resolve(self.default_voice)
+        if default_sample is not None:
+            return default_sample
+        # Fallback: use the first available voice if default is missing
+        samples = self.list_samples()
+        if samples:
+            return samples[0]
+        raise FileNotFoundError(
+            f"No voices available in {self.base_dir}"
+        )
 
     @staticmethod
     def _sanitize_speaker_name(speaker: str) -> str:

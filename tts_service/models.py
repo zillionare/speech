@@ -119,6 +119,51 @@ class PruneOutputsRequest(BaseModel):
     keep_count: int = Field(default=3, ge=0)
 
 
+class PodcastSegment(BaseModel):
+    index: int
+    text: str
+    speaker: str = ""
+    tone: str = ""
+    speed_modifier: str = ""
+    voice_ref: str = ""
+    audio_filename: Optional[str] = None
+    duration_seconds: float = 0.0
+    generation_seconds: float = 0.0
+    status: Literal["pending", "generated", "error"] = "pending"
+
+
+class PodcastProject(BaseModel):
+    id: str
+    title: str
+    created_at: str
+    updated_at: str
+    output_format: Literal["wav", "flac", "ogg"] = "wav"
+    segments: List[PodcastSegment]
+    merged_audio_filename: Optional[str] = None
+
+
+class PodcastListResponse(BaseModel):
+    podcasts: List[PodcastProject]
+
+
+class CreatePodcastRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=256)
+    text: str = Field(..., min_length=1, max_length=65536)
+    output_format: Literal["wav", "flac", "ogg"] = "wav"
+
+
+class UpdateSegmentRequest(BaseModel):
+    text: Optional[str] = None
+    speaker: Optional[str] = None
+    tone: Optional[str] = None
+    speed_modifier: Optional[str] = None
+    voice_ref: Optional[str] = None
+
+
+class RegenerateSegmentRequest(BaseModel):
+    engine: Optional[Literal["local", "remote"]] = None
+
+
 class PruneOutputsResponse(BaseModel):
     deleted: List[str]
     kept: List[str]

@@ -28,14 +28,21 @@
               <small>声音库</small>
             </span>
           </a>
-          <a class="nav-link" href="#system-settings" data-section="system-settings">
+          <a class="nav-link" href="#podcast-studio" data-section="podcast-studio">
             <span class="nav-index">03</span>
+            <span class="nav-copy">
+              <strong>播客制作</strong>
+              <small>分段编辑</small>
+            </span>
+          </a>
+          <a class="nav-link" href="#system-settings" data-section="system-settings">
+            <span class="nav-index">04</span>
             <span class="nav-copy">
               <strong>系统设置</strong>
             </span>
           </a>
           <a class="nav-link" href="#speech-to-text" data-section="speech-to-text">
-            <span class="nav-index">04</span>
+            <span class="nav-index">05</span>
             <span class="nav-copy">
               <strong>声音转文本</strong>
               <small>语音识别</small>
@@ -65,8 +72,8 @@
             <div>
               <p class="section-kicker">文本转声音</p>
               <h2>生成和输出</h2>
-              <p>多角色语法示例：<code>Aaron[轻快&gt;&gt;]: 大家好！欢迎来到量化好声音播客！</code></p>
-              <p>支持的风格标签有：兴奋、压抑、温柔、严肃、悲伤、愤怒、惊讶、冷静、活泼、沉稳、欢快、惊叹、亲切、冷漠、紧张、慵懒、激昂、俏皮、笑意、低沉、轻快，通过 <code>&gt;&gt;</code> 和 <code>&lt;&lt;</code> 调整语速。</p>
+              <p>多角色语法示例：<code>Aaron: 大家好！欢迎来到量化好声音播客！</code></p>
+              <p>支持单人旁白和多角色对话。文本过长时会自动分段生成再合成。</p>
             </div>
           </div>
 
@@ -178,6 +185,81 @@
               </div>
               <div id="voice-status" class="status-hint">声音库状态将显示在这里。</div>
               <div id="voice-list" class="voice-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="podcast-studio" class="section-card anchor-section">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">播客制作</p>
+              <h2>分段编辑与合成</h2>
+              <p>导入长文本后分段生成，逐段审听、修改文本或切换音色，最终合并导出。</p>
+            </div>
+          </div>
+
+          <div id="podcast-editor" class="podcast-layout" hidden>
+            <div class="podcast-toolbar">
+              <button type="button" id="podcast-new-btn" class="primary">新建播客</button>
+              <button type="button" id="podcast-generate-all-btn" class="secondary">全部生成</button>
+              <button type="button" id="podcast-merge-btn" class="secondary">合并导出</button>
+              <span id="podcast-status" class="field-hint"></span>
+            </div>
+
+            <div class="podcast-workspace">
+              <aside class="podcast-sidebar">
+                <h3>播客项目</h3>
+                <div id="podcast-project-list" class="podcast-list"></div>
+              </aside>
+
+              <div class="podcast-main">
+                <div id="podcast-segments-panel">
+                  <h3>段落列表</h3>
+                  <div id="podcast-segments-list" class="podcast-segments"></div>
+                </div>
+
+                <div id="podcast-segment-editor" hidden>
+                  <h3>段落编辑</h3>
+                  <label>
+                    文本
+                    <textarea id="podcast-seg-text" rows="4"></textarea>
+                  </label>
+                  <div class="two-col">
+                    <label>
+                      说话人
+                      <select id="podcast-seg-speaker"></select>
+                    </label>
+                    <label>
+                      参考音色
+                      <select id="podcast-seg-voice-ref"></select>
+                    </label>
+                  </div>
+                  <div class="podcast-editor-actions">
+                    <button type="button" id="podcast-seg-save-btn" class="primary">保存修改</button>
+                    <button type="button" id="podcast-seg-regen-btn" class="secondary">重新生成</button>
+                    <span id="podcast-seg-status" class="field-hint"></span>
+                  </div>
+                  <audio id="podcast-seg-player" controls preload="none" style="width:100%;margin-top:12px;"></audio>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="podcast-new-modal" class="modal" hidden>
+            <div class="modal-content">
+              <h3>新建播客</h3>
+              <label>
+                标题
+                <input id="podcast-new-title" type="text" placeholder="播客标题">
+              </label>
+              <label>
+                文本
+                <textarea id="podcast-new-text" rows="12" placeholder="Aaron: 大家好！&#10;Bowen: 今天我们聊聊..."></textarea>
+              </label>
+              <div class="modal-actions">
+                <button type="button" id="podcast-new-create-btn" class="primary">创建</button>
+                <button type="button" id="podcast-new-cancel-btn" class="ghost">取消</button>
+              </div>
             </div>
           </div>
         </section>
@@ -414,6 +496,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=2" defer></script>
+    <script src="/static/app.js?v=3" defer></script>
   </body>
   </html>

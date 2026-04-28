@@ -17,17 +17,10 @@ from ..sample_manager import SampleManager
 from .base import (
     BaseEngine,
     GenerationResult,
-    TONE_INSTRUCTIONS,
     _apply_audio_effects,
     _concatenate_audio_segments,
     _parse_tagged_dialogue,
 )
-
-
-_SPEED_SUFFIX = {
-    ">>": "，语速加快，语调轻快",
-    "<<": "，语速放慢，每个字都拉长",
-}
 
 
 class QwenRemoteEngine(BaseEngine):
@@ -149,16 +142,10 @@ class QwenRemoteEngine(BaseEngine):
             resolved = self.sample_manager.resolve(mapped_voice)
             voice = mapped_voice if resolved else self.config.voices.default_voice
 
-            instructions = TONE_INSTRUCTIONS.get(seg["tone"], seg["tone"])
-            speed_mod = seg.get("speed_modifier", "")
-            if speed_mod:
-                instructions = instructions + _SPEED_SUFFIX.get(speed_mod, "")
-
             result = self.generate_single(
                 text=seg["text"],
                 voice=voice,
                 output_format=output_format,
-                instructions=instructions,
             )
             audio_parts.append(result.audio_bytes)
             total_gen_seconds += result.generation_seconds

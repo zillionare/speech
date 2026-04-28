@@ -18,17 +18,23 @@ from .config import load_config, save_config_to_yaml
 from .models import (
     AppConfigResponse,
     AppConfigUpdateRequest,
+    CreatePodcastRequest,
     GenerateRequest,
     GenerationRecord,
     HealthResponse,
+    PodcastListResponse,
+    PodcastProject,
     PodcastRequest,
     PruneOutputsRequest,
     PruneOutputsResponse,
+    RegenerateSegmentRequest,
     SpeechRequest,
     TranscriptUpdateRequest,
+    UpdateSegmentRequest,
     VoiceInfo,
     VoiceListResponse,
 )
+from .podcast_manager import PodcastManager
 from .sample_manager import SampleManager, VoiceSample
 from .tts_engine import create_engine
 
@@ -44,6 +50,20 @@ def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
     )
 
 
+def _resolve_engine(request_engine: str | None, config, sample_manager):
+    """Return the appropriate engine based on request override."""
+    if request_engine is None:
+        return create_engine(config, sample_manager)
+    is_remote = getattr(config.model, "use_remote_qwen", False)
+    if request_engine == "remote" and not is_remote:
+        from .engines.qwen_remote import QwenRemoteEngine
+        return QwenRemoteEngine(config, sample_manager)
+    elif request_engine == "local" and is_remote:
+        from .engines.local_vibevoice import LocalVibeVoiceEngine
+        return LocalVibeVoiceEngine(config, sample_manager)
+    return create_engine(config, sample_manager)
+
+
 def create_app(config_path: Optional[str] = None) -> FastAPI:
     config = load_config(config_path)
     sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
@@ -52,6 +72,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     outputs_dir = config.outputs.expanded_base_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
     history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
+    podcast_manager = PodcastManager(outputs_dir / "podcasts", outputs_dir)
 
     app = FastAPI(
         title="Speech Studio",
@@ -399,5 +420,121 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 "X-Generation-Time": f"{result.generation_seconds:.2f}",
             },
         )
+
+    # ── Tone voices ─────────────────────────────────────────
+
+    @app.get("/api/tone-voices/{speaker}")
+    def list_tone_voices(speaker: str) -> list[VoiceInfo]:
+        sample_manager.refresh()
+        return [_voice_info(s, config.voices.default_voice) for s in sample_manager.list_tone_voices(speaker)]
+
+    # ── Podcasts ────────────────────────────────────────────
+
+    @app.post("/api/podcasts", response_model=PodcastProject)
+    def create_podcast_project(request: CreatePodcastRequest) -> PodcastProject:
+        return podcast_manager.create_project(
+            title=request.title,
+            text=request.text,
+            output_format=request.output_format,
+        )
+
+    @app.get("/api/podcasts", response_model=PodcastListResponse)
+    def list_podcast_projects() -> PodcastListResponse:
+        return PodcastListResponse(podcasts=podcast_manager.list_projects())
+
+    @app.get("/api/podcasts/{project_id}", response_model=PodcastProject)
+    def get_podcast_project(project_id: str) -> PodcastProject:
+        project = podcast_manager.get_project(project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Podcast not found")
+        return project
+
+    @app.delete("/api/podcasts/{project_id}")
+    def delete_podcast_project(project_id: str) -> dict[str, str]:
+        if not podcast_manager.delete_project(project_id):
+            raise HTTPException(status_code=404, detail="Podcast not found")
+        return {"status": "deleted", "project_id": project_id}
+
+    @app.put("/api/podcasts/{project_id}/segments/{index}", response_model=PodcastProject)
+    def update_podcast_segment(
+        project_id: str,
+        index: int,
+        request: UpdateSegmentRequest,
+    ) -> PodcastProject:
+        try:
+            return podcast_manager.update_segment(
+                project_id=project_id,
+                index=index,
+                text=request.text,
+                speaker=request.speaker,
+                tone=request.tone,
+                voice_ref=request.voice_ref,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/podcasts/{project_id}/segments/{index}/regenerate", response_model=PodcastProject)
+    def regenerate_podcast_segment(
+        project_id: str,
+        index: int,
+        request: RegenerateSegmentRequest,
+    ) -> PodcastProject:
+        target_engine = _resolve_engine(request.engine, config, sample_manager)
+        try:
+            return podcast_manager.regenerate_segment(
+                project_id=project_id,
+                index=index,
+                engine=target_engine,
+                sample_manager=sample_manager,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/api/podcasts/{project_id}/generate-all", response_model=PodcastProject)
+    def generate_all_podcast_segments(
+        project_id: str,
+        request: RegenerateSegmentRequest,
+    ) -> PodcastProject:
+        target_engine = _resolve_engine(request.engine, config, sample_manager)
+        try:
+            return podcast_manager.generate_all_pending(
+                project_id=project_id,
+                engine=target_engine,
+                sample_manager=sample_manager,
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/api/podcasts/{project_id}/merge")
+    def merge_podcast(project_id: str) -> dict[str, str]:
+        try:
+            filename = podcast_manager.merge_project(project_id)
+            return {
+                "status": "merged",
+                "filename": filename,
+                "audio_url": f"/api/outputs/{filename}",
+            }
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/podcasts/{project_id}/audio/{filename}")
+    def get_podcast_segment_audio(project_id: str, filename: str) -> FileResponse:
+        audio_dir = outputs_dir / "podcasts" / project_id
+        audio_path = (audio_dir / filename).resolve()
+        if audio_path.parent != audio_dir.resolve() or not audio_path.exists():
+            raise HTTPException(status_code=404, detail="Audio segment not found")
+        return FileResponse(audio_path, media_type="audio/wav")
 
     return app

@@ -990,3 +990,318 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => setStatus(error.message, true));
+
+// ── Podcast Editor ──────────────────────────────────────
+
+const podcastState = {
+    projects: [],
+    currentProject: null,
+    selectedSegmentIndex: -1,
+};
+
+function setPodcastStatus(msg, isError = false) {
+    const el = document.getElementById("podcast-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+function setSegmentStatus(msg, isError = false) {
+    const el = document.getElementById("podcast-seg-status");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+async function loadPodcastProjects() {
+    try {
+        const data = await requestJson("/api/podcasts");
+        podcastState.projects = data.podcasts || [];
+        renderPodcastProjects();
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
+function renderPodcastProjects() {
+    const container = document.getElementById("podcast-project-list");
+    if (!container) return;
+    container.innerHTML = "";
+    if (podcastState.projects.length === 0) {
+        container.innerHTML = '<p class="field-hint">暂无播客项目</p>';
+        return;
+    }
+    for (const proj of podcastState.projects) {
+        const div = document.createElement("div");
+        div.className = "podcast-list-item" + (podcastState.currentProject?.id === proj.id ? " active" : "");
+        const segDone = proj.segments.filter((s) => s.status === "generated").length;
+        div.innerHTML = `<div class="title">${escapeHtml(proj.title)}</div><div class="meta">${segDone}/${proj.segments.length} 段</div>`;
+        div.addEventListener("click", () => selectPodcastProject(proj.id));
+        container.appendChild(div);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function selectPodcastProject(projectId) {
+    try {
+        const proj = await requestJson(`/api/podcasts/${projectId}`);
+        podcastState.currentProject = proj;
+        podcastState.selectedSegmentIndex = -1;
+        document.getElementById("podcast-editor").hidden = false;
+        renderPodcastProjects();
+        renderPodcastSegments();
+        hideSegmentEditor();
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
+function renderPodcastSegments() {
+    const container = document.getElementById("podcast-segments-list");
+    if (!container || !podcastState.currentProject) return;
+    container.innerHTML = "";
+    for (const seg of podcastState.currentProject.segments) {
+        const div = document.createElement("div");
+        div.className = "podcast-segment-row" + (podcastState.selectedSegmentIndex === seg.index ? " active" : "");
+        const metaParts = [seg.speaker || "默认"];
+        if (seg.voice_ref && seg.voice_ref !== seg.speaker) metaParts.push(seg.voice_ref);
+        div.innerHTML = `
+            <div class="seg-index">${seg.index + 1}</div>
+            <button class="seg-play" data-index="${seg.index}" title="播放">▶</button>
+            <div class="seg-text">${escapeHtml(seg.text)}</div>
+            <div class="seg-meta">${metaParts.join(" ")}</div>
+            <span class="seg-status ${seg.status}">${seg.status === "generated" ? "已生成" : seg.status === "pending" ? "待生成" : "错误"}</span>
+        `;
+        div.addEventListener("click", (e) => {
+            if (e.target.classList.contains("seg-play")) {
+                playPodcastSegment(seg.index);
+            } else {
+                selectPodcastSegment(seg.index);
+            }
+        });
+        container.appendChild(div);
+    }
+}
+
+function playPodcastSegment(index) {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    const seg = proj.segments[index];
+    if (!seg || !seg.audio_filename) return;
+    const player = document.getElementById("podcast-seg-player");
+    if (player) {
+        player.src = `/api/podcasts/${proj.id}/audio/${seg.audio_filename}`;
+        player.play();
+    }
+}
+
+function selectPodcastSegment(index) {
+    podcastState.selectedSegmentIndex = index;
+    renderPodcastSegments();
+    showSegmentEditor(index);
+}
+
+function hideSegmentEditor() {
+    const editor = document.getElementById("podcast-segment-editor");
+    if (editor) editor.hidden = true;
+}
+
+function showSegmentEditor(index) {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    const seg = proj.segments[index];
+    if (!seg) return;
+
+    const editor = document.getElementById("podcast-segment-editor");
+    editor.hidden = false;
+
+    document.getElementById("podcast-seg-text").value = seg.text;
+
+    // Populate speaker selector
+    const speakerSel = document.getElementById("podcast-seg-speaker");
+    speakerSel.innerHTML = "";
+    const baseSpeakers = new Set();
+    for (const v of state.voices) {
+        if (!v.is_tone_voice) baseSpeakers.add(v.speaker);
+    }
+    for (const spk of Array.from(baseSpeakers).sort()) {
+        const opt = document.createElement("option");
+        opt.value = spk;
+        opt.textContent = spk;
+        opt.selected = spk === seg.speaker;
+        speakerSel.appendChild(opt);
+    }
+
+    // Populate voice-ref selector
+    updatePodcastVoiceRefSelector(seg.speaker, seg.voice_ref);
+
+    // Set player src if audio exists
+    const player = document.getElementById("podcast-seg-player");
+    if (seg.audio_filename) {
+        player.src = `/api/podcasts/${proj.id}/audio/${seg.audio_filename}`;
+    } else {
+        player.src = "";
+    }
+}
+
+function updatePodcastVoiceRefSelector(speaker, selectedRef) {
+    const sel = document.getElementById("podcast-seg-voice-ref");
+    sel.innerHTML = "";
+    // Base voice
+    const baseOpt = document.createElement("option");
+    baseOpt.value = speaker;
+    baseOpt.textContent = `${speaker} (默认)`;
+    baseOpt.selected = selectedRef === speaker || !selectedRef;
+    sel.appendChild(baseOpt);
+    // Tone voices for this speaker
+    const toneVoices = state.voices.filter((v) => v.is_tone_voice && v.base_speaker === speaker);
+    for (const tv of toneVoices) {
+        const opt = document.createElement("option");
+        opt.value = tv.speaker;
+        opt.textContent = tv.display_name;
+        opt.selected = tv.speaker === selectedRef;
+        sel.appendChild(opt);
+    }
+}
+
+async function savePodcastSegment() {
+    const proj = podcastState.currentProject;
+    if (!proj || podcastState.selectedSegmentIndex < 0) return;
+    const idx = podcastState.selectedSegmentIndex;
+    const payload = {
+        text: document.getElementById("podcast-seg-text").value,
+        speaker: document.getElementById("podcast-seg-speaker").value,
+        voice_ref: document.getElementById("podcast-seg-voice-ref").value,
+    };
+    try {
+        const updated = await requestJson(`/api/podcasts/${proj.id}/segments/${idx}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        podcastState.currentProject = updated;
+        renderPodcastSegments();
+        setSegmentStatus("已保存");
+    } catch (err) {
+        setSegmentStatus(String(err), true);
+    }
+}
+
+async function regeneratePodcastSegment() {
+    const proj = podcastState.currentProject;
+    if (!proj || podcastState.selectedSegmentIndex < 0) return;
+    const idx = podcastState.selectedSegmentIndex;
+    setSegmentStatus("生成中...");
+    try {
+        const updated = await requestJson(`/api/podcasts/${proj.id}/segments/${idx}/regenerate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ engine: state.engine }),
+        });
+        podcastState.currentProject = updated;
+        renderPodcastSegments();
+        showSegmentEditor(idx);
+        setSegmentStatus("生成完成");
+    } catch (err) {
+        setSegmentStatus(String(err), true);
+    }
+}
+
+async function generateAllPodcastSegments() {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    setPodcastStatus("正在逐段生成...");
+    try {
+        const updated = await requestJson(`/api/podcasts/${proj.id}/generate-all`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ engine: state.engine }),
+        });
+        podcastState.currentProject = updated;
+        renderPodcastSegments();
+        setPodcastStatus("全部生成完成");
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
+async function mergePodcast() {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    setPodcastStatus("正在合并...");
+    try {
+        const result = await requestJson(`/api/podcasts/${proj.id}/merge`, { method: "POST" });
+        setPodcastStatus(`合并完成: ${result.filename}`);
+        // Open merged audio in new tab
+        window.open(result.audio_url, "_blank");
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
+function initPodcastEditor() {
+    // New podcast modal
+    const newBtn = document.getElementById("podcast-new-btn");
+    const modal = document.getElementById("podcast-new-modal");
+    const createBtn = document.getElementById("podcast-new-create-btn");
+    const cancelBtn = document.getElementById("podcast-new-cancel-btn");
+
+    if (newBtn) newBtn.addEventListener("click", () => { modal.hidden = false; });
+    if (cancelBtn) cancelBtn.addEventListener("click", () => { modal.hidden = true; });
+    if (createBtn) {
+        createBtn.addEventListener("click", async () => {
+            const title = document.getElementById("podcast-new-title").value.trim();
+            const text = document.getElementById("podcast-new-text").value.trim();
+            if (!title || !text) { alert("请填写标题和文本"); return; }
+            try {
+                const proj = await requestJson("/api/podcasts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title, text }),
+                });
+                modal.hidden = true;
+                document.getElementById("podcast-new-title").value = "";
+                document.getElementById("podcast-new-text").value = "";
+                await loadPodcastProjects();
+                await selectPodcastProject(proj.id);
+            } catch (err) {
+                alert(String(err));
+            }
+        });
+    }
+
+    // Toolbar buttons
+    const genAllBtn = document.getElementById("podcast-generate-all-btn");
+    if (genAllBtn) genAllBtn.addEventListener("click", generateAllPodcastSegments);
+    const mergeBtn = document.getElementById("podcast-merge-btn");
+    if (mergeBtn) mergeBtn.addEventListener("click", mergePodcast);
+
+    // Segment editor buttons
+    const saveSegBtn = document.getElementById("podcast-seg-save-btn");
+    if (saveSegBtn) saveSegBtn.addEventListener("click", savePodcastSegment);
+    const regenSegBtn = document.getElementById("podcast-seg-regen-btn");
+    if (regenSegBtn) regenSegBtn.addEventListener("click", regeneratePodcastSegment);
+
+    // Speaker change updates voice-ref dropdown
+    const speakerSel = document.getElementById("podcast-seg-speaker");
+    if (speakerSel) {
+        speakerSel.addEventListener("change", () => {
+            updatePodcastVoiceRefSelector(speakerSel.value, "");
+        });
+    }
+
+    // Load initial list
+    loadPodcastProjects();
+}
+
+// Hook into bootstrap
+const _origBootstrap = bootstrap;
+bootstrap = async function() {
+    await _origBootstrap();
+    initPodcastEditor();
+};

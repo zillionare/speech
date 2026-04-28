@@ -67,7 +67,7 @@ class QwenRemoteEngine(BaseEngine):
             ],
             segment_count=1,
         )
-        return self._post_process(result)
+        return self._post_process(result, speed_override=speed)
 
     def generate_dialogue(
         self,
@@ -105,7 +105,7 @@ class QwenRemoteEngine(BaseEngine):
 
         # Short non-dialogue text: single voice fast path
         target_voice = preferred_voice or self.config.voices.default_voice
-        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions)
+        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions, speed=speed)
 
     def _post_process(self, result: GenerationResult, speed_override: Optional[float] = None) -> GenerationResult:
         audio_bytes, duration = _apply_audio_effects(

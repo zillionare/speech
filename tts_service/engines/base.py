@@ -130,7 +130,6 @@ class BaseEngine(ABC):
                 voice=segments[0].speaker or preferred_voice,
                 output_format=output_format,
                 instructions=instructions,
-                speed=speed,
             )
 
         audio_parts: list[bytes] = []
@@ -146,7 +145,6 @@ class BaseEngine(ABC):
                 voice=mapped_voice or preferred_voice,
                 output_format=output_format,
                 instructions=instructions,
-                speed=speed,
             )
             audio_parts.append(result.audio_bytes)
             total_gen_seconds += result.generation_seconds
@@ -212,7 +210,6 @@ class BaseEngine(ABC):
                     voice=segments[0].speaker or preferred_voice,
                     output_format=output_format,
                     instructions=instructions,
-                    speed=speed,
                 )
                 audio_bytes, duration = self._apply_postprocess_effects(
                     result.audio_bytes, output_format, speed, stereo, spatial_jitter
@@ -243,7 +240,6 @@ class BaseEngine(ABC):
                     voice=mapped_voice or preferred_voice,
                     output_format=output_format,
                     instructions=instructions,
-                    speed=speed,
                 )
                 audio_parts.append(result.audio_bytes)
                 total_gen_seconds += result.generation_seconds

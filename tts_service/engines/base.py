@@ -54,7 +54,7 @@ def _parse_tagged_dialogue(text: str) -> tuple[list[dict], bool]:
     Returns (segments, is_tagged). Each segment dict has:
         speaker: str
         tone: str
-        speed: float   (1.15 for >>, 0.85 for <<, 1.0 otherwise)
+        speed_modifier: str   (">>" for fast, "<<" for slow, "" for normal)
         text: str
     """
     segments: list[dict] = []
@@ -81,15 +81,15 @@ def _parse_tagged_dialogue(text: str) -> tuple[list[dict], bool]:
 
             if tone_speed.endswith(">>"):
                 tone = tone_speed[:-2].strip()
-                speed = 1.15
+                speed_modifier = ">>"
             elif tone_speed.endswith("<<"):
                 tone = tone_speed[:-2].strip()
-                speed = 0.85
+                speed_modifier = "<<"
             else:
                 tone = tone_speed
-                speed = 1.0
+                speed_modifier = ""
 
-            current_meta = {"speaker": speaker, "tone": tone, "speed": speed}
+            current_meta = {"speaker": speaker, "tone": tone, "speed_modifier": speed_modifier}
             current_lines = [text_part]
         else:
             if current_meta:
@@ -119,22 +119,7 @@ def _find_ffmpeg() -> str:
     return "ffmpeg"
 
 
-def _find_rubberband() -> str | None:
-    """Locate rubberband binary for high-quality time-stretching."""
-    path = shutil.which("rubberband")
-    if path:
-        return path
-    for candidate in (
-        "/opt/homebrew/bin/rubberband",
-        "/usr/local/bin/rubberband",
-    ):
-        if Path(candidate).exists():
-            return candidate
-    return None
-
-
 _FFMPEG_PATH = _find_ffmpeg()
-_RUBBERBAND_PATH = _find_rubberband()
 
 
 @dataclass(slots=True)
@@ -157,7 +142,6 @@ class BaseEngine(ABC):
         voice: Optional[str],
         output_format: str = "wav",
         instructions: Optional[str] = None,
-        speed: Optional[float] = None,
     ) -> GenerationResult:
         ...
 
@@ -169,7 +153,6 @@ class BaseEngine(ABC):
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
-        speed: Optional[float] = None,
         segment_gap: Optional[float] = None,
         speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
@@ -185,7 +168,6 @@ class BaseEngine(ABC):
         segment_gap: float = 1.0,
         speaker_gap: float = 1.0,
         instructions: Optional[str] = None,
-        speed: Optional[float] = None,
     ) -> GenerationResult:
         """Segment long text, generate each part, concatenate with ffmpeg.
 
@@ -258,7 +240,6 @@ class BaseEngine(ABC):
         max_chars: int,
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
-        speed: float = 1.0,
         stereo: bool = False,
         spatial_jitter: bool = False,
         segment_gap: float = 1.0,
@@ -298,7 +279,7 @@ class BaseEngine(ABC):
                     instructions=instructions,
                 )
                 audio_bytes, duration = self._apply_postprocess_effects(
-                    result.audio_bytes, output_format, speed, stereo, spatial_jitter
+                    result.audio_bytes, output_format, stereo, spatial_jitter
                 )
                 result = GenerationResult(
                     audio_bytes=audio_bytes,
@@ -338,7 +319,7 @@ class BaseEngine(ABC):
             gaps = _compute_gaps(segments, segment_gap, speaker_gap)
             final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
             final_audio, final_duration = self._apply_postprocess_effects(
-                final_audio, output_format, speed, stereo, spatial_jitter
+                final_audio, output_format, stereo, spatial_jitter
             )
             complete_result = GenerationResult(
                 audio_bytes=final_audio,
@@ -356,7 +337,6 @@ class BaseEngine(ABC):
         self,
         audio_bytes: bytes,
         output_format: str,
-        speed: float,
         stereo: bool,
         spatial_jitter: bool,
     ) -> tuple[bytes, float]:
@@ -364,7 +344,7 @@ class BaseEngine(ABC):
 
         Default delegates to _apply_audio_effects.
         """
-        return _apply_audio_effects(audio_bytes, output_format, speed, stereo, spatial_jitter)
+        return _apply_audio_effects(audio_bytes, output_format, stereo, spatial_jitter)
 
 
 def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Path, channels: int = 1) -> None:
@@ -453,25 +433,6 @@ def _concatenate_audio_segments(
         return output_path.read_bytes()
 
 
-def _build_atempo_chain(speed: float) -> str:
-    """Build ffmpeg atempo filter chain for any speed > 0."""
-    if speed <= 0:
-        return "atempo=1.0"
-    if 0.5 <= speed <= 2.0:
-        return f"atempo={speed}"
-    # Chain multiple atempo filters (each must be in [0.5, 2.0])
-    filters = []
-    remaining = speed
-    while remaining < 0.5:
-        filters.append("atempo=0.5")
-        remaining /= 0.5
-    while remaining > 2.0:
-        filters.append("atempo=2.0")
-        remaining /= 2.0
-    filters.append(f"atempo={remaining}")
-    return ",".join(filters)
-
-
 def _apply_spatial_jitter(audio: np.ndarray, sr: int) -> np.ndarray:
     """Apply very slow complementary gain modulation to L/R channels.
 
@@ -496,105 +457,49 @@ def _apply_spatial_jitter(audio: np.ndarray, sr: int) -> np.ndarray:
     return audio
 
 
-def _apply_rubberband_speed(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
-    """Apply tempo change via rubberband (higher quality than ffmpeg atempo)."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_path = Path(tmpdir)
-        input_path = tmp_path / "input.wav"
-        input_path.write_bytes(audio_bytes)
-        output_path = tmp_path / "output.wav"
-
-        cmd = [
-            _RUBBERBAND_PATH, "-q",
-            "-T", str(speed),
-            str(input_path),
-            str(output_path),
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
-
-        # Convert format if needed
-        if output_format != "wav":
-            fmt_output = tmp_path / f"output.{output_format}"
-            conv_cmd = [
-                _FFMPEG_PATH, "-y",
-                "-i", str(output_path),
-                str(fmt_output),
-            ]
-            subprocess.run(conv_cmd, check=True, capture_output=True)
-            result_bytes = fmt_output.read_bytes()
-        else:
-            result_bytes = output_path.read_bytes()
-
-        info = sf.info(io.BytesIO(result_bytes))
-        return result_bytes, info.duration
-
-
-def _apply_ffmpeg_speed(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
-    """Apply tempo change via ffmpeg atempo."""
-    af = _build_atempo_chain(speed)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_path = Path(tmpdir)
-        input_path = tmp_path / "input.wav"
-        input_path.write_bytes(audio_bytes)
-        output_path = tmp_path / f"output.{output_format}"
-
-        cmd = [
-            _FFMPEG_PATH, "-y",
-            "-i", str(input_path),
-            "-af", af,
-            str(output_path),
-        ]
-        subprocess.run(cmd, check=True, capture_output=True)
-        result_bytes = output_path.read_bytes()
-        info = sf.info(io.BytesIO(result_bytes))
-        return result_bytes, info.duration
-
-
-def _apply_speed_adjustment(audio_bytes: bytes, output_format: str, speed: float) -> tuple[bytes, float]:
-    """Apply tempo change using rubberband if available, else ffmpeg atempo."""
-    if _RUBBERBAND_PATH is not None:
-        return _apply_rubberband_speed(audio_bytes, output_format, speed)
-    return _apply_ffmpeg_speed(audio_bytes, output_format, speed)
-
-
 def _apply_audio_effects(
     audio_bytes: bytes,
     output_format: str,
-    speed: float = 1.0,
     stereo: bool = False,
     spatial_jitter: bool = False,
 ) -> tuple[bytes, float]:
-    """Apply speed, stereo conversion, and spatial jitter.
+    """Apply stereo conversion and spatial jitter.
 
     Stereo + spatial jitter are done in numpy (lossless quality).
-    Speed change prefers rubberband (if installed) over ffmpeg atempo.
 
     Returns (audio_bytes, duration_seconds).
     """
-    if speed == 1.0 and not stereo and not spatial_jitter:
+    if not stereo and not spatial_jitter:
         info = sf.info(io.BytesIO(audio_bytes))
         return audio_bytes, info.duration
 
-    # Step 1: numpy-based stereo + spatial jitter (no quality loss)
-    if stereo or spatial_jitter:
-        audio, sr = sf.read(io.BytesIO(audio_bytes))
-        if audio.ndim == 1:
-            audio = np.column_stack([audio, audio])
-        elif audio.shape[1] == 1:
-            audio = np.repeat(audio, 2, axis=1)
+    audio, sr = sf.read(io.BytesIO(audio_bytes))
+    if audio.ndim == 1:
+        audio = np.column_stack([audio, audio])
+    elif audio.shape[1] == 1:
+        audio = np.repeat(audio, 2, axis=1)
 
-        if spatial_jitter:
-            audio = _apply_spatial_jitter(audio, sr)
+    if spatial_jitter:
+        audio = _apply_spatial_jitter(audio, sr)
 
-        # Write back as WAV for processing pipeline
-        buf = io.BytesIO()
-        sf.write(buf, audio, sr, format="WAV")
-        buf.seek(0)
-        audio_bytes = buf.read()
+    buf = io.BytesIO()
+    sf.write(buf, audio, sr, format="WAV")
+    buf.seek(0)
+    audio_bytes = buf.read()
 
-    # Step 2: speed and/or format conversion
-    if speed != 1.0 or output_format != "wav":
-        return _apply_speed_adjustment(audio_bytes, output_format, speed)
+    if output_format != "wav":
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            input_path = tmp_path / "input.wav"
+            input_path.write_bytes(audio_bytes)
+            output_path = tmp_path / f"output.{output_format}"
+            cmd = [
+                _FFMPEG_PATH, "-y",
+                "-i", str(input_path),
+                str(output_path),
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+            audio_bytes = output_path.read_bytes()
 
     info = sf.info(io.BytesIO(audio_bytes))
     return audio_bytes, info.duration

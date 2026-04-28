@@ -65,7 +65,8 @@
             <div>
               <p class="section-kicker">文本转声音</p>
               <h2>生成和输出</h2>
-              <p>支持单人旁白和多角色对话。文本过长时会自动分段生成再合成。</p>
+              <p>多角色语法示例：<code>Aaron[轻快&gt;&gt;]: 大家好！欢迎来到量化好声音播客！</code></p>
+              <p>支持的风格标签有：兴奋、压抑、温柔、严肃、悲伤、愤怒、惊讶、冷静、活泼、沉稳、欢快、惊叹、亲切、冷漠、紧张、慵懒、激昂、俏皮、笑意、低沉、轻快，通过 <code>&gt;&gt;</code> 和 <code>&lt;&lt;</code> 调整语速。</p>
             </div>
           </div>
 
@@ -298,15 +299,6 @@
               </div>
 
               <h3 class="settings-group-title">🎧 音频效果</h3>
-
-              <div class="setting-row">
-                <label>语速倍率</label>
-                <div class="slider-container">
-                  <input type="range" id="config-speed-slider" min="0.5" max="2.0" step="0.1" value="1.0" class="config-slider">
-                  <span id="config-speed-value" class="slider-value">1.0x</span>
-                </div>
-                <p class="field-hint">0.5x 慢速 ~ 2.0x 快速，生成后通过时域拉伸处理</p>
-              </div>
 
               <div class="setting-row">
                 <label>立体声输出</label>

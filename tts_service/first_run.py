@@ -125,7 +125,6 @@ server:
 defaults:
   voice: "zh-Aaron_man"
   response_format: "wav"
-  speed: 1.0
 
 # PID 文件路径
 pid_file: "/tmp/tts_service.pid"

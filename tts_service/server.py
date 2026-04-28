@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import io
-import re
 import uuid
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,43 +31,6 @@ from .models import (
 )
 from .sample_manager import SampleManager, VoiceSample
 from .tts_engine import create_engine
-
-
-_TAG_RE = re.compile(r"\[(tone|speed|pause):([^\]]+)\]")
-
-
-def _parse_voice_tags(text: str) -> Tuple[str, Optional[str], Optional[float], Optional[float]]:
-    """Extract [tone:...], [speed:...], [pause:...] tags from text.
-
-    Returns (cleaned_text, instructions, speed_override, pause_override).
-    Only the first occurrence of each tag type is honoured.
-    """
-    instructions: Optional[str] = None
-    speed_override: Optional[float] = None
-    pause_override: Optional[float] = None
-
-    def _replace(match: re.Match) -> str:
-        nonlocal instructions, speed_override, pause_override
-        tag_type = match.group(1).lower()
-        value = match.group(2).strip()
-        if tag_type == "tone" and instructions is None:
-            instructions = value
-        elif tag_type == "speed" and speed_override is None:
-            try:
-                speed_override = float(value)
-            except ValueError:
-                pass
-        elif tag_type == "pause" and pause_override is None:
-            try:
-                pause_override = float(value)
-            except ValueError:
-                pass
-        return ""
-
-    cleaned = _TAG_RE.sub(_replace, text).strip()
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    cleaned = re.sub(r" {2,}", " ", cleaned)
-    return cleaned, instructions, speed_override, pause_override
 
 
 def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
@@ -143,7 +105,6 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             use_remote_qwen=getattr(config.model, "use_remote_qwen", False),
             qwen_base_url=getattr(config.model, "qwen_base_url", ""),
             max_segment_chars=getattr(config.model, "max_segment_chars", 200),
-            speed=getattr(config.model, "speed", 1.0),
             stereo=getattr(config.model, "stereo", False),
             spatial_jitter=getattr(config.model, "spatial_jitter", False),
             segment_gap_seconds=getattr(config.model, "segment_gap_seconds", 1.0),
@@ -190,9 +151,6 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.max_segment_chars is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["max_segment_chars"] = request.max_segment_chars
-        if request.speed is not None:
-            overrides["model"] = overrides.get("model", {})
-            overrides["model"]["speed"] = request.speed
         if request.stereo is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["stereo"] = request.stereo
@@ -340,21 +298,16 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             elif request.engine == "local" and is_remote:
                 from .engines.local_vibevoice import LocalVibeVoiceEngine
                 target_engine = LocalVibeVoiceEngine(config, sample_manager)
-        cleaned_text, instructions, speed_override, pause_override = _parse_voice_tags(request.text)
         try:
             result = target_engine.generate_dialogue(
-                text=cleaned_text,
+                text=request.text,
                 output_format=request.output_format,
                 preferred_voice=request.voice,
                 voice_mapping=request.voice_mapping,
-                instructions=instructions,
-                speed=speed_override,
-                segment_gap=pause_override,
-                speaker_gap=pause_override,
             )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
-        return _store_generation(cleaned_text, request.output_format, result)
+        return _store_generation(request.text, request.output_format, result)
 
     @app.post("/api/generate/stream")
     def generate_audio_stream(request: GenerateRequest) -> StreamingResponse:
@@ -368,29 +321,23 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 from .engines.local_vibevoice import LocalVibeVoiceEngine
                 target_engine = LocalVibeVoiceEngine(config, sample_manager)
 
-        cleaned_text, instructions, speed_override, pause_override = _parse_voice_tags(request.text)
-
         max_chars = getattr(config.model, "max_segment_chars", 200)
-
-        speed = speed_override if speed_override is not None else getattr(config.model, "speed", 1.0)
         stereo = getattr(config.model, "stereo", False)
         spatial_jitter = getattr(config.model, "spatial_jitter", False)
-        segment_gap = pause_override if pause_override is not None else getattr(config.model, "segment_gap_seconds", 1.0)
-        speaker_gap = pause_override if pause_override is not None else getattr(config.model, "speaker_gap_seconds", 1.0)
+        segment_gap = getattr(config.model, "segment_gap_seconds", 1.0)
+        speaker_gap = getattr(config.model, "speaker_gap_seconds", 1.0)
 
         def event_generator():
             for event in target_engine.generate_with_segmentation_stream(
-                text=cleaned_text,
+                text=request.text,
                 output_format=request.output_format,
                 max_chars=max_chars,
                 preferred_voice=request.voice,
                 voice_mapping=request.voice_mapping,
-                speed=speed,
                 stereo=stereo,
                 spatial_jitter=spatial_jitter,
                 segment_gap=segment_gap,
                 speaker_gap=speaker_gap,
-                instructions=instructions,
             ):
                 if event["type"] == "complete":
                     result = event["result"]

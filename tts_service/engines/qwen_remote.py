@@ -24,6 +24,12 @@ from .base import (
 )
 
 
+_SPEED_SUFFIX = {
+    ">>": "，语速加快，语调轻快",
+    "<<": "，语速放慢，每个字都拉长",
+}
+
+
 class QwenRemoteEngine(BaseEngine):
     """Calls a remote Qwen3 TTS service for voice cloning generation."""
 
@@ -46,7 +52,6 @@ class QwenRemoteEngine(BaseEngine):
         voice: Optional[str],
         output_format: str = "wav",
         instructions: Optional[str] = None,
-        speed: Optional[float] = None,
     ) -> GenerationResult:
         resolved_name, wav_path, ref_text = self._resolve_voice(voice)
         start = time.perf_counter()
@@ -74,7 +79,7 @@ class QwenRemoteEngine(BaseEngine):
             ],
             segment_count=1,
         )
-        return self._post_process(result, speed_override=speed)
+        return self._post_process(result)
 
     def generate_dialogue(
         self,
@@ -83,7 +88,6 @@ class QwenRemoteEngine(BaseEngine):
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
-        speed: Optional[float] = None,
         segment_gap: Optional[float] = None,
         speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
@@ -119,11 +123,11 @@ class QwenRemoteEngine(BaseEngine):
                 speaker_gap=speaker_gap if speaker_gap is not None else getattr(self.config.model, "speaker_gap_seconds", 1.0),
                 instructions=instructions,
             )
-            return self._post_process(result, speed_override=speed)
+            return self._post_process(result)
 
         # Short non-dialogue text: single voice fast path
         target_voice = preferred_voice or self.config.voices.default_voice
-        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions, speed=speed)
+        return self.generate_single(text=text, voice=target_voice, output_format=output_format, instructions=instructions)
 
     def _generate_tagged_segments(
         self,
@@ -146,14 +150,15 @@ class QwenRemoteEngine(BaseEngine):
             voice = mapped_voice if resolved else self.config.voices.default_voice
 
             instructions = TONE_INSTRUCTIONS.get(seg["tone"], seg["tone"])
-            speed = seg["speed"]
+            speed_mod = seg.get("speed_modifier", "")
+            if speed_mod:
+                instructions = instructions + _SPEED_SUFFIX.get(speed_mod, "")
 
             result = self.generate_single(
                 text=seg["text"],
                 voice=voice,
                 output_format=output_format,
                 instructions=instructions,
-                speed=speed,
             )
             audio_parts.append(result.audio_bytes)
             total_gen_seconds += result.generation_seconds
@@ -175,11 +180,10 @@ class QwenRemoteEngine(BaseEngine):
             segment_count=len(segments),
         )
 
-    def _post_process(self, result: GenerationResult, speed_override: Optional[float] = None) -> GenerationResult:
+    def _post_process(self, result: GenerationResult) -> GenerationResult:
         audio_bytes, duration = _apply_audio_effects(
             result.audio_bytes,
             result.output_format,
-            speed=speed_override if speed_override is not None else getattr(self.config.model, "speed", 1.0),
             stereo=getattr(self.config.model, "stereo", False),
             spatial_jitter=getattr(self.config.model, "spatial_jitter", False),
         )

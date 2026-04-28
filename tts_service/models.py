@@ -89,7 +89,6 @@ class AppConfigResponse(BaseModel):
     use_remote_qwen: bool
     qwen_base_url: str
     max_segment_chars: int
-    speed: float
     stereo: bool
     spatial_jitter: bool
     segment_gap_seconds: float
@@ -110,7 +109,6 @@ class AppConfigUpdateRequest(BaseModel):
     use_remote_qwen: Optional[bool] = None
     qwen_base_url: Optional[str] = None
     max_segment_chars: Optional[int] = None
-    speed: Optional[float] = None
     stereo: Optional[bool] = None
     spatial_jitter: Optional[bool] = None
     segment_gap_seconds: Optional[float] = None

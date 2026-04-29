@@ -323,8 +323,13 @@ def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Pa
     subprocess.run(cmd, check=True, capture_output=True)
 
 
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
 def _strip_markdown_headings(text: str) -> str:
-    """Remove markdown heading lines (e.g. '# Title', '## Section')."""
+    """Remove markdown heading lines and HTML comments."""
+    # Strip inline HTML comments first
+    text = _HTML_COMMENT_RE.sub("", text)
     lines = []
     for line in text.splitlines():
         stripped = line.lstrip()

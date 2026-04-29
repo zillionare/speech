@@ -26,3 +26,10 @@ output_*.wav
 # Voices directory (用户自己的文件)
 /voices/
 VibeVoiceFusion/
+
+# Temporary / generated files
+.playwright-mcp/
+config-cc-connect.toml
+deploy-check.yml
+generate_ref_voices.py
+test_strip.js

@@ -987,6 +987,7 @@ async function bootstrap() {
     const pruneBtn = document.getElementById("prune-outputs");
     if (pruneBtn) pruneBtn.addEventListener("click", handlePruneOutputs);
     await Promise.all([loadConfig(), loadVoices(), loadHistory()]);
+    initPodcastEditor();
 }
 
 bootstrap().catch((error) => setStatus(error.message, true));
@@ -1299,9 +1300,3 @@ function initPodcastEditor() {
     loadPodcastProjects();
 }
 
-// Hook into bootstrap
-const _origBootstrap = bootstrap;
-bootstrap = async function() {
-    await _origBootstrap();
-    initPodcastEditor();
-};

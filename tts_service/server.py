@@ -30,6 +30,7 @@ from .models import (
     RegenerateSegmentRequest,
     SpeechRequest,
     TranscriptUpdateRequest,
+    UpdateGapRequest,
     UpdateSegmentRequest,
     VoiceInfo,
     VoiceListResponse,
@@ -322,12 +323,14 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             elif request.engine == "local" and is_remote:
                 from .engines.local_vibevoice import LocalVibeVoiceEngine
                 target_engine = LocalVibeVoiceEngine(config, sample_manager)
+        segment_gap = getattr(config.model, "segment_gap_seconds", 1.0)
         try:
             result = target_engine.generate_dialogue(
                 text=request.text,
                 output_format=request.output_format,
                 preferred_voice=request.voice,
                 voice_mapping=request.voice_mapping,
+                segment_gap=segment_gap,
             )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -349,7 +352,6 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         stereo = getattr(config.model, "stereo", False)
         spatial_jitter = getattr(config.model, "spatial_jitter", False)
         segment_gap = getattr(config.model, "segment_gap_seconds", 1.0)
-        speaker_gap = getattr(config.model, "speaker_gap_seconds", 1.0)
 
         def event_generator():
             for event in target_engine.generate_with_segmentation_stream(
@@ -361,7 +363,6 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 stereo=stereo,
                 spatial_jitter=spatial_jitter,
                 segment_gap=segment_gap,
-                speaker_gap=speaker_gap,
             ):
                 if event["type"] == "complete":
                     result = event["result"]
@@ -439,6 +440,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             title=request.title,
             text=request.text,
             output_format=request.output_format,
+            gap_seconds=request.gap_seconds,
         )
 
     @app.get("/api/podcasts", response_model=PodcastListResponse)
@@ -457,6 +459,16 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if not podcast_manager.delete_project(project_id):
             raise HTTPException(status_code=404, detail="Podcast not found")
         return {"status": "deleted", "project_id": project_id}
+
+    @app.put("/api/podcasts/{project_id}/gap", response_model=PodcastProject)
+    def update_podcast_gap(
+        project_id: str,
+        request: UpdateGapRequest,
+    ) -> PodcastProject:
+        try:
+            return podcast_manager.update_gap(project_id, request.gap_seconds)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.put("/api/podcasts/{project_id}/segments/{index}", response_model=PodcastProject)
     def update_podcast_segment(

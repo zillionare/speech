@@ -140,6 +140,7 @@ class PodcastProject(BaseModel):
     output_format: Literal["wav", "flac", "ogg"] = "wav"
     segments: List[PodcastSegment]
     merged_audio_filename: Optional[str] = None
+    gap_seconds: float = 1.0
 
 
 class PodcastListResponse(BaseModel):
@@ -150,6 +151,7 @@ class CreatePodcastRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256)
     text: str = Field(..., min_length=1, max_length=65536)
     output_format: Literal["wav", "flac", "ogg"] = "wav"
+    gap_seconds: float = 1.0
 
 
 class UpdateSegmentRequest(BaseModel):
@@ -162,6 +164,10 @@ class UpdateSegmentRequest(BaseModel):
 
 class RegenerateSegmentRequest(BaseModel):
     engine: Optional[Literal["local", "remote"]] = None
+
+
+class UpdateGapRequest(BaseModel):
+    gap_seconds: float = Field(default=1.0, ge=0.0, le=10.0)
 
 
 class PruneOutputsResponse(BaseModel):

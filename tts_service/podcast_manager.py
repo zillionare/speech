@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from .engines.base import (
+    _compute_gaps,
     _parse_tagged_dialogue,
     _concatenate_audio_segments,
 )
@@ -26,7 +27,7 @@ class PodcastManager:
 
     # ── CRUD ────────────────────────────────────────────────
 
-    def create_project(self, title: str, text: str, output_format: str = "wav") -> PodcastProject:
+    def create_project(self, title: str, text: str, output_format: str = "wav", gap_seconds: float = 1.0) -> PodcastProject:
         project_id = uuid.uuid4().hex[:12]
         now = datetime.now().isoformat()
         segments = self._text_to_segments(text)
@@ -37,6 +38,7 @@ class PodcastManager:
             updated_at=now,
             output_format=output_format,
             segments=segments,
+            gap_seconds=gap_seconds,
         )
         self._save_project(project)
         # Create project-specific audio directory
@@ -72,6 +74,15 @@ class PodcastManager:
             audio_dir.rmdir()
         path.unlink(missing_ok=True)
         return True
+
+    # ── Project-level editing ───────────────────────────────
+
+    def update_gap(self, project_id: str, gap_seconds: float) -> PodcastProject:
+        project = self._get_or_raise(project_id)
+        project.gap_seconds = gap_seconds
+        project.updated_at = datetime.now().isoformat()
+        self._save_project(project)
+        return project
 
     # ── Segment editing ─────────────────────────────────────
 
@@ -180,7 +191,8 @@ class PodcastManager:
         if not audio_parts:
             raise ValueError("No generated audio segments to merge")
 
-        merged = _concatenate_audio_segments(audio_parts, project.output_format)
+        gaps = _compute_gaps(len(audio_parts), project.gap_seconds)
+        merged = _concatenate_audio_segments(audio_parts, project.output_format, gaps=gaps)
         filename = f"{project_id}_merged.{project.output_format}"
         output_path = self.outputs_dir / filename
         output_path.write_bytes(merged)

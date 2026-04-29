@@ -1,0 +1,180 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - heading "Speech Studio" [level=1] [ref=e5]
+    - navigation "页面导航" [ref=e6]:
+      - link "01 文本转声音 生成和输出" [ref=e7] [cursor=pointer]:
+        - /url: "#text-to-speech"
+        - generic [ref=e8]: "01"
+        - generic [ref=e9]:
+          - strong [ref=e10]: 文本转声音
+          - generic [ref=e11]: 生成和输出
+      - link "02 样本素材 声音库" [ref=e12] [cursor=pointer]:
+        - /url: "#sample-library"
+        - generic [ref=e13]: "02"
+        - generic [ref=e14]:
+          - strong [ref=e15]: 样本素材
+          - generic [ref=e16]: 声音库
+      - link "03 系统设置" [ref=e17] [cursor=pointer]:
+        - /url: "#system-settings"
+        - generic [ref=e18]: "03"
+        - strong [ref=e20]: 系统设置
+      - link "04 声音转文本 语音识别" [ref=e21] [cursor=pointer]:
+        - /url: "#speech-to-text"
+        - generic [ref=e22]: "04"
+        - generic [ref=e23]:
+          - strong [ref=e24]: 声音转文本
+          - generic [ref=e25]: 语音识别
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: 在线声音
+        - strong [ref=e29]: "2"
+      - generic [ref=e30]:
+        - generic [ref=e31]: 最近输出
+        - strong [ref=e32]: "0"
+      - generic [ref=e33]:
+        - generic [ref=e34]: 默认声音
+        - strong [ref=e35]: Aaron
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e39]:
+        - paragraph [ref=e40]: 文本转声音
+        - heading "生成和输出" [level=2] [ref=e41]
+        - paragraph [ref=e42]: 支持单人旁白和多角色对话。文本过长时会自动分段生成再合成。
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - heading "生成请求" [level=3] [ref=e45]
+          - generic [ref=e46]:
+            - generic [ref=e47]: 生成引擎
+            - generic [ref=e48]:
+              - button "本地 MLX" [ref=e49] [cursor=pointer]
+              - button "Qwen 远程" [ref=e50] [cursor=pointer]
+            - paragraph [ref=e51]: 使用远程 Qwen 引擎，模型参数被忽略
+          - generic [ref=e52]:
+            - generic [ref=e53]: Markdown 文件
+            - button "选择文件" [ref=e54] [cursor=pointer]
+            - text: 未选择
+          - generic [ref=e55]:
+            - text: 文本
+            - textbox "文本" [ref=e56]:
+              - /placeholder: "Aaron: 你好，这是中文测试。\nBowen: 这是第二句。"
+          - generic [ref=e57]:
+            - generic [ref=e58]:
+              - text: 旁白默认声音
+              - combobox "旁白默认声音" [ref=e59]:
+                - option "Aaron" [selected]
+                - option "Elyn"
+            - generic [ref=e60]:
+              - text: 输出格式
+              - combobox "输出格式" [ref=e61]:
+                - option "wav" [selected]
+                - option "flac"
+                - option "ogg"
+          - generic [ref=e62]:
+            - text: 可选映射 JSON
+            - textbox "可选映射 JSON" [ref=e63]:
+              - /placeholder: "{\"Aaron\": \"zh-Aaron_man\", \"Bowen\": \"zh-Bowen_man\"}"
+          - button "开始生成" [ref=e64] [cursor=pointer]
+          - paragraph [ref=e67]: 准备中...
+        - generic [ref=e68]:
+          - generic [ref=e69]: 尚未生成任何音频。
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]:
+                - heading "最近输出" [level=3] [ref=e73]
+                - paragraph [ref=e74]: 保存在 outputs/，保留最近 20 条。
+              - button "清理旧输出" [ref=e75] [cursor=pointer]
+            - generic [ref=e77]: 最近输出为空，生成后会显示在这里。
+    - generic [ref=e78]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - paragraph [ref=e81]: 样本素材
+          - heading "声音库" [level=2] [ref=e82]
+          - paragraph [ref=e83]:
+            - text: 每个声音都由
+            - code [ref=e84]: "{speaker}.wav"
+            - text: 与
+            - code [ref=e85]: "{speaker}.txt"
+            - text: 组成。
+        - button "刷新声音库" [ref=e86] [cursor=pointer]
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - heading "添加或替换声音" [level=3] [ref=e89]
+          - generic [ref=e90]:
+            - text: Speaker
+            - textbox "Speaker" [ref=e91]:
+              - /placeholder: 例如 Aaron
+          - generic [ref=e92]:
+            - text: Transcript
+            - textbox "Transcript" [ref=e93]:
+              - /placeholder: 这段文字对应音频里说的话
+          - generic [ref=e94]:
+            - generic [ref=e95]: Audio file
+            - button "选择文件" [ref=e96] [cursor=pointer]
+            - text: 未选择
+          - generic [ref=e97]:
+            - checkbox "覆盖同名声音" [ref=e98]
+            - text: 覆盖同名声音
+          - button "上传到 voices/" [ref=e99] [cursor=pointer]
+        - generic [ref=e100]:
+          - generic [ref=e102]:
+            - heading "声音库内容" [level=3] [ref=e103]
+            - paragraph [ref=e104]: 多卡片视图，显示音频、缓存状态和 transcript。
+          - generic [ref=e105]: 声音库状态将显示在这里。
+          - generic [ref=e106]:
+            - article [ref=e107]:
+              - generic [ref=e108]:
+                - generic [ref=e109]:
+                  - heading "Aaron" [level=3] [ref=e110]
+                  - paragraph [ref=e111]: 2026 年 4 月 22 日，我在居家环境录制一段标准人声，为我们的 Podcast 做准备，也是一个新的 API，编号 7392，音频采样率 48 kHz
+                - generic [ref=e112]:
+                  - generic [ref=e113]: 默认
+                  - generic [ref=e114]: 缓存已就绪
+              - textbox [ref=e116]: 2026 年 4 月 22 日，我在居家环境录制一段标准人声，为我们的 Podcast 做准备，也是一个新的 API，编号 7392，音频采样率 48 kHz
+              - generic [ref=e117]:
+                - button "保存 transcript" [ref=e118] [cursor=pointer]
+                - button "生成缓存" [ref=e119] [cursor=pointer]
+                - button "删除" [ref=e120] [cursor=pointer]
+            - article [ref=e121]:
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - heading "Elyn" [level=3] [ref=e124]
+                  - paragraph [ref=e125]: 大家好我是你的温柔知性女友
+                - generic [ref=e127]: 缓存已就绪
+              - textbox [ref=e129]: 大家好我是你的温柔知性女友
+              - generic [ref=e130]:
+                - button "保存 transcript" [ref=e131] [cursor=pointer]
+                - button "生成缓存" [ref=e132] [cursor=pointer]
+                - button "删除" [ref=e133] [cursor=pointer]
+    - generic [ref=e135]:
+      - generic [ref=e136]:
+        - paragraph [ref=e137]: 系统设置
+        - heading "模型参数配置" [level=2] [ref=e138]
+        - paragraph [ref=e139]: 配置仅影响本地 MLX 引擎，远程引擎忽略这些参数。
+      - generic [ref=e140]:
+        - button "展开" [ref=e141] [cursor=pointer]
+        - button "保存配置" [ref=e142] [cursor=pointer]
+        - button "重置" [ref=e143] [cursor=pointer]
+    - generic [ref=e144]:
+      - generic [ref=e146]:
+        - paragraph [ref=e147]: 声音转文本
+        - heading "语音识别" [level=2] [ref=e148]
+        - paragraph [ref=e149]: 音频转写功能，支持 ASR 模型。
+      - generic [ref=e150]:
+        - article [ref=e151]:
+          - generic [ref=e152]: 规划中
+          - heading "音频上传与转写编排" [level=3] [ref=e153]
+          - paragraph [ref=e154]: 支持单文件转写、长音频切段、说话人分离与字幕导出。
+          - generic [ref=e155]:
+            - generic [ref=e156]: 音频上传
+            - generic [ref=e157]: 批量转写
+            - generic [ref=e158]: 角色切分
+            - generic [ref=e159]: SRT 导出
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - text: 音频文件
+            - button "音频文件" [disabled] [ref=e162]
+          - generic [ref=e163]:
+            - text: 识别结果预览
+            - textbox "识别结果预览" [disabled] [ref=e164]:
+              - /placeholder: 这里会显示转写文本、时间戳与角色分段。
+          - button "即将支持" [disabled] [ref=e165]

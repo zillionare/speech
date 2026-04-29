@@ -116,7 +116,6 @@ class BaseEngine(ABC):
         voice_mapping: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
         segment_gap: Optional[float] = None,
-        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
         ...
 
@@ -128,7 +127,6 @@ class BaseEngine(ABC):
         preferred_voice: Optional[str] = None,
         voice_mapping: Optional[dict[str, str]] = None,
         segment_gap: float = 1.0,
-        speaker_gap: float = 1.0,
         instructions: Optional[str] = None,
     ) -> GenerationResult:
         """Segment long text, generate each part, concatenate with ffmpeg.
@@ -137,6 +135,8 @@ class BaseEngine(ABC):
         against a single segment to avoid unnecessary concatenation overhead.
         """
         from ..segmentation import segment_dialogue, segment_long_text
+
+        text = _strip_markdown_headings(text)
 
         # Detect if dialogue or plain narration
         is_dialogue = any(
@@ -184,7 +184,7 @@ class BaseEngine(ABC):
                     seen_speakers.add(spk.resolved_voice)
                     all_resolutions.append(spk)
 
-        gaps = _compute_gaps(segments, segment_gap, speaker_gap)
+        gaps = _compute_gaps(len(segments), segment_gap)
         final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
         return GenerationResult(
             audio_bytes=final_audio,
@@ -205,7 +205,6 @@ class BaseEngine(ABC):
         stereo: bool = False,
         spatial_jitter: bool = False,
         segment_gap: float = 1.0,
-        speaker_gap: float = 1.0,
         instructions: Optional[str] = None,
     ):
         """Generator that yields progress dicts and finally a complete result dict.
@@ -218,6 +217,8 @@ class BaseEngine(ABC):
         from ..segmentation import segment_dialogue, segment_long_text
 
         try:
+            text = _strip_markdown_headings(text)
+
             is_dialogue = any(
                 line.strip().startswith("Speaker ") or ":" in line.strip()
                 for line in text.splitlines()
@@ -278,7 +279,7 @@ class BaseEngine(ABC):
                         seen_speakers.add(spk.resolved_voice)
                         all_resolutions.append(spk)
 
-            gaps = _compute_gaps(segments, segment_gap, speaker_gap)
+            gaps = _compute_gaps(len(segments), segment_gap)
             final_audio = _concatenate_audio_segments(audio_parts, output_format, gaps=gaps)
             final_audio, final_duration = self._apply_postprocess_effects(
                 final_audio, output_format, stereo, spatial_jitter
@@ -322,21 +323,30 @@ def _generate_silence(duration_seconds: float, sample_rate: int, output_path: Pa
     subprocess.run(cmd, check=True, capture_output=True)
 
 
-def _compute_gaps(segments, segment_gap: float, speaker_gap: float) -> list[float]:
+def _strip_markdown_headings(text: str) -> str:
+    """Remove markdown heading lines (e.g. '# Title', '## Section')."""
+    lines = []
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if not stripped.startswith("#"):
+            lines.append(line)
+        elif stripped.startswith("#") and not stripped.startswith("##") and len(stripped) > 1 and stripped[1] == " ":
+            # '# heading' — skip it
+            continue
+        elif stripped.startswith("##"):
+            # '## heading' or more — skip it
+            continue
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _compute_gaps(segment_count: int, segment_gap: float) -> list[float]:
     """Return list of silence durations before each segment.
 
-    gaps[0] is always 0.0. Subsequent gaps depend on whether the speaker
-    changed from the previous segment.
+    gaps[0] is always 0.0. All subsequent gaps use the uniform segment_gap.
     """
-    gaps = [0.0]
-    for i in range(1, len(segments)):
-        prev = getattr(segments[i - 1], "speaker", None)
-        curr = getattr(segments[i], "speaker", None)
-        if prev != curr and (prev is not None or curr is not None):
-            gaps.append(speaker_gap)
-        else:
-            gaps.append(segment_gap)
-    return gaps
+    return [0.0] + [segment_gap] * (segment_count - 1)
 
 
 def _concatenate_audio_segments(

@@ -1054,6 +1054,8 @@ async function selectPodcastProject(projectId) {
         podcastState.currentProject = proj;
         podcastState.selectedSegmentIndex = -1;
         document.getElementById("podcast-editor").hidden = false;
+        const gapInput = document.getElementById("podcast-gap-input");
+        if (gapInput) gapInput.value = proj.gap_seconds != null ? proj.gap_seconds : 1.0;
         renderPodcastProjects();
         renderPodcastSegments();
         hideSegmentEditor();
@@ -1258,16 +1260,18 @@ function initPodcastEditor() {
         createBtn.addEventListener("click", async () => {
             const title = document.getElementById("podcast-new-title").value.trim();
             const text = document.getElementById("podcast-new-text").value.trim();
+            const gap = parseFloat(document.getElementById("podcast-new-gap").value);
             if (!title || !text) { alert("请填写标题和文本"); return; }
             try {
                 const proj = await requestJson("/api/podcasts", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ title, text }),
+                    body: JSON.stringify({ title, text, gap_seconds: gap }),
                 });
                 modal.hidden = true;
                 document.getElementById("podcast-new-title").value = "";
                 document.getElementById("podcast-new-text").value = "";
+                document.getElementById("podcast-new-gap").value = "1.0";
                 await loadPodcastProjects();
                 await selectPodcastProject(proj.id);
             } catch (err) {
@@ -1281,6 +1285,26 @@ function initPodcastEditor() {
     if (genAllBtn) genAllBtn.addEventListener("click", generateAllPodcastSegments);
     const mergeBtn = document.getElementById("podcast-merge-btn");
     if (mergeBtn) mergeBtn.addEventListener("click", mergePodcast);
+
+    // Gap save button
+    const gapSaveBtn = document.getElementById("podcast-gap-save-btn");
+    if (gapSaveBtn) {
+        gapSaveBtn.addEventListener("click", async () => {
+            if (!podcastState.currentProject) return;
+            const gap = parseFloat(document.getElementById("podcast-gap-input").value);
+            try {
+                await requestJson(`/api/podcasts/${podcastState.currentProject.id}/gap`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ gap_seconds: gap }),
+                });
+                podcastState.currentProject.gap_seconds = gap;
+                setPodcastStatus("间隔已保存");
+            } catch (err) {
+                setPodcastStatus(String(err), true);
+            }
+        });
+    }
 
     // Segment editor buttons
     const saveSegBtn = document.getElementById("podcast-seg-save-btn");

@@ -20,6 +20,7 @@ from .base import (
     _apply_audio_effects,
     _concatenate_audio_segments,
     _parse_tagged_dialogue,
+    _strip_markdown_headings,
 )
 
 
@@ -82,8 +83,9 @@ class QwenRemoteEngine(BaseEngine):
         voice_mapping: Optional[dict[str, str]] = None,
         instructions: Optional[str] = None,
         segment_gap: Optional[float] = None,
-        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
+        text = _strip_markdown_headings(text)
+
         # Try new tagged dialogue format first: Speaker[tone>>]: text
         tagged_segments, is_tagged = _parse_tagged_dialogue(text)
         if is_tagged:
@@ -92,7 +94,6 @@ class QwenRemoteEngine(BaseEngine):
                 output_format=output_format,
                 voice_mapping=voice_mapping,
                 segment_gap=segment_gap,
-                speaker_gap=speaker_gap,
             )
 
         max_chars = getattr(self.config.model, "max_segment_chars", 200)
@@ -113,7 +114,6 @@ class QwenRemoteEngine(BaseEngine):
                 preferred_voice=preferred_voice,
                 voice_mapping=voice_mapping,
                 segment_gap=segment_gap if segment_gap is not None else getattr(self.config.model, "segment_gap_seconds", 1.0),
-                speaker_gap=speaker_gap if speaker_gap is not None else getattr(self.config.model, "speaker_gap_seconds", 1.0),
                 instructions=instructions,
             )
             return self._post_process(result)
@@ -128,7 +128,6 @@ class QwenRemoteEngine(BaseEngine):
         output_format: str,
         voice_mapping: Optional[dict[str, str]] = None,
         segment_gap: Optional[float] = None,
-        speaker_gap: Optional[float] = None,
     ) -> GenerationResult:
         """Generate each tagged segment with its own voice, tone and speed."""
         audio_parts: list[bytes] = []

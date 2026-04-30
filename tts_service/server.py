@@ -18,6 +18,8 @@ from .config import load_config, save_config_to_yaml
 from .models import (
     AppConfigResponse,
     AppConfigUpdateRequest,
+    BgmListResponse,
+    BgmTrack,
     CreatePodcastRequest,
     GenerateRequest,
     GenerationRecord,
@@ -74,6 +76,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     outputs_dir.mkdir(parents=True, exist_ok=True)
     history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
     podcast_manager = PodcastManager(outputs_dir / "podcasts", outputs_dir)
+    bgm_dir = outputs_dir / "bgm"
+    bgm_dir.mkdir(parents=True, exist_ok=True)
 
     app = FastAPI(
         title="Speech Studio",
@@ -211,16 +215,20 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.post("/api/voices", response_model=VoiceInfo)
     async def upload_voice(
-        speaker: str = Form(...),
+        speaker: Optional[str] = Form(None),
         transcript: str = Form(""),
         overwrite: bool = Form(False),
         audio_file: UploadFile = File(...),
     ) -> VoiceInfo:
         if not audio_file.filename:
             raise HTTPException(status_code=400, detail="Audio file is required")
+        # Derive speaker from filename if not provided
+        effective_speaker = speaker
+        if not effective_speaker:
+            effective_speaker = Path(audio_file.filename).stem
         audio_bytes = await audio_file.read()
         try:
-            sample = sample_manager.add_voice(speaker=speaker, audio_bytes=audio_bytes, transcript=transcript, overwrite=overwrite)
+            sample = sample_manager.add_voice(speaker=effective_speaker, audio_bytes=audio_bytes, transcript=transcript, overwrite=overwrite)
         except FileExistsError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
@@ -275,7 +283,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.get("/api/voices/{speaker}/audio")
     def get_voice_audio(speaker: str) -> FileResponse:
-        sample = sample_manager.get(speaker)
+        sample = sample_manager.resolve(speaker)
         if sample is None:
             raise HTTPException(status_code=404, detail="Voice not found")
         return FileResponse(sample.wav_path, media_type="audio/wav")
@@ -483,8 +491,32 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 text=request.text,
                 speaker=request.speaker,
                 tone=request.tone,
-                voice_ref=request.voice_ref,
+                pre_pause=request.pre_pause,
+                post_pause=request.post_pause,
+                bgm_filename=request.bgm_filename,
+                bgm_position=request.bgm_position,
+                bgm_volume=request.bgm_volume,
+                bgm_fade_in=request.bgm_fade_in,
+                bgm_fade_out=request.bgm_fade_out,
             )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/podcasts/{project_id}/segments/{index}/insert", response_model=PodcastProject)
+    def insert_podcast_segment(project_id: str, index: int) -> PodcastProject:
+        try:
+            return podcast_manager.insert_segment(project_id, index)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.delete("/api/podcasts/{project_id}/segments/{index}", response_model=PodcastProject)
+    def delete_podcast_segment(project_id: str, index: int) -> PodcastProject:
+        try:
+            return podcast_manager.delete_segment(project_id, index)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ValueError as exc:
@@ -528,10 +560,64 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    # ── BGM Library ──────────────────────────────────────────
+
+    @app.get("/api/bgm", response_model=BgmListResponse)
+    def list_bgm_tracks() -> BgmListResponse:
+        tracks: list[BgmTrack] = []
+        for f in sorted(bgm_dir.iterdir()):
+            if f.is_file() and f.suffix.lower() in {".mp3", ".wav", ".flac", ".ogg"}:
+                try:
+                    import soundfile as sf
+                    info = sf.info(str(f))
+                    tracks.append(BgmTrack(filename=f.name, duration_seconds=info.duration))
+                except Exception:
+                    tracks.append(BgmTrack(filename=f.name, duration_seconds=0.0))
+        return BgmListResponse(tracks=tracks)
+
+    @app.post("/api/bgm")
+    async def upload_bgm(audio_file: UploadFile = File(...)) -> BgmTrack:
+        if not audio_file.filename:
+            raise HTTPException(status_code=400, detail="Audio file is required")
+        safe_name = Path(audio_file.filename).name
+        allowed_exts = {".mp3", ".wav", ".flac", ".ogg"}
+        if Path(safe_name).suffix.lower() not in allowed_exts:
+            raise HTTPException(status_code=400, detail="Invalid audio file format. Allowed: mp3, wav, flac, ogg")
+        target_path = bgm_dir / safe_name
+        content = await audio_file.read()
+        target_path.write_bytes(content)
+        try:
+            import soundfile as sf
+            info = sf.info(str(target_path))
+            return BgmTrack(filename=safe_name, duration_seconds=info.duration)
+        except Exception:
+            return BgmTrack(filename=safe_name, duration_seconds=0.0)
+
+    def _resolve_bgm_path(filename: str) -> Path:
+        target_path = (bgm_dir / filename).resolve()
+        try:
+            target_path.relative_to(bgm_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=404, detail="BGM track not found")
+        if not target_path.exists():
+            raise HTTPException(status_code=404, detail="BGM track not found")
+        return target_path
+
+    @app.delete("/api/bgm/{filename}")
+    def delete_bgm(filename: str) -> dict[str, str]:
+        target_path = _resolve_bgm_path(filename)
+        target_path.unlink()
+        return {"status": "deleted", "filename": filename}
+
+    @app.get("/api/bgm/{filename}")
+    def get_bgm_audio(filename: str) -> FileResponse:
+        target_path = _resolve_bgm_path(filename)
+        return FileResponse(target_path)
+
     @app.post("/api/podcasts/{project_id}/merge")
     def merge_podcast(project_id: str) -> dict[str, str]:
         try:
-            filename = podcast_manager.merge_project(project_id)
+            filename = podcast_manager.merge_project(project_id, bgm_dir=bgm_dir)
             return {
                 "status": "merged",
                 "filename": filename,

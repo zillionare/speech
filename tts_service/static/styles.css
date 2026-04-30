@@ -96,6 +96,11 @@ code {
     padding: 22px;
 }
 
+/* Section visibility: only active section is shown */
+.section-card:not(.active) {
+    display: none;
+}
+
 .eyebrow,
 .section-kicker {
     margin-bottom: 10px;
@@ -475,6 +480,12 @@ button.danger {
     gap: 12px;
 }
 
+.three-col {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
 .voice-item,
 .history-item {
     padding: 16px;
@@ -569,7 +580,8 @@ button.danger {
 
 @media (max-width: 900px) {
     .voice-list,
-    .two-col {
+    .two-col,
+    .three-col {
         grid-template-columns: 1fr;
     }
 
@@ -1071,6 +1083,53 @@ button.secondary:hover,
     color: var(--danger);
 }
 
+.podcast-segment-row .seg-delete {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke);
+    background: var(--panel-strong);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+}
+
+.podcast-segment-row .seg-delete:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.segments-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.segments-panel-head h3 {
+    margin: 0;
+}
+
+.markdown-import-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.markdown-import-row label {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
 #podcast-segment-editor {
     background: var(--panel-strong);
     border: 1px solid var(--stroke);
@@ -1147,4 +1206,31 @@ button.secondary:hover,
     gap: 12px;
     justify-content: flex-end;
     margin-top: 16px;
+}
+
+.bgm-section {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--panel-strong);
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+}
+
+.bgm-section h4 {
+    font-size: 13px;
+    margin-bottom: 10px;
+    color: var(--muted);
+}
+
+.bgm-section .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+    .bgm-section .two-col {
+        grid-template-columns: 1fr;
+    }
 }

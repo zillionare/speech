@@ -534,14 +534,8 @@ async function handleVoiceUpload(event) {
     const submitButton = form.querySelector("button[type='submit']");
     const originalLabel = submitButton ? submitButton.textContent : null;
 
-    const speaker = form.querySelector("[name='speaker']").value.trim();
+    let speaker = form.querySelector("[name='speaker']").value.trim();
     const transcript = form.querySelector("[name='transcript']").value.trim();
-
-    if (!speaker) {
-        setVoiceStatus("请填写 Speaker 名称", true);
-        form.querySelector("[name='speaker']").focus();
-        return;
-    }
 
     let audioFile = pendingVoiceFiles.audio;
     if (!audioFile) {
@@ -557,6 +551,12 @@ async function handleVoiceUpload(event) {
     if (!audioFile) {
         setVoiceStatus("请至少选择一个 .wav 音频文件", true);
         return;
+    }
+
+    // Derive speaker from filename if not provided
+    const fileStem = audioFile.name.slice(0, -4);
+    if (!speaker) {
+        speaker = fileStem;
     }
 
     if (!transcript) {
@@ -781,10 +781,21 @@ function initNavigation() {
         for (const link of links) {
             link.classList.toggle("active", link.dataset.section === sectionId);
         }
+        for (const section of sections) {
+            section.classList.toggle("active", section.id === sectionId);
+        }
     };
 
     for (const link of links) {
-        link.addEventListener("click", () => activateSection(link.dataset.section));
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            activateSection(link.dataset.section);
+        });
+    }
+
+    // Show first section by default
+    if (links.length > 0) {
+        activateSection(links[0].dataset.section);
     }
 
     if (!("IntersectionObserver" in window) || sections.length === 0) {
@@ -890,14 +901,14 @@ function handleAudioFileChange(event) {
     const form = document.getElementById("voice-upload-form");
     const speakerInput = form.querySelector("[name='speaker']");
     const nameLabel = document.getElementById("audio-selected-name");
-    const speaker = wavFile.name.slice(0, -4);
+    const fileStem = wavFile.name.slice(0, -4);
     if (!speakerInput.value) {
-        speakerInput.value = speaker;
+        speakerInput.value = fileStem;
     }
 
     // 找同名的 .txt（不区分大小写）
     const txtFile = files.find(
-        (f) => f.name.toLowerCase() === (speaker + ".txt").toLowerCase(),
+        (f) => f.name.toLowerCase() === (fileStem + ".txt").toLowerCase(),
     );
 
     if (txtFile) {
@@ -1048,6 +1059,18 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function preprocessPodcastText(text) {
+    // Strip YAML frontmatter
+    text = text.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, "");
+    // Strip HTML comments
+    text = text.replace(/<!--[\s\S]*?-->/g, "");
+    // Strip markdown headings
+    text = text.replace(/^[ \t]*#{1,6}\s+.*$/gm, "");
+    // Collapse consecutive blank lines
+    text = text.replace(/\n{3,}/g, "\n\n");
+    return text.trim();
+}
+
 async function selectPodcastProject(projectId) {
     try {
         const proj = await requestJson(`/api/podcasts/${projectId}`);
@@ -1055,12 +1078,37 @@ async function selectPodcastProject(projectId) {
         podcastState.selectedSegmentIndex = -1;
         document.getElementById("podcast-editor").hidden = false;
         const gapInput = document.getElementById("podcast-gap-input");
-        if (gapInput) gapInput.value = proj.gap_seconds != null ? proj.gap_seconds : 1.0;
+        if (gapInput) gapInput.value = proj.gap_seconds != null ? proj.gap_seconds : 0.5;
         renderPodcastProjects();
         renderPodcastSegments();
         hideSegmentEditor();
     } catch (err) {
         setPodcastStatus(String(err), true);
+    }
+}
+
+let bgmTracks = [];
+
+async function loadBgmTracks() {
+    try {
+        const data = await requestJson("/api/bgm");
+        bgmTracks = data.tracks || [];
+    } catch (err) {
+        console.error("Failed to load BGM tracks:", err);
+        bgmTracks = [];
+    }
+}
+
+function populateBgmSelector(selectedFilename) {
+    const sel = document.getElementById("podcast-seg-bgm");
+    if (!sel) return;
+    sel.innerHTML = '<option value="">无</option>';
+    for (const track of bgmTracks) {
+        const opt = document.createElement("option");
+        opt.value = track.filename;
+        opt.textContent = track.filename;
+        opt.selected = track.filename === selectedFilename;
+        sel.appendChild(opt);
     }
 }
 
@@ -1072,17 +1120,22 @@ function renderPodcastSegments() {
         const div = document.createElement("div");
         div.className = "podcast-segment-row" + (podcastState.selectedSegmentIndex === seg.index ? " active" : "");
         const metaParts = [seg.speaker || "默认"];
-        if (seg.voice_ref && seg.voice_ref !== seg.speaker) metaParts.push(seg.voice_ref);
+        if (seg.pre_pause > 0) metaParts.push(`前停${seg.pre_pause}s`);
+        if (seg.post_pause > 0) metaParts.push(`后停${seg.post_pause}s`);
+        if (seg.bgm_filename) metaParts.push(`BGM${seg.bgm_position === 'before' ? '·前' : '·后'}`);
         div.innerHTML = `
             <div class="seg-index">${seg.index + 1}</div>
             <button class="seg-play" data-index="${seg.index}" title="播放">▶</button>
             <div class="seg-text">${escapeHtml(seg.text)}</div>
             <div class="seg-meta">${metaParts.join(" ")}</div>
             <span class="seg-status ${seg.status}">${seg.status === "generated" ? "已生成" : seg.status === "pending" ? "待生成" : "错误"}</span>
+            <button class="seg-delete" data-index="${seg.index}" title="删除">×</button>
         `;
         div.addEventListener("click", (e) => {
             if (e.target.classList.contains("seg-play")) {
                 playPodcastSegment(seg.index);
+            } else if (e.target.classList.contains("seg-delete")) {
+                deletePodcastSegment(seg.index);
             } else {
                 selectPodcastSegment(seg.index);
             }
@@ -1140,8 +1193,16 @@ function showSegmentEditor(index) {
         speakerSel.appendChild(opt);
     }
 
-    // Populate voice-ref selector
-    updatePodcastVoiceRefSelector(seg.speaker, seg.voice_ref);
+    // Set pre/post pause inputs
+    document.getElementById("podcast-seg-pre-pause").value = seg.pre_pause != null ? seg.pre_pause : 0;
+    document.getElementById("podcast-seg-post-pause").value = seg.post_pause != null ? seg.post_pause : 0;
+
+    // Populate BGM controls
+    populateBgmSelector(seg.bgm_filename);
+    document.getElementById("podcast-seg-bgm-position").value = seg.bgm_position || "before";
+    document.getElementById("podcast-seg-bgm-volume").value = seg.bgm_volume != null ? seg.bgm_volume : 0.15;
+    document.getElementById("podcast-seg-bgm-fade-in").value = seg.bgm_fade_in != null ? seg.bgm_fade_in : 2.0;
+    document.getElementById("podcast-seg-bgm-fade-out").value = seg.bgm_fade_out != null ? seg.bgm_fade_out : 3.0;
 
     // Set player src if audio exists
     const player = document.getElementById("podcast-seg-player");
@@ -1152,26 +1213,6 @@ function showSegmentEditor(index) {
     }
 }
 
-function updatePodcastVoiceRefSelector(speaker, selectedRef) {
-    const sel = document.getElementById("podcast-seg-voice-ref");
-    sel.innerHTML = "";
-    // Base voice
-    const baseOpt = document.createElement("option");
-    baseOpt.value = speaker;
-    baseOpt.textContent = `${speaker} (默认)`;
-    baseOpt.selected = selectedRef === speaker || !selectedRef;
-    sel.appendChild(baseOpt);
-    // Tone voices for this speaker
-    const toneVoices = state.voices.filter((v) => v.is_tone_voice && v.base_speaker === speaker);
-    for (const tv of toneVoices) {
-        const opt = document.createElement("option");
-        opt.value = tv.speaker;
-        opt.textContent = tv.display_name;
-        opt.selected = tv.speaker === selectedRef;
-        sel.appendChild(opt);
-    }
-}
-
 async function savePodcastSegment() {
     const proj = podcastState.currentProject;
     if (!proj || podcastState.selectedSegmentIndex < 0) return;
@@ -1179,7 +1220,13 @@ async function savePodcastSegment() {
     const payload = {
         text: document.getElementById("podcast-seg-text").value,
         speaker: document.getElementById("podcast-seg-speaker").value,
-        voice_ref: document.getElementById("podcast-seg-voice-ref").value,
+        pre_pause: parseFloat(document.getElementById("podcast-seg-pre-pause").value) || 0,
+        post_pause: parseFloat(document.getElementById("podcast-seg-post-pause").value) || 0,
+        bgm_filename: document.getElementById("podcast-seg-bgm").value || null,
+        bgm_position: document.getElementById("podcast-seg-bgm-position").value,
+        bgm_volume: parseFloat(document.getElementById("podcast-seg-bgm-volume").value) || 0,
+        bgm_fade_in: parseFloat(document.getElementById("podcast-seg-bgm-fade-in").value) || 0,
+        bgm_fade_out: parseFloat(document.getElementById("podcast-seg-bgm-fade-out").value) || 0,
     };
     try {
         const updated = await requestJson(`/api/podcasts/${proj.id}/segments/${idx}`, {
@@ -1247,6 +1294,49 @@ async function mergePodcast() {
     }
 }
 
+async function insertPodcastSegment() {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    const idx = podcastState.selectedSegmentIndex;
+    setPodcastStatus("插入段落...");
+    try {
+        const updated = await requestJson(`/api/podcasts/${proj.id}/segments/${idx}/insert`, {
+            method: "POST",
+        });
+        podcastState.currentProject = updated;
+        // Select the newly inserted segment (index + 1)
+        const newIdx = idx >= 0 ? idx + 1 : updated.segments.length - 1;
+        podcastState.selectedSegmentIndex = newIdx;
+        renderPodcastSegments();
+        selectPodcastSegment(newIdx);
+        setPodcastStatus("段落已插入");
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
+async function deletePodcastSegment(index) {
+    const proj = podcastState.currentProject;
+    if (!proj) return;
+    setPodcastStatus("删除段落...");
+    try {
+        const updated = await requestJson(`/api/podcasts/${proj.id}/segments/${index}`, {
+            method: "DELETE",
+        });
+        podcastState.currentProject = updated;
+        if (podcastState.selectedSegmentIndex === index) {
+            podcastState.selectedSegmentIndex = -1;
+            hideSegmentEditor();
+        } else if (podcastState.selectedSegmentIndex > index) {
+            podcastState.selectedSegmentIndex -= 1;
+        }
+        renderPodcastSegments();
+        setPodcastStatus("段落已删除");
+    } catch (err) {
+        setPodcastStatus(String(err), true);
+    }
+}
+
 function initPodcastEditor() {
     // New podcast modal
     const newBtn = document.getElementById("podcast-new-btn");
@@ -1256,12 +1346,33 @@ function initPodcastEditor() {
 
     if (newBtn) newBtn.addEventListener("click", () => { modal.hidden = false; });
     if (cancelBtn) cancelBtn.addEventListener("click", () => { modal.hidden = true; });
+
+    // Markdown file import
+    const mdFileInput = document.getElementById("podcast-md-file");
+    const mdSelectBtn = document.getElementById("podcast-md-select-btn");
+    const mdNameSpan = document.getElementById("podcast-md-name");
+    if (mdSelectBtn && mdFileInput) {
+        mdSelectBtn.addEventListener("click", () => mdFileInput.click());
+        mdFileInput.addEventListener("change", () => {
+            const file = mdFileInput.files[0];
+            if (!file) return;
+            mdNameSpan.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const raw = e.target.result;
+                const cleaned = preprocessPodcastText(raw);
+                document.getElementById("podcast-new-text").value = cleaned;
+            };
+            reader.readAsText(file);
+        });
+    }
+
     if (createBtn) {
         createBtn.addEventListener("click", async () => {
             const title = document.getElementById("podcast-new-title").value.trim();
-            const text = document.getElementById("podcast-new-text").value.trim();
+            const text = document.getElementById("podcast-new-text").value;
             const gap = parseFloat(document.getElementById("podcast-new-gap").value);
-            if (!title || !text) { alert("请填写标题和文本"); return; }
+            if (!title || !text.trim()) { alert("请填写标题和文本"); return; }
             try {
                 const proj = await requestJson("/api/podcasts", {
                     method: "POST",
@@ -1271,7 +1382,9 @@ function initPodcastEditor() {
                 modal.hidden = true;
                 document.getElementById("podcast-new-title").value = "";
                 document.getElementById("podcast-new-text").value = "";
-                document.getElementById("podcast-new-gap").value = "1.0";
+                document.getElementById("podcast-new-gap").value = "0.5";
+                mdFileInput.value = "";
+                mdNameSpan.textContent = "未选择";
                 await loadPodcastProjects();
                 await selectPodcastProject(proj.id);
             } catch (err) {
@@ -1285,6 +1398,10 @@ function initPodcastEditor() {
     if (genAllBtn) genAllBtn.addEventListener("click", generateAllPodcastSegments);
     const mergeBtn = document.getElementById("podcast-merge-btn");
     if (mergeBtn) mergeBtn.addEventListener("click", mergePodcast);
+
+    // Insert segment button
+    const insertSegBtn = document.getElementById("podcast-seg-insert-btn");
+    if (insertSegBtn) insertSegBtn.addEventListener("click", insertPodcastSegment);
 
     // Gap save button
     const gapSaveBtn = document.getElementById("podcast-gap-save-btn");
@@ -1312,15 +1429,44 @@ function initPodcastEditor() {
     const regenSegBtn = document.getElementById("podcast-seg-regen-btn");
     if (regenSegBtn) regenSegBtn.addEventListener("click", regeneratePodcastSegment);
 
-    // Speaker change updates voice-ref dropdown
+    // Speaker change resets pre/post pause to 0 (user can re-adjust if needed)
     const speakerSel = document.getElementById("podcast-seg-speaker");
     if (speakerSel) {
         speakerSel.addEventListener("change", () => {
-            updatePodcastVoiceRefSelector(speakerSel.value, "");
+            document.getElementById("podcast-seg-pre-pause").value = "0";
+            document.getElementById("podcast-seg-post-pause").value = "0";
         });
     }
 
-    // Load initial list
+    // BGM upload button
+    const bgmUploadInput = document.getElementById("podcast-bgm-upload");
+    const bgmUploadBtn = document.getElementById("podcast-bgm-upload-btn");
+    if (bgmUploadBtn && bgmUploadInput) {
+        bgmUploadBtn.addEventListener("click", () => bgmUploadInput.click());
+        bgmUploadInput.addEventListener("change", async () => {
+            const file = bgmUploadInput.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append("audio_file", file);
+            try {
+                await requestJson("/api/bgm", { method: "POST", body: formData });
+                await loadBgmTracks();
+                // Refresh selector if a segment is being edited
+                const proj = podcastState.currentProject;
+                const idx = podcastState.selectedSegmentIndex;
+                if (proj && idx >= 0) {
+                    populateBgmSelector(proj.segments[idx].bgm_filename);
+                }
+                setPodcastStatus("BGM 已上传");
+            } catch (err) {
+                setPodcastStatus(String(err), true);
+            }
+            bgmUploadInput.value = "";
+        });
+    }
+
+    // Load initial list and BGM tracks
     loadPodcastProjects();
+    loadBgmTracks();
 }
 

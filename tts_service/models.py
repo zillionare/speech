@@ -125,11 +125,17 @@ class PodcastSegment(BaseModel):
     speaker: str = ""
     tone: str = ""
     speed_modifier: str = ""
-    voice_ref: str = ""
     audio_filename: Optional[str] = None
     duration_seconds: float = 0.0
     generation_seconds: float = 0.0
     status: Literal["pending", "generated", "error"] = "pending"
+    pre_pause: float = 0.0
+    post_pause: float = 0.0
+    bgm_filename: Optional[str] = None
+    bgm_position: Literal["before", "after"] = "before"
+    bgm_volume: float = 0.15
+    bgm_fade_in: float = 2.0
+    bgm_fade_out: float = 3.0
 
 
 class PodcastProject(BaseModel):
@@ -140,7 +146,7 @@ class PodcastProject(BaseModel):
     output_format: Literal["wav", "flac", "ogg"] = "wav"
     segments: List[PodcastSegment]
     merged_audio_filename: Optional[str] = None
-    gap_seconds: float = 1.0
+    gap_seconds: float = 0.5
 
 
 class PodcastListResponse(BaseModel):
@@ -151,7 +157,7 @@ class CreatePodcastRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=256)
     text: str = Field(..., min_length=1, max_length=65536)
     output_format: Literal["wav", "flac", "ogg"] = "wav"
-    gap_seconds: float = 1.0
+    gap_seconds: float = 0.5
 
 
 class UpdateSegmentRequest(BaseModel):
@@ -159,7 +165,13 @@ class UpdateSegmentRequest(BaseModel):
     speaker: Optional[str] = None
     tone: Optional[str] = None
     speed_modifier: Optional[str] = None
-    voice_ref: Optional[str] = None
+    pre_pause: Optional[float] = None
+    post_pause: Optional[float] = None
+    bgm_filename: Optional[str] = None
+    bgm_position: Optional[Literal["before", "after"]] = None
+    bgm_volume: Optional[float] = None
+    bgm_fade_in: Optional[float] = None
+    bgm_fade_out: Optional[float] = None
 
 
 class RegenerateSegmentRequest(BaseModel):
@@ -167,7 +179,16 @@ class RegenerateSegmentRequest(BaseModel):
 
 
 class UpdateGapRequest(BaseModel):
-    gap_seconds: float = Field(default=1.0, ge=0.0, le=10.0)
+    gap_seconds: float = Field(default=0.5, ge=0.0, le=10.0)
+
+
+class BgmTrack(BaseModel):
+    filename: str
+    duration_seconds: float
+
+
+class BgmListResponse(BaseModel):
+    tracks: List[BgmTrack]
 
 
 class PruneOutputsResponse(BaseModel):

@@ -117,6 +117,7 @@ def _trim_silence(audio: np.ndarray, sample_rate: int) -> np.ndarray:
 @dataclass(slots=True)
 class VoiceSample:
     speaker: str
+    file_stem: str
     wav_path: Path
     txt_path: Path
     cache_path: Path
@@ -168,12 +169,19 @@ class SampleManager:
         self._aliases.clear()
         all_stems: list[str] = []
         for wav_path in sorted(self.base_dir.glob("*.wav")):
-            speaker = wav_path.stem
-            all_stems.append(speaker)
+            file_stem = wav_path.stem
+            all_stems.append(file_stem)
+            # Derive speaker name from filename:
+            # - stem with '.' (e.g. aaron.exa) -> speaker = stem (tone voice)
+            # - stem without '.' (e.g. Elyn) -> speaker = stem + '.normal' (auto normal)
+            if "." in file_stem:
+                speaker = file_stem
+            else:
+                speaker = f"{file_stem}.normal"
             # Find transcript: exact match first, then fallback to tone-parent
             txt_path = wav_path.with_suffix(".txt")
             if not txt_path.exists():
-                # Try parent tone voice, e.g. Aaron-sad-fast -> Aaron-sad
+                # Try parent tone voice, e.g. Aaron.sad.fast -> Aaron.sad
                 parent_txt = self._find_tone_parent_txt(wav_path, all_stems)
                 if parent_txt:
                     txt_path = parent_txt
@@ -183,9 +191,10 @@ class SampleManager:
             aliases = self._build_aliases(speaker)
             sample = VoiceSample(
                 speaker=speaker,
+                file_stem=file_stem,
                 wav_path=wav_path,
                 txt_path=txt_path,
-                cache_path=self.cache_dir / f"{speaker}.safetensors",
+                cache_path=self.cache_dir / f"{file_stem}.safetensors",
                 transcript=transcript,
                 aliases=aliases,
             )
@@ -211,9 +220,13 @@ class SampleManager:
 
     def add_voice(self, speaker: str, audio_bytes: bytes, transcript: str, overwrite: bool = False) -> VoiceSample:
         safe_speaker = self._sanitize_speaker_name(speaker)
-        wav_path = self.base_dir / f"{safe_speaker}.wav"
-        txt_path = self.base_dir / f"{safe_speaker}.txt"
-        cache_path = self.cache_dir / f"{safe_speaker}.safetensors"
+        # Derive file stem: strip trailing '.normal' since plain voices don't use it in filenames
+        file_stem = safe_speaker
+        if file_stem.lower().endswith(".normal"):
+            file_stem = file_stem[:-len(".normal")]
+        wav_path = self.base_dir / f"{file_stem}.wav"
+        txt_path = self.base_dir / f"{file_stem}.txt"
+        cache_path = self.cache_dir / f"{file_stem}.safetensors"
         if wav_path.exists() and not overwrite:
             raise FileExistsError(f"Voice '{safe_speaker}' already exists")
         try:
@@ -226,7 +239,8 @@ class SampleManager:
         if cache_path.exists():
             cache_path.unlink()
         self.refresh()
-        return self._voices[safe_speaker]
+        # Return the sample by its registered speaker name (may include .normal suffix)
+        return self.resolve_or_default(safe_speaker)
 
     def update_transcript(self, speaker: str, transcript: str) -> VoiceSample:
         sample = self.get(speaker)
@@ -268,32 +282,32 @@ class SampleManager:
         return tone_voice
 
     def _find_tone_parent_txt(self, wav_path: Path, all_stems: list[str]) -> Path | None:
-        """For a tone-speed variant like Aaron-sad-fast, find Aaron-sad.txt if it exists."""
+        """For a tone-speed variant like Aaron.sad.fast, find Aaron.sad.txt if it exists."""
         stem = wav_path.stem
-        parts = stem.split("-")
-        # Try progressively shorter prefixes: Aaron-sad-fast -> Aaron-sad -> Aaron
+        parts = stem.split(".")
+        # Try progressively shorter prefixes: Aaron.sad.fast -> Aaron.sad -> Aaron
         for i in range(len(parts) - 1, 0, -1):
-            parent = "-".join(parts[:i])
+            parent = ".".join(parts[:i])
             candidate = wav_path.with_name(f"{parent}.txt")
             if candidate.exists():
                 return candidate
         return None
 
     def _parse_tone_voice(self, speaker: str, all_stems: list[str]) -> tuple[str, str]:
-        """Parse a tone voice name like 'Aaron-sad-fast' into (base, tone).
+        """Parse a tone voice name like 'Aaron.sad.fast' into (base, tone).
 
         Returns (base_speaker, tone_tag) or ("", "") if not a tone voice.
         """
-        parts = speaker.split("-")
+        parts = speaker.split(".")
         if len(parts) < 2:
             return "", ""
         # Try longest prefix that matches an existing base voice
         all_lower = {s.lower(): s for s in all_stems}
         for i in range(len(parts) - 1, 0, -1):
-            prefix = "-".join(parts[:i])
+            prefix = ".".join(parts[:i])
             if prefix.lower() in all_lower and prefix.lower() != speaker.lower():
                 base = all_lower[prefix.lower()]
-                tone = "-".join(parts[i:])
+                tone = ".".join(parts[i:])
                 return base, tone
         return "", ""
 
@@ -315,6 +329,9 @@ class SampleManager:
         for alias, spk in self._aliases.items():
             if alias.lower() == normalized.lower():
                 return self._voices[spk]
+        # Backward compat: "Elyn" -> "Elyn.normal" for plain voices
+        if not speaker.lower().endswith(".normal"):
+            return self.resolve(f"{speaker}.normal")
         return None
 
     def resolve_or_default(self, speaker: str) -> VoiceSample:
@@ -343,7 +360,7 @@ class SampleManager:
 
     @staticmethod
     def _normalize_alias(value: str) -> str:
-        alias = value.strip().lower().replace(" ", "").replace("-", "")
+        alias = value.strip().lower().replace(" ", "").replace("-", "").replace(".", "")
         for prefix in ("zh", "en", "in", "jp", "kr", "de", "fr", "sp", "pt", "it", "nl", "pl"):
             if alias.startswith(prefix) and len(alias) > len(prefix) + 1:
                 alias = alias[len(prefix):]
@@ -354,10 +371,15 @@ class SampleManager:
 
     def _build_aliases(self, speaker: str) -> set[str]:
         aliases = {self._normalize_alias(speaker), speaker.lower()}
+        # Add tone-part alias only for actual tone voices (not auto-.normal)
+        if "." in speaker and not speaker.lower().endswith(".normal"):
+            aliases.add(self._normalize_alias(speaker.split(".", 1)[1]))
         if "-" in speaker:
             aliases.add(self._normalize_alias(speaker.split("-", 1)[1]))
         if "_" in speaker:
             aliases.add(self._normalize_alias(speaker.split("_", 1)[0]))
+        if "." in speaker and "_" in speaker and not speaker.lower().endswith(".normal"):
+            aliases.add(self._normalize_alias(speaker.split(".", 1)[1].split("_", 1)[0]))
         if "-" in speaker and "_" in speaker:
             aliases.add(self._normalize_alias(speaker.split("-", 1)[1].split("_", 1)[0]))
         return {alias for alias in aliases if alias}

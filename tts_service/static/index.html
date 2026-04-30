@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Speech Studio</title>
-    <link rel="stylesheet" href="/static/styles.css?v=5">
+    <link rel="stylesheet" href="/static/styles.css?v=9">
   </head>
   <body>
     <div class="shell">
@@ -147,7 +147,7 @@
             <div>
               <p class="section-kicker">样本素材</p>
               <h2>声音库</h2>
-              <p>每个声音都由 <code>{speaker}.wav</code> 与 <code>{speaker}.txt</code> 组成。</p>
+              <p>每个声音都由 <code>{speaker}.{tone}.wav</code> 与 <code>{speaker}.{tone}.txt</code> 组成。不含语调的文件会自动视为 normal，例如 <code>Elyn.wav</code> 对应 speaker <code>Elyn.normal</code>。</p>
             </div>
             <button id="refresh-voices" class="ghost">刷新声音库</button>
           </div>
@@ -156,8 +156,8 @@
             <form id="voice-upload-form" class="stack form-card uploader-card">
               <h3>添加或替换声音</h3>
               <label>
-                Speaker
-                <input name="speaker" placeholder="例如 Aaron" required>
+                Speaker（可选，默认从文件名自动提取）
+                <input name="speaker" placeholder="例如 Aaron.excited">
               </label>
               <label>
                 Transcript
@@ -205,9 +205,13 @@
               <button type="button" id="podcast-merge-btn" class="secondary">合并导出</button>
               <div class="podcast-gap-control" style="margin-left:auto;display:flex;align-items:center;gap:8px;">
                 <label style="font-size:13px;color:var(--muted);">段间隔</label>
-                <input id="podcast-gap-input" type="number" min="0" max="10" step="0.1" value="1.0" style="width:60px;">
+                <input id="podcast-gap-input" type="number" min="0" max="10" step="0.01" value="0.5" style="width:70px;">
                 <span style="font-size:13px;color:var(--muted);">秒</span>
                 <button type="button" id="podcast-gap-save-btn" class="small">保存</button>
+              </div>
+              <div class="podcast-bgm-upload" style="display:flex;align-items:center;gap:8px;">
+                <input id="podcast-bgm-upload" type="file" accept="audio/*" style="visibility:hidden;position:absolute;">
+                <button type="button" id="podcast-bgm-upload-btn" class="small">上传BGM</button>
               </div>
               <span id="podcast-status" class="field-hint"></span>
             </div>
@@ -220,7 +224,10 @@
 
               <div class="podcast-main">
                 <div id="podcast-segments-panel">
-                  <h3>段落列表</h3>
+                  <div class="segments-panel-head">
+                    <h3>段落列表</h3>
+                    <button type="button" id="podcast-seg-insert-btn" class="small" title="插入段落">+</button>
+                  </div>
                   <div id="podcast-segments-list" class="podcast-segments"></div>
                 </div>
 
@@ -228,17 +235,53 @@
                   <h3>段落编辑</h3>
                   <label>
                     文本
-                    <textarea id="podcast-seg-text" rows="4"></textarea>
+                    <textarea id="podcast-seg-text" rows="6"></textarea>
                   </label>
-                  <div class="two-col">
+                  <div class="three-col">
                     <label>
                       说话人
                       <select id="podcast-seg-speaker"></select>
                     </label>
                     <label>
-                      参考音色
-                      <select id="podcast-seg-voice-ref"></select>
+                      段前停顿（秒）
+                      <input id="podcast-seg-pre-pause" type="number" min="0" max="10" step="0.1" value="0">
                     </label>
+                    <label>
+                      段后停顿（秒）
+                      <input id="podcast-seg-post-pause" type="number" min="0" max="10" step="0.1" value="0">
+                    </label>
+                  </div>
+                  <div class="bgm-section">
+                    <h4>背景音乐</h4>
+                    <div class="three-col">
+                      <label>
+                        曲目
+                        <select id="podcast-seg-bgm">
+                          <option value="">无</option>
+                        </select>
+                      </label>
+                      <label>
+                        插入点
+                        <select id="podcast-seg-bgm-position">
+                          <option value="before">段前</option>
+                          <option value="after">段后</option>
+                        </select>
+                      </label>
+                      <label>
+                        音量
+                        <input id="podcast-seg-bgm-volume" type="number" min="0" max="1" step="0.01" value="0.15">
+                      </label>
+                    </div>
+                    <div class="two-col">
+                      <label>
+                        混入（秒）
+                        <input id="podcast-seg-bgm-fade-in" type="number" min="0" max="10" step="0.1" value="2.0">
+                      </label>
+                      <label>
+                        混出（秒）
+                        <input id="podcast-seg-bgm-fade-out" type="number" min="0" max="10" step="0.1" value="3.0">
+                      </label>
+                    </div>
                   </div>
                   <div class="podcast-editor-actions">
                     <button type="button" id="podcast-seg-save-btn" class="primary">保存修改</button>
@@ -262,9 +305,15 @@
                 文本
                 <textarea id="podcast-new-text" rows="12" placeholder="Aaron: 大家好！&#10;Bowen: 今天我们聊聊..."></textarea>
               </label>
+              <div class="markdown-import-row">
+                <label>从 Markdown 导入</label>
+                <input id="podcast-md-file" type="file" accept=".md,.markdown" style="visibility:hidden;position:absolute;">
+                <button type="button" class="secondary" id="podcast-md-select-btn">选择文件</button>
+                <span id="podcast-md-name" class="field-hint">未选择</span>
+              </div>
               <label>
                 段落间隔（秒）
-                <input id="podcast-new-gap" type="number" min="0" max="10" step="0.1" value="1.0">
+                <input id="podcast-new-gap" type="number" min="0" max="10" step="0.01" value="0.5">
               </label>
               <div class="modal-actions">
                 <button type="button" id="podcast-new-create-btn" class="primary">创建</button>
@@ -506,6 +555,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=5" defer></script>
+    <script src="/static/app.js?v=14" defer></script>
   </body>
   </html>

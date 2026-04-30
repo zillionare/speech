@@ -359,16 +359,23 @@ def _concatenate_audio_segments(
     output_format: str,
     sample_rate: int = 24000,
     gaps: list[float] | None = None,
+    pre_pauses: list[float] | None = None,
+    post_pauses: list[float] | None = None,
+    base_gap: float = 0.0,
 ) -> bytes:
     """Concatenate multiple audio byte segments using ffmpeg concat demuxer.
 
-    If *gaps* is provided, inserts silence of the specified duration (seconds)
-    before each segment. gaps[0] is ignored (first segment starts immediately).
-    """
-    if len(segments) == 1:
-        return segments[0]
+    Legacy mode: pass *gaps* — inserts silence before each segment.
+        gaps[0] is ignored (first segment starts immediately).
 
-    gaps = gaps or [0.0] * len(segments)
+    Per-segment pause mode: pass *pre_pauses* and *post_pauses*.
+        Silence before segment i is:
+            pre_pauses[i]                       (i == 0)
+            base_gap + pre_pauses[i] + post_pauses[i-1]   (i > 0)
+        Silence after the last segment is post_pauses[-1] (if > 0).
+    """
+    if len(segments) == 1 and not pre_pauses and not post_pauses and (not gaps or gaps[0] == 0):
+        return segments[0]
 
     # Detect channel count from the first segment so silence matches
     channels = 1
@@ -381,14 +388,39 @@ def _concatenate_audio_segments(
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         all_files: list[Path] = []
-        for i, seg_bytes in enumerate(segments):
-            if gaps[i] > 0:
-                silence_path = tmp_path / f"sil_{i:04d}.wav"
-                _generate_silence(gaps[i], sample_rate, silence_path, channels=channels)
+
+        use_pause_mode = pre_pauses is not None or post_pauses is not None
+
+        if use_pause_mode:
+            pre_pauses = pre_pauses or [0.0] * len(segments)
+            post_pauses = post_pauses or [0.0] * len(segments)
+            for i, seg_bytes in enumerate(segments):
+                if i == 0:
+                    silence_dur = pre_pauses[i]
+                else:
+                    silence_dur = base_gap + pre_pauses[i] + post_pauses[i - 1]
+                if silence_dur > 0:
+                    silence_path = tmp_path / f"sil_pre_{i:04d}.wav"
+                    _generate_silence(silence_dur, sample_rate, silence_path, channels=channels)
+                    all_files.append(silence_path)
+                seg_path = tmp_path / f"seg_{i:04d}.{output_format}"
+                seg_path.write_bytes(seg_bytes)
+                all_files.append(seg_path)
+            # Append silence after the last segment if post_pause is set
+            if post_pauses and post_pauses[-1] > 0:
+                silence_path = tmp_path / f"sil_post_{len(segments) - 1:04d}.wav"
+                _generate_silence(post_pauses[-1], sample_rate, silence_path, channels=channels)
                 all_files.append(silence_path)
-            seg_path = tmp_path / f"seg_{i:04d}.{output_format}"
-            seg_path.write_bytes(seg_bytes)
-            all_files.append(seg_path)
+        else:
+            gaps = gaps or [0.0] * len(segments)
+            for i, seg_bytes in enumerate(segments):
+                if gaps[i] > 0:
+                    silence_path = tmp_path / f"sil_{i:04d}.wav"
+                    _generate_silence(gaps[i], sample_rate, silence_path, channels=channels)
+                    all_files.append(silence_path)
+                seg_path = tmp_path / f"seg_{i:04d}.{output_format}"
+                seg_path.write_bytes(seg_bytes)
+                all_files.append(seg_path)
 
         list_file = tmp_path / "concat_list.txt"
         list_file.write_text(

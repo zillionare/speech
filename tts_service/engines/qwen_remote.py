@@ -13,7 +13,7 @@ import soundfile as sf
 
 from ..config import Config
 from ..models import SpeakerResolution
-from ..sample_manager import SampleManager
+from ..sample_manager import SampleManager, VoiceSample
 from .base import (
     BaseEngine,
     GenerationResult,
@@ -34,6 +34,10 @@ class QwenRemoteEngine(BaseEngine):
         self.sample_manager = sample_manager
         base = getattr(config.model, "qwen_base_url", "http://localhost:8000")
         self.base_url = base.rstrip("/")
+
+    def ensure_voice_cache_ready(self, speaker: str) -> VoiceSample:
+        """Remote engine has no local MLX cache; just validate the sample exists."""
+        return self.sample_manager.resolve_or_default(speaker)
 
     def _resolve_voice(self, voice: Optional[str]) -> tuple[str, Path, str]:
         sample = self.sample_manager.resolve_or_default(voice or self.config.voices.default_voice)

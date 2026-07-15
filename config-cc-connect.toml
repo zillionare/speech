@@ -1,0 +1,58 @@
+data_dir = "/Users/openclaw/.cc-connect"
+attachment_send = "on"
+language = "zh"
+
+[log]
+level = "info"
+
+# =============================================================================
+# Project: content-factory (Claude Code)
+# =============================================================================
+
+[[projects]]
+name = "content-factory"
+
+[projects.agent]
+type = "claudecode"
+
+[projects.agent.options]
+work_dir = "/Users/openclaw/workspace/content-factory"
+mode = "yolo"
+
+# QQ Bot (Official) — 需要到 https://q.qq.com 注册获取 AppID & AppSecret
+[[projects.platforms]]
+type = "qqbot"
+
+[projects.platforms.options]
+app_id = "1903750531"
+app_secret = "mrw29GOXgq0BNZm0ETiyFWo7Qk4Pl7Ur"
+sandbox = false
+allow_from = "*"
+share_session_in_channel = false
+markdown_support = true
+
+# =============================================================================
+# Project: speech (Claude Code)
+# =============================================================================
+
+[[projects]]
+name = "speech"
+
+[projects.agent]
+type = "claudecode"
+
+[projects.agent.options]
+work_dir = "/Users/openclaw/workspace/speech"
+mode = "yolo"
+
+# QQ Bot (Official) — 需要到 https://q.qq.com 注册获取 AppID & AppSecret
+[[projects.platforms]]
+type = "qqbot"
+
+[projects.platforms.options]
+app_id = "1903804165"
+app_secret = "7FOXhr2DPbo2GVk0GXo6Oh1Lg1Nj6TrF"
+sandbox = false
+allow_from = "*"
+share_session_in_channel = false
+markdown_support = true

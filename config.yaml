@@ -1,0 +1,40 @@
+model:
+  model_id: gafiatulin/vibevoice-1.5b-mlx
+  quantize_bits: 8
+  diffusion_steps: 30
+  cfg_scale: 1.0
+  max_speech_tokens: 200
+  seed: 42
+  use_semantic: true
+  use_coreml_semantic: false
+  engine: qwen_remote
+  omlx_base_url: http://192.168.0.102:8000
+  omnivoice_base_url: http://192.168.0.102:8002
+  qwen_remote_model: Qwen3-TTS-12Hz-1.7B-Base-8bit
+  omnivoice_remote_model: OmniVoice
+  max_segment_chars: 500
+  speed: 1.0
+  stereo: true
+  spatial_jitter: true
+  segment_gap_seconds: 1.1
+  speaker_gap_seconds: 1.0
+voices:
+  base_dir: /Users/openclaw/apps/speech/voices
+  default_voice: Aaron
+  cache_subdir: .cache
+  bundled_chinese_voices:
+  - zh-007_man
+  - zh-007_woman
+  - zh-Anchen_man_bgm
+  - zh-Aaron_man
+  - zh-Bowen_man
+  - zh-Xinran_woman
+  - zh-Zxx_man
+outputs:
+  base_dir: /Users/openclaw/apps/speech/outputs
+  history_limit: 20
+server:
+  host: 0.0.0.0
+  port: 8123
+  log_level: info
+pid_file: /tmp/tts_service.pid

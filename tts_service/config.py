@@ -77,6 +77,21 @@ class OutputsConfig(BaseModel):
         return Path(os.path.expanduser(self.base_dir)).resolve()
 
 
+class ASRConfigPydantic(BaseModel):
+    """ASR configuration (Pydantic wrapper for YAML persistence)."""
+
+    enabled: bool = False
+    backend: str = "mlx_whisper"
+    model: str = "mlx-community/whisper-small"
+    language: str = "zh"
+    chunk_seconds: float = 1.0
+    beam_size: int = 1
+    vad_filter: bool = True
+    compute_type: str = "float16"
+    device: str = "auto"
+    warmup_on_start: bool = False
+
+
 class ServerConfig(BaseModel):
     """HTTP server configuration."""
 
@@ -93,6 +108,7 @@ class Config(BaseModel):
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     live: LiveConfig = Field(default_factory=LiveConfig)
+    asr: ASRConfigPydantic = Field(default_factory=ASRConfigPydantic)
     pid_file: str = "/tmp/tts_service.pid"
 
     @classmethod

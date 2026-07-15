@@ -202,3 +202,34 @@ class BgmListResponse(BaseModel):
 class PruneOutputsResponse(BaseModel):
     deleted: List[str]
     kept: List[str]
+
+
+class LiveStartRequest(BaseModel):
+    live_only: bool = False
+    live_speakers_override: Optional[List[str]] = None
+
+
+class LiveStartResponse(BaseModel):
+    session_id: str
+    project_id: str
+    state: str
+    segment_count: int
+    live_segment_count: int
+    asr_enabled: bool
+    asr_ready: bool
+
+
+class LiveStopResponse(BaseModel):
+    session_id: str
+    state: str
+    recorded_segments: List[int]
+    merged: bool = False
+    merge_warnings: List[str] = []
+
+
+class LiveResumeResponse(BaseModel):
+    session_id: str
+    state: str
+    cursor: int
+    captured_segments: List[int]
+    asr_ready: bool

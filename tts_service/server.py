@@ -36,6 +36,9 @@ from .models import (
     UpdateSegmentRequest,
     VoiceInfo,
     VoiceListResponse,
+    LiveStartRequest,
+    LiveStartResponse,
+    LiveStopResponse,
 )
 from .podcast_manager import PodcastManager
 from .sample_manager import SampleManager, VoiceSample
@@ -637,5 +640,72 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if audio_path.parent != audio_dir.resolve() or not audio_path.exists():
             raise HTTPException(status_code=404, detail="Audio segment not found")
         return FileResponse(audio_path, media_type="audio/wav")
+
+    # ── Live Podcast routes ─────────────────────────────────
+    from .live.session import (
+        LiveSessionRegistry, LiveState, Trigger, IllegalStateTransition,
+    )
+
+    live_registry = LiveSessionRegistry()
+
+    def _check_no_live_segments(project) -> bool:
+        """Return True if project has at least one live segment."""
+        from .models import SegmentSource
+        return any(seg.source == SegmentSource.LIVE for seg in project.segments)
+
+    @app.post("/api/podcasts/{project_id}/live/start", status_code=201,
+              response_model=LiveStartResponse)
+    def start_live_session(project_id: str, request: LiveStartRequest) -> LiveStartResponse:
+        project = podcast_manager.get_project(project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
+        if not _check_no_live_segments(project):
+            raise HTTPException(status_code=409, detail="NO_LIVE_SEGMENTS")
+
+        segments = project.segments
+        session = live_registry.start_live_session(project_id, segments)
+
+        # Determine initial state based on first segment
+        from .models import SegmentSource
+        first_seg = segments[0] if segments else None
+        if first_seg and first_seg.source == SegmentSource.LIVE:
+            session.transition(Trigger.START_RECORDING)
+        else:
+            session.transition(Trigger.START_AI)
+
+        live_count = sum(1 for s in segments if s.source == SegmentSource.LIVE)
+        return LiveStartResponse(
+            session_id=session.session_id,
+            project_id=project_id,
+            state=session.state.value,
+            segment_count=len(segments),
+            live_segment_count=live_count,
+            asr_enabled=getattr(config.asr, "enabled", False),
+            asr_ready=live_registry.get_asr().is_ready,
+        )
+
+    @app.post("/api/podcasts/{project_id}/live/{session_id}/stop",
+              response_model=LiveStopResponse)
+    def stop_live_session(project_id: str, session_id: str) -> LiveStopResponse:
+        session = live_registry.get(project_id, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        if not session.can_accept_command():
+            raise HTTPException(status_code=409, detail="SESSION_TERMINATED")
+        live_registry.stop_live_session(project_id, session_id)
+        recorded = [i for i, seg in enumerate(session.segments)
+                    if seg.source.value == "live" and seg.audio_filename]
+        return LiveStopResponse(
+            session_id=session_id,
+            state=session.state.value,
+            recorded_segments=recorded,
+            merged=False,
+        )
+
+    @app.post("/api/asr/warmup")
+    def warmup_asr() -> dict:
+        asr = live_registry.get_asr()
+        asr.warmup()
+        return {"ready": asr.is_ready}
 
     return app

@@ -87,9 +87,11 @@ class StreamingTTSProxyConstructionTests(unittest.TestCase):
         self.assertEqual(sig.parameters["chunk_ms"].default, 200)
 
 
-@unittest.skip("stream_segment not yet implemented — remove skip when ready")
 class StreamingTTSProxyStreamTests(unittest.TestCase):
-    """Call stream_segment with real engine data."""
+    """Call stream_segment with real engine data.
+
+    ACC-005-1: stream_segment yields ~200ms PCM chunks (SPEC-005/ST-LP-005).
+    """
 
     def test_stream_segment_yields_pcm_chunks(self):
         """stream_segment should yield binary PCM chunks from the engine."""

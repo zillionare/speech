@@ -183,9 +183,11 @@ class LiveSessionRegistry:
         return self._sessions.get((project_id, session_id))
 
     def stop_live_session(self, project_id: str, session_id: str) -> Optional[LiveSession]:
-        """Gracefully stop a session -> FINISHED."""
+        """Gracefully stop a session -> FINISHED, then remove from registry."""
         session = self.get(project_id, session_id)
         if session is None:
+            return None
+        if not session.can_accept_command():
             return None
         session.transition(Trigger.FORCE_STOP)
         self._sessions.pop((project_id, session_id), None)

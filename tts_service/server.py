@@ -40,26 +40,6 @@ from .models import (
 from .podcast_manager import PodcastManager
 from .sample_manager import SampleManager, VoiceSample
 from .tts_engine import create_engine
-from .voice_design import has_markup as voice_design_has_markup
-
-
-# Map legacy engine names accepted by the API for one release.
-_LEGACY_ENGINE_ALIASES = {
-    "remote": "qwen_remote",
-    "local": "local_vibevoice",
-}
-
-
-_MARKUP_REJECT_DETAIL = (
-    "Input contains voice-design markup which is only supported by the OmniVoice "
-    "engine. Switch the engine to omnivoice_remote, or remove the markup."
-)
-
-
-def _canonical_engine(name: Optional[str]) -> Optional[str]:
-    if name is None:
-        return None
-    return _LEGACY_ENGINE_ALIASES.get(name, name)
 
 
 def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
@@ -74,34 +54,22 @@ def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
 
 
 def _resolve_engine(request_engine: str | None, config, sample_manager):
-    """Return the appropriate engine, honoring per-request override."""
-    canonical = _canonical_engine(request_engine)
-    if canonical is None:
+    """Return the appropriate engine based on request override."""
+    if request_engine is None:
         return create_engine(config, sample_manager)
-    if canonical == "qwen_remote":
-        from .engines.omlx_remote import OmlxRemoteEngine
-        return OmlxRemoteEngine(
-            config, sample_manager,
-            model_id=config.model.qwen_remote_model,
-            base_url=config.model.omlx_base_url,
-        )
-    if canonical == "omnivoice_remote":
-        from .engines.omlx_remote import OmlxRemoteEngine
-        return OmlxRemoteEngine(
-            config, sample_manager,
-            model_id=config.model.omnivoice_remote_model,
-            base_url=getattr(config.model, "omnivoice_base_url", config.model.omlx_base_url),
-        )
-    if canonical == "local_vibevoice":
+    is_remote = getattr(config.model, "use_remote_qwen", False)
+    if request_engine == "remote" and not is_remote:
+        from .engines.qwen_remote import QwenRemoteEngine
+        return QwenRemoteEngine(config, sample_manager)
+    elif request_engine == "local" and is_remote:
         from .engines.local_vibevoice import LocalVibeVoiceEngine
         return LocalVibeVoiceEngine(config, sample_manager)
-    raise HTTPException(status_code=400, detail=f"unknown engine: {request_engine}")
+    return create_engine(config, sample_manager)
 
 
 def create_app(config_path: Optional[str] = None) -> FastAPI:
     config = load_config(config_path)
     sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
-    sample_manager.log_warnings()
     engine = create_engine(config, sample_manager)
     static_dir = Path(__file__).resolve().parent / "static"
     outputs_dir = config.outputs.expanded_base_dir
@@ -114,7 +82,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     app = FastAPI(
         title="Speech Studio",
         description="Qwen-TTS primary dialogue generation and voice management UI with local MLX fallback",
-        version="0.3.9",
+        version="0.3.0",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -140,7 +108,6 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             quantize_bits=config.model.quantize_bits,
             voices_count=len(sample_manager.list_samples()),
             default_voice=config.voices.default_voice,
-            engine=getattr(config.model, "engine", "qwen_remote"),
         )
 
     @app.get("/api/config", response_model=AppConfigResponse)
@@ -164,11 +131,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             seed=config.model.seed,
             voices_path=str(config.voices.base_dir),
             outputs_path=str(config.outputs.base_dir),
-            engine=getattr(config.model, "engine", "qwen_remote"),
-            omlx_base_url=getattr(config.model, "omlx_base_url", ""),
-            omnivoice_base_url=getattr(config.model, "omnivoice_base_url", ""),
-            qwen_remote_model=getattr(config.model, "qwen_remote_model", ""),
-            omnivoice_remote_model=getattr(config.model, "omnivoice_remote_model", ""),
+            use_remote_qwen=getattr(config.model, "use_remote_qwen", False),
+            qwen_base_url=getattr(config.model, "qwen_base_url", ""),
             max_segment_chars=getattr(config.model, "max_segment_chars", 200),
             stereo=getattr(config.model, "stereo", False),
             spatial_jitter=getattr(config.model, "spatial_jitter", False),
@@ -207,21 +171,12 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.seed is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["seed"] = request.seed
-        if request.engine is not None:
+        if request.use_remote_qwen is not None:
             overrides["model"] = overrides.get("model", {})
-            overrides["model"]["engine"] = request.engine
-        if request.omlx_base_url is not None:
+            overrides["model"]["use_remote_qwen"] = request.use_remote_qwen
+        if request.qwen_base_url is not None:
             overrides["model"] = overrides.get("model", {})
-            overrides["model"]["omlx_base_url"] = request.omlx_base_url
-        if request.omnivoice_base_url is not None:
-            overrides["model"] = overrides.get("model", {})
-            overrides["model"]["omnivoice_base_url"] = request.omnivoice_base_url
-        if request.qwen_remote_model is not None:
-            overrides["model"] = overrides.get("model", {})
-            overrides["model"]["qwen_remote_model"] = request.qwen_remote_model
-        if request.omnivoice_remote_model is not None:
-            overrides["model"] = overrides.get("model", {})
-            overrides["model"]["omnivoice_remote_model"] = request.omnivoice_remote_model
+            overrides["model"]["qwen_base_url"] = request.qwen_base_url
         if request.max_segment_chars is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["max_segment_chars"] = request.max_segment_chars
@@ -365,15 +320,17 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         history.appendleft(record)
         return record
 
-    def _reject_markup_if_needed(request_engine: str | None, text: str) -> None:
-        canonical = _canonical_engine(request_engine) or getattr(config.model, "engine", "qwen_remote")
-        if canonical != "omnivoice_remote" and voice_design_has_markup(text):
-            raise HTTPException(status_code=400, detail=_MARKUP_REJECT_DETAIL)
-
     @app.post("/api/generate", response_model=GenerationRecord)
     def generate_audio(request: GenerateRequest) -> GenerationRecord:
-        _reject_markup_if_needed(request.engine, request.text)
-        target_engine = _resolve_engine(request.engine, config, sample_manager)
+        target_engine = engine
+        if request.engine is not None:
+            is_remote = getattr(config.model, "use_remote_qwen", False)
+            if request.engine == "remote" and not is_remote:
+                from .engines.qwen_remote import QwenRemoteEngine
+                target_engine = QwenRemoteEngine(config, sample_manager)
+            elif request.engine == "local" and is_remote:
+                from .engines.local_vibevoice import LocalVibeVoiceEngine
+                target_engine = LocalVibeVoiceEngine(config, sample_manager)
         segment_gap = getattr(config.model, "segment_gap_seconds", 1.0)
         try:
             result = target_engine.generate_dialogue(
@@ -389,8 +346,15 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.post("/api/generate/stream")
     def generate_audio_stream(request: GenerateRequest) -> StreamingResponse:
-        _reject_markup_if_needed(request.engine, request.text)
-        target_engine = _resolve_engine(request.engine, config, sample_manager)
+        target_engine = engine
+        if request.engine is not None:
+            is_remote = getattr(config.model, "use_remote_qwen", False)
+            if request.engine == "remote" and not is_remote:
+                from .engines.qwen_remote import QwenRemoteEngine
+                target_engine = QwenRemoteEngine(config, sample_manager)
+            elif request.engine == "local" and is_remote:
+                from .engines.local_vibevoice import LocalVibeVoiceEngine
+                target_engine = LocalVibeVoiceEngine(config, sample_manager)
 
         max_chars = getattr(config.model, "max_segment_chars", 200)
         stereo = getattr(config.model, "stereo", False)
@@ -439,9 +403,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.post("/v1/audio/speech")
     def create_speech(request: SpeechRequest) -> StreamingResponse:
-        _reject_markup_if_needed(request.engine, request.input)
-        target_engine = _resolve_engine(request.engine, config, sample_manager)
-        result = target_engine.generate_single(
+        result = engine.generate_single(
             text=request.input,
             voice=request.voice or config.voices.default_voice,
             output_format=request.response_format,
@@ -457,9 +419,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
     @app.post("/v1/audio/podcast")
     def create_podcast(request: PodcastRequest) -> StreamingResponse:
-        _reject_markup_if_needed(request.engine, request.input)
-        target_engine = _resolve_engine(request.engine, config, sample_manager)
-        result = target_engine.generate_dialogue(
+        result = engine.generate_dialogue(
             text=request.input,
             output_format=request.response_format,
             voice_mapping=request.voice_mapping,

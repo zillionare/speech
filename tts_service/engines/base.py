@@ -515,23 +515,9 @@ def _apply_audio_effects(
 
 
 def create_engine(config, sample_manager) -> BaseEngine:
-    """Factory: return engine matching config.model.engine."""
-    eng = getattr(config.model, "engine", "qwen_remote")
-    if eng == "qwen_remote":
-        from .omlx_remote import OmlxRemoteEngine
-        return OmlxRemoteEngine(
-            config, sample_manager,
-            model_id=config.model.qwen_remote_model,
-            base_url=config.model.omlx_base_url,
-        )
-    if eng == "omnivoice_remote":
-        from .omlx_remote import OmlxRemoteEngine
-        return OmlxRemoteEngine(
-            config, sample_manager,
-            model_id=config.model.omnivoice_remote_model,
-            base_url=getattr(config.model, "omnivoice_base_url", config.model.omlx_base_url),
-        )
-    if eng == "local_vibevoice":
-        from .local_vibevoice import LocalVibeVoiceEngine
-        return LocalVibeVoiceEngine(config, sample_manager)
-    raise ValueError(f"unknown engine: {eng}")
+    """Factory: return remote Qwen engine if configured, else local MLX."""
+    if getattr(config.model, "use_remote_qwen", False):
+        from .qwen_remote import QwenRemoteEngine
+        return QwenRemoteEngine(config, sample_manager)
+    from .local_vibevoice import LocalVibeVoiceEngine
+    return LocalVibeVoiceEngine(config, sample_manager)

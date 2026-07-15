@@ -45,7 +45,7 @@ class GenerateRequest(BaseModel):
     output_format: Literal["wav", "flac", "ogg"] = "wav"
     voice: Optional[str] = None
     voice_mapping: Dict[str, str] = Field(default_factory=dict)
-    engine: Optional[str] = None
+    engine: Optional[Literal["local", "remote"]] = None
 
 
 class SpeechRequest(BaseModel):
@@ -53,7 +53,6 @@ class SpeechRequest(BaseModel):
     input: str = Field(..., min_length=1, max_length=65536)
     voice: Optional[str] = None
     response_format: Literal["wav", "flac", "ogg"] = "wav"
-    engine: Optional[str] = None
 
 
 class PodcastRequest(BaseModel):
@@ -61,7 +60,6 @@ class PodcastRequest(BaseModel):
     input: str = Field(..., min_length=1, max_length=65536)
     voice_mapping: Dict[str, str] = Field(default_factory=dict)
     response_format: Literal["wav", "flac", "ogg"] = "wav"
-    engine: Optional[str] = None
 
 
 class TranscriptUpdateRequest(BaseModel):
@@ -74,7 +72,6 @@ class HealthResponse(BaseModel):
     quantize_bits: int
     voices_count: int
     default_voice: str
-    engine: str
 
 
 class AppConfigResponse(BaseModel):
@@ -89,11 +86,8 @@ class AppConfigResponse(BaseModel):
     seed: int
     voices_path: str
     outputs_path: str
-    engine: str
-    omlx_base_url: str
-    omnivoice_base_url: str
-    qwen_remote_model: str
-    omnivoice_remote_model: str
+    use_remote_qwen: bool
+    qwen_base_url: str
     max_segment_chars: int
     stereo: bool
     spatial_jitter: bool
@@ -112,11 +106,8 @@ class AppConfigUpdateRequest(BaseModel):
     use_semantic: Optional[bool] = None
     use_coreml_semantic: Optional[bool] = None
     seed: Optional[int] = None
-    engine: Optional[Literal["qwen_remote", "omnivoice_remote", "local_vibevoice"]] = None
-    omlx_base_url: Optional[str] = None
-    omnivoice_base_url: Optional[str] = None
-    qwen_remote_model: Optional[str] = None
-    omnivoice_remote_model: Optional[str] = None
+    use_remote_qwen: Optional[bool] = None
+    qwen_base_url: Optional[str] = None
     max_segment_chars: Optional[int] = None
     stereo: Optional[bool] = None
     spatial_jitter: Optional[bool] = None
@@ -184,7 +175,7 @@ class UpdateSegmentRequest(BaseModel):
 
 
 class RegenerateSegmentRequest(BaseModel):
-    engine: Optional[str] = None
+    engine: Optional[Literal["local", "remote"]] = None
 
 
 class UpdateGapRequest(BaseModel):

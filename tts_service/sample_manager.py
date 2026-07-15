@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import io
-import logging
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 import numpy as np
 import soundfile as sf
@@ -15,9 +14,6 @@ from scipy.signal import butter, filtfilt, istft, stft
 
 _MIN_SIGNAL_LEVEL = 1e-4
 _TARGET_PEAK = 0.95
-
-_VOICE_REF_MAX_DURATION = 10.0
-_logger = logging.getLogger(__name__)
 
 
 def preprocess_reference_audio(audio_data: np.ndarray, sample_rate: int) -> np.ndarray:
@@ -218,26 +214,6 @@ class SampleManager:
 
     def list_voices(self) -> list[str]:
         return [sample.speaker for sample in self.list_samples()]
-
-    def iter_warnings(self) -> Iterator[str]:
-        """Yield human-readable warnings for samples that exceed OmniVoice's 3-10 s reference window.
-
-        Caller is responsible for logging or surfacing them. Side-effect-free.
-        """
-        for wav_path in sorted(self.base_dir.glob("*.wav")):
-            try:
-                info = sf.info(str(wav_path))
-            except Exception:
-                continue
-            if info.duration > _VOICE_REF_MAX_DURATION:
-                yield (
-                    f"voice reference '{wav_path.name}' is {info.duration:.1f}s long "
-                    f"(OmniVoice recommends 3-10s)"
-                )
-
-    def log_warnings(self) -> None:
-        for msg in self.iter_warnings():
-            _logger.warning(msg)
 
     def get(self, speaker: str) -> Optional[VoiceSample]:
         return self._voices.get(speaker)

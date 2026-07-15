@@ -139,7 +139,7 @@ const state = {
     config: null,
     voices: [],
     history: [],
-    engine: "qwen_remote",
+    engine: "local",
 };
 
 // 存储从目录选择器或文件选择器中暂定的音频文件，供上传使用
@@ -462,38 +462,33 @@ function renderHistory() {
 }
 
 function initEngineToggle() {
-    const buttons = {
-        qwen_remote: document.getElementById("engine-qwen_remote"),
-        omnivoice_remote: document.getElementById("engine-omnivoice_remote"),
-        local_vibevoice: document.getElementById("engine-local_vibevoice"),
-    };
+    const localBtn = document.getElementById("engine-local");
+    const remoteBtn = document.getElementById("engine-remote");
     const hint = document.getElementById("engine-hint");
-    const hints = {
-        qwen_remote: "使用 Qwen3-TTS 远程引擎",
-        omnivoice_remote: "使用 OmniVoice 远程引擎，支持 voice-design 标记",
-        local_vibevoice: "使用本地 MLX 引擎",
-    };
-    if (!buttons.qwen_remote || !buttons.omnivoice_remote || !buttons.local_vibevoice) return;
+    if (!localBtn || !remoteBtn) return;
 
     const update = () => {
-        Object.entries(buttons).forEach(([key, btn]) => {
-            btn.classList.toggle("active", state.engine === key);
-        });
+        localBtn.classList.toggle("active", state.engine === "local");
+        remoteBtn.classList.toggle("active", state.engine === "remote");
         if (hint) {
-            hint.textContent = hints[state.engine] || "";
+            hint.textContent = state.engine === "local"
+                ? "模型参数仅影响本地引擎"
+                : "使用远程 Qwen 引擎，模型参数被忽略";
         }
     };
 
-    Object.entries(buttons).forEach(([key, btn]) => {
-        btn.addEventListener("click", () => {
-            state.engine = key;
-            update();
-        });
+    localBtn.addEventListener("click", () => {
+        state.engine = "local";
+        update();
+    });
+    remoteBtn.addEventListener("click", () => {
+        state.engine = "remote";
+        update();
     });
 
-    // Reflect server-side default
-    if (state.config && state.config.engine && buttons[state.config.engine]) {
-        state.engine = state.config.engine;
+    // If server default is remote, reflect that
+    if (state.config && state.config.use_remote_qwen) {
+        state.engine = "remote";
     }
     update();
 }

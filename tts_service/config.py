@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field
@@ -21,11 +21,8 @@ class ModelConfig(BaseModel):
     seed: int = 42
     use_semantic: bool = True
     use_coreml_semantic: bool = False
-    engine: Literal["qwen_remote", "omnivoice_remote", "local_vibevoice"] = "qwen_remote"
-    omlx_base_url: str = "http://192.168.0.102:8000"
-    omnivoice_base_url: str = "http://192.168.0.102:8002"
-    qwen_remote_model: str = "Qwen3-TTS-12Hz-1.7B-Base-8bit"
-    omnivoice_remote_model: str = "OmniVoice"
+    use_remote_qwen: bool = True
+    qwen_base_url: str = "http://192.168.0.102:8000"
     max_segment_chars: int = 200
     stereo: bool = True
     spatial_jitter: bool = True
@@ -97,18 +94,6 @@ class Config(BaseModel):
         with open(config_path, "r", encoding="utf-8") as handle:
             data = yaml.safe_load(handle) or {}
         base_dir = config_path.resolve().parent
-
-        # Legacy migration: use_remote_qwen / qwen_base_url -> engine / omlx_base_url
-        model_section = data.get("model")
-        if isinstance(model_section, dict):
-            if "engine" not in model_section and "use_remote_qwen" in model_section:
-                model_section["engine"] = (
-                    "qwen_remote" if model_section.get("use_remote_qwen") else "local_vibevoice"
-                )
-            if "omlx_base_url" not in model_section and "qwen_base_url" in model_section:
-                model_section["omlx_base_url"] = model_section["qwen_base_url"]
-            model_section.pop("use_remote_qwen", None)
-            model_section.pop("qwen_base_url", None)
 
         voices_section = data.get("voices")
         if isinstance(voices_section, dict) and voices_section.get("base_dir"):

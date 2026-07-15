@@ -28,6 +28,12 @@ class QwenRemoteEngine(BaseEngine):
     """Calls a remote Qwen3 TTS service for voice cloning generation."""
 
     DEFAULT_MODEL = "Qwen3-TTS-12Hz-1.7B-Base-8bit"
+    DEFAULT_SAMPLE_RATE = 24000
+
+    @property
+    def sample_rate(self) -> int:
+        """Return configured or default sample rate; remote service may override."""
+        return getattr(self.config.model, "qwen_sample_rate", self.DEFAULT_SAMPLE_RATE)
 
     def __init__(self, config: Config, sample_manager: SampleManager):
         self.config = config

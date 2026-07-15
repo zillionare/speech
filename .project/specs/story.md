@@ -9,8 +9,21 @@
 >
 > 每个 Story 有唯一编号 `ST-LP-NNN`。优先级：`P0` 必备 / `P1` 推荐 / `P2` 远期。
 >
-> 关键架构决策：**ASR 完全内嵌到 Python 服务进程内，不走外部 web API**。
-> 端到端检测链路（录音→ASR→对齐→切段）任何额外跨进程跳转都会引入 50-150ms 延迟，破坏"贴"的听感。
+> 关键架构决策：
+> - **ASR 完全内嵌到 Python 服务进程内**，不走外部 web API。
+>   端到端检测链路（录音→ASR→对齐→切段）任何额外跨进程跳转都会引入 50-150ms 延迟，破坏"贴"的听感。
+> - **音频质量分层原则**：录音端和 TTS 生成端各自保持设备/引擎的最高采样率，不作降质；
+>   ASR 路径独立下采样到 16 kHz；最终合并时，统一到两者中较低采样率（下采样，不上采样，因为上采样不产生新信息量）。
+>
+原始 Story:
+
+当前这个项目已经有了生成播客的能力。它目前做的是，根据 speaker tag，找到对应的声音样本，离线合成声音。
+
+我现在想实现真人与 AI 混录。即指定一个 speaker(比如 Aaron）为真人，其它为 AI，比如 speaker-tag 中，有一个 flora。 当前的段落的speaker 是 flora，于是它读取文本，发声（实时生成并播放）。在她说完之后，紧接着的 speaker 是 Aaron，于是我真人发声，通过录音设备实时收音，系统录制，同时系统通过 ASR 实时识别，进行跟踪。当发现 Aaron 快讲完（根据文本对照），或者已讲完（停顿）时，找到下一个 speaker，用它的声音念对应的文本。
+
+当 AI 念文本时，允许有一定的发挥，但基本忠实于文本内容。
+
+我们该如何设计来实现新版的播客生成？
 
 ---
 
@@ -58,7 +71,7 @@
 
 **U. 服务进程启动后第一次调用 ASR 时，系统应** 在后台线程加载模型（`mlx_whisper.load_models` 或 `WhisperModel` 构造），加载期间使用 `asr_warming` 状态提示前端，避免冷启动阻塞。
 
-**U. 应用运行期间，`EmbeddedASR` 应** 把每段 `chunk_seconds` 的 16 kHz mono PCM 通过 `asr_engine.transcribe_chunk(pcm_bytes) -> ASRResult` 接口处理，返回识别文本与时间戳。
+**U. 应用运行期间，`EmbeddedASR` 应** 把每段 `chunk_seconds` 的 16 kHz mono PCM（由录音 48 kHz 下采样得到）通过 `asr_engine.transcribe_chunk(pcm_bytes) -> ASRResult` 接口处理，返回识别文本与时间戳。下采样在服务端 `LiveSession` 中完成，不增加前端负担。
 
 **U. ASR 推理延迟应** 满足如下要求：
 - chunk 大小为 1.0 s 时，单段推理 P95 ≤ 300 ms（mlx-whisper / faster-whisper medium 模型，本地推理）
@@ -108,7 +121,11 @@
 
 **U. WebSocket 连接应** 在同一 socket 上同时承载：
 - 一个方向：JSON 控制帧
-- 另一个方向：二进制音频帧（16 位 PCM，16 kHz mono，little-endian）
+- 另一个方向：二进制音频帧
+
+**服务端 → 客户端二进制帧：** TTS 引擎原生采样率（由引擎实际输出决定），16 位 PCM，mono，little-endian。连接建立时通过 JSON 帧 `{"type": "audio_info", "sample_rate": <engine_rate>, "channels": 1, "bit_depth": 16}` 协商参数，其中 `<engine_rate>` 从 `BaseEngine` 实例动态获取。
+
+**客户端 → 服务端二进制帧：** 录音设备原生采样率（推荐 48 kHz，`{ ideal: 48000 }`），16 位 PCM，mono，little-endian。服务端在其内部下采样到 16 kHz 供 ASR 使用，同时保留原始 48 kHz 数据用于 WAV 落盘。
 
 **服务端 → 客户端帧：**
 - `{"type": "state", "state": "AI_SPEAKING|RECORDING|..."}` — 状态变更
@@ -118,10 +135,8 @@
 - `{"type": "alignment", "matched_chars": 42, "total_chars": 48}` — 文本对齐进度
 - `{"type": "asr_warming", "progress": 0.6}` — 模型加载进度
 - `{"type": "error", "code": "...", "message": "..."}`
-- 二进制帧：AI 段播放的 PCM 音频
 
-**客户端 → 服务端帧：**
-- 二进制帧：用户从 `MediaRecorder` 捕获的 PCM 音频块
+**客户端 → 服务端 JSON 帧：**
 - `{"type": "client_log", "level": "info", "msg": "..."}`（调试可选）
 
 **U. 连接建立期间，服务端应** 在 TTS chunk 就绪 500 ms 内把音频推到客户端。
@@ -132,9 +147,9 @@
 
 ## ST-LP-007 [P0] 前端录音：MediaRecorder 实时上传
 
-**U. 前端应在** 进入 `RECORDING` 状态时调用 `getUserMedia({ audio: { channelCount: 1, sampleRate: 16000 }})` 并实例化 `MediaRecorder`（工作格式 `audio/webm;codecs=opus`）。
+**U. 前端应在** 进入 `RECORDING` 状态时调用 `getUserMedia({ audio: { channelCount: 1, sampleRate: { ideal: 48000 } } })`，以设备支持的最高采样率采集音频。实际采样率通过 WebSocket 的 `audio_info` 帧告知服务端。
 
-**E. 当处于 `RECORDING` 状态，客户端应** 以 1 秒 timeslice 触发 `dataavailable`，通过 `AudioContext` 重采样/转码到 16 kHz mono PCM，并以二进制帧发到 WebSocket。
+**E. 当处于 `RECORDING` 状态，客户端应** 以 1 秒 timeslice 捕获 PCM 数据，通过 `AudioContext` 以设备原生采样率将 `Float32Array` 转为 `Int16Array`，并以二进制帧发到 WebSocket。服务端接收后做两件事：① 保留原始采样率 PCM 用于 WAV 落盘；② 下采样到 16 kHz 喂给 ASR。
 
 **U. 当处于 `IDLE` / `AI_SPEAKING` 状态，前端应** 静音本地麦克风（`track.enabled = false`），防止 VAD 误触发。
 
@@ -167,13 +182,13 @@
 
 **E. 当一个 live 段在合并时 WAV 文件缺失（例如会话中途中止），系统应** 用 1 秒静音片段占位，把段 `status` 标为 `"missing"`，继续合并。
 
-**U. 合并应** 输出一个 `{project_id}_merged.wav`，其总时长等于段时长之和加上段间隔，且不论段来源，TTS 与真人声音的响度配置保持一致。
+**U. 合并应** 输出一个 `{project_id}_merged.wav`，采样率统一到 TTS 引擎原生采样率与真人录音采样率中**较低者**。真人段在合并前通过 ffmpeg 下采样到该目标采样率，TTS 段保持原生采样率不变。上采样不产生新信息量，因此不做升频。总时长等于段时长之和加上段间隔，且不论段来源，TTS 与真人声音的响度配置保持一致。
 
 ---
 
 ## ST-LP-010 [P0] 真人段 WAV 落盘与持久化
 
-**U. 当处于 `RECORDING` 状态，服务端应** 不停地把到达的 PCM 字节（16 kHz mono）追加到该会话的内存缓冲中，并在 `end` 触发时把这些缓冲刷新写入 `outputs/podcasts/{project_id}/live_{index:04d}.wav`，文件头为标准 16 位 PCM WAV header。
+**U. 当处于 `RECORDING` 状态，服务端应** 不停地把到达的 PCM 字节（设备原生采样率，推荐 48 kHz，mono）追加到该会话的内存缓冲中，并在 `end` 触发时把这些缓冲刷新写入 `outputs/podcasts/{project_id}/live_{index:04d}.wav`，文件头为标准 16 位 PCM WAV header，采样率与录制时一致。
 
 **E. 当一段因为任一触发（对齐 / 静音 / 用户中止 / 断线）结束时，系统应** 立即写入已捕获的音频，确保局部片段被保留。
 
@@ -185,7 +200,7 @@
 
 ## ST-LP-011 [P0] 前端实时播放器：排队 PCM 帧
 
-**U. 当 WebSocket 二进制帧到达，前端应** 把它们送入 `AudioContext` 的 `AudioBufferSourceNode` 链，播放延迟控制在 300 ms 以内。
+**U. 当 WebSocket 二进制帧到达，前端应** 以 TTS 引擎原生采样率（由 `audio_info` 帧协商）初始化 `AudioContext`，将帧送入 `AudioBufferSourceNode` 链，播放延迟控制在 300 ms 以内。
 
 **U. 播放器应** 使用小型 jitter buffer（目标 600 ms，最大 1500 ms）；只有当缓冲超过最大值才丢帧，并发出 `underrun` 遥测事件。
 
@@ -251,6 +266,18 @@
 
 ---
 
+## ST-LP-019 [P1] TTS 段超时与降级策略
+
+**E. 当 TTS 引擎生成单段音频超过 `tts_timeout_seconds`（默认 30 s）时，系统应** 跳过该段，用静音占位，通过 WS 发送 `error` 帧（code=`TTS_TIMEOUT`），并继续处理下一段，不阻塞整个会话。
+
+**U. 当单段文本估算时长超过 `tts_max_seconds`（默认 60 s）时，系统应** 按句号自动切分为多个子段，每个子段独立生成并按序播放，缩短首段生成延迟。
+
+**E. 当 TTS 生成失败（非超时）时，系统应** 重试 1 次（无退避），仍失败则跳过该段，发送 `error` 帧（code=`TTS_ERROR`）。
+
+**U. 系统应** 在 `config.live` 中提供 `tts_max_seconds` 和 `tts_timeout_seconds` 配置项，允许用户根据实际 TTS 引擎性能调整。
+
+---
+
 ## Unwanted Behaviors（明确禁止）
 
 - **UW-LP-1. 当会话处于 `FINISHED` 或 `ERROR`，服务端不应** 接受任何后续命令。
@@ -261,3 +288,25 @@
 - **UW-LP-6. 当流式推音频给客户端，服务端不应** 在单个 chunk 上阻塞事件循环超过 50 ms（必须 yield）。
 - **UW-LP-7. 系统不应** 在用户没有显式合并前保留录制的音频；孤立文件在会话放弃 24 小时后被删除。
 - **UW-LP-8. ASR 推理不应** 阻塞 AI 音频播放路径——必须跑在独立线程/事件循环，避免拖慢 TTS chunk 推送。
+- **UW-LP-9. 当 TTS 生成超时，系统不应** 阻塞整个会话——必须跳过并继续，不得无限等待。
+
+---
+
+## 采样率架构
+
+```
+录音层（设备原生采样率）    →  WAV 落盘保持原始采样率，保留原始质量
+  ├─ 下采样 → 16 kHz       →  ASR 推理（whisper 原生 16k）
+  └─ 下采样 → 合并目标采样率 →  合并时统一到较低的采样率
+
+TTS 层（引擎原生采样率）    →  引擎原生输出，不重采样
+  └─ 播放 → 引擎原生采样率  →  前端 AudioContext 跟随引擎采样率
+
+合并层                       →  真人段下采样到较低者，统一混流
+```
+
+**原则：**
+- 录音端和 TTS 端各自保持最高采样率，不作降质
+- ASR 独立下采样路径，不影响录制质量
+- 合并时按两者中**较低者**下采样，不上采样（上采样不产生新信息量）
+- 不对任何采样率写死具体数值——由引擎和设备的实际能力决定

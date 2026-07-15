@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+class SegmentSource(str, Enum):
+    TTS = "tts"
+    LIVE = "live"
 
 
 class SpeakerResolution(BaseModel):
@@ -128,7 +134,7 @@ class PodcastSegment(BaseModel):
     audio_filename: Optional[str] = None
     duration_seconds: float = 0.0
     generation_seconds: float = 0.0
-    status: Literal["pending", "generated", "error"] = "pending"
+    status: Literal["pending", "generated", "error", "recorded", "missing"] = "pending"
     pre_pause: float = 0.0
     post_pause: float = 0.0
     bgm_filename: Optional[str] = None
@@ -136,6 +142,7 @@ class PodcastSegment(BaseModel):
     bgm_volume: float = 0.15
     bgm_fade_in: float = 2.0
     bgm_fade_out: float = 3.0
+    source: SegmentSource = SegmentSource.TTS
 
 
 class PodcastProject(BaseModel):
@@ -147,6 +154,7 @@ class PodcastProject(BaseModel):
     segments: List[PodcastSegment]
     merged_audio_filename: Optional[str] = None
     gap_seconds: float = 0.5
+    live_speakers_override: Optional[List[str]] = None
 
 
 class PodcastListResponse(BaseModel):

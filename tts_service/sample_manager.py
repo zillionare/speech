@@ -16,6 +16,16 @@ _MIN_SIGNAL_LEVEL = 1e-4
 _TARGET_PEAK = 0.95
 
 
+def peak_normalize(audio_data: np.ndarray, target_peak: float = _TARGET_PEAK) -> np.ndarray:
+    """Normalize audio peak to target amplitude."""
+    audio = np.asarray(audio_data, dtype=np.float32)
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+    peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+    if peak <= _MIN_SIGNAL_LEVEL:
+        return audio
+    return np.clip(audio / peak * target_peak, -1.0, 1.0).astype(np.float32)
+
+
 def preprocess_reference_audio(audio_data: np.ndarray, sample_rate: int) -> np.ndarray:
     audio = np.asarray(audio_data, dtype=np.float32)
     if audio.ndim > 1:

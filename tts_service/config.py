@@ -10,6 +10,14 @@ import yaml
 from pydantic import BaseModel, Field
 
 
+class LiveConfig(BaseModel):
+    """Live podcast settings."""
+
+    tts_max_seconds: int = 60
+    tts_timeout_seconds: int = 30
+    max_ai_rephrases_per_segment: int = 2
+
+
 class ModelConfig(BaseModel):
     """Model and inference defaults."""
 
@@ -36,6 +44,7 @@ class VoicesConfig(BaseModel):
     base_dir: str = "./voices"
     default_voice: str = "zh-Bowen_man"
     cache_subdir: str = ".cache"
+    live_speakers: list[str] = Field(default_factory=list)
     bundled_chinese_voices: list[str] = Field(
         default_factory=lambda: [
             "zh-007_man",
@@ -83,6 +92,7 @@ class Config(BaseModel):
     voices: VoicesConfig = Field(default_factory=VoicesConfig)
     outputs: OutputsConfig = Field(default_factory=OutputsConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
+    live: LiveConfig = Field(default_factory=LiveConfig)
     pid_file: str = "/tmp/tts_service.pid"
 
     @classmethod
@@ -143,6 +153,7 @@ def save_config_to_yaml(config: Config, path: str) -> None:
         "voices": config.voices.model_dump(),
         "outputs": config.outputs.model_dump(),
         "server": config.server.model_dump(),
+        "live": config.live.model_dump(),
         "pid_file": config.pid_file,
     }
     with open(config_path, "w", encoding="utf-8") as handle:

@@ -97,6 +97,12 @@ class GenerationResult:
 class BaseEngine(ABC):
     """Abstract base class for TTS engines."""
 
+    @property
+    @abstractmethod
+    def sample_rate(self) -> int:
+        """Native output sample rate of this engine in Hz."""
+        ...
+
     @abstractmethod
     def generate_single(
         self,

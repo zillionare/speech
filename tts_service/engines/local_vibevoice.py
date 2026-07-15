@@ -77,6 +77,11 @@ class LocalVibeVoiceEngine(BaseEngine):
     """Direct Python integration with vibevoice-mlx generation flow."""
 
     DIALOGUE_LINE_RE = re.compile(r"^([^:\n]{1,80}):\s*(.+)$")
+    SAMPLE_RATE = 24000
+
+    @property
+    def sample_rate(self) -> int:
+        return self.SAMPLE_RATE
 
     def __init__(self, config: Config, sample_manager: SampleManager):
         self.config = config

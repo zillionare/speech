@@ -216,6 +216,31 @@
               <span id="podcast-status" class="field-hint"></span>
             </div>
 
+            <div id="live-panel" class="live-panel" hidden>
+              <div class="live-toolbar">
+                <button type="button" id="live-start-btn" class="primary">开始直播录制</button>
+                <button type="button" id="live-stop-btn" class="secondary" disabled>停止</button>
+                <label class="live-only-toggle">
+                  <input type="checkbox" id="live-only-checkbox"> 仅录真人（跳过 AI）
+                </label>
+                <span id="live-status" class="field-hint"></span>
+              </div>
+              <div class="live-content">
+                <div class="live-target-panel">
+                  <label>目标文本</label>
+                  <div id="live-target-text" class="live-target-text"></div>
+                </div>
+                <div class="live-asr-panel">
+                  <label>实时识别</label>
+                  <div id="live-asr-text" class="live-asr-text"></div>
+                </div>
+                <div class="live-vu-panel">
+                  <canvas id="live-vu-canvas" width="200" height="40"></canvas>
+                </div>
+              </div>
+              <div id="live-warning" class="live-warning" hidden>请佩戴耳机以避免回授</div>
+            </div>
+
             <div class="podcast-workspace">
               <aside class="podcast-sidebar">
                 <h3>播客项目</h3>
@@ -556,5 +581,6 @@
     </template>
 
     <script src="/static/app.js?v=14" defer></script>
+    <script src="/static/live.js?v=1" defer></script>
   </body>
   </html>

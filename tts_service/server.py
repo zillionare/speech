@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import io
+import json
 import uuid
 from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -674,6 +675,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             session.transition(Trigger.START_AI)
 
         live_count = sum(1 for s in segments if s.source == SegmentSource.LIVE)
+        _persist_session(session)
         return LiveStartResponse(
             session_id=session.session_id,
             project_id=project_id,
@@ -707,5 +709,128 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         asr = live_registry.get_asr()
         asr.warmup()
         return {"ready": asr.is_ready}
+
+    @app.post("/api/podcasts/{project_id}/live/{session_id}/redo/{index}")
+    def redo_live_segment(project_id: str, session_id: str, index: int) -> dict:
+        """ACC-013-1: Redo a live segment by moving cursor back and deleting old WAV."""
+        session = live_registry.get(project_id, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        if index < 0 or index >= len(session.segments):
+            raise HTTPException(status_code=400, detail="SEGMENT_INDEX_OUT_OF_RANGE")
+        seg = session.segments[index]
+        if seg.source.value != "live":
+            raise HTTPException(status_code=400, detail="ONLY_LIVE_SEGMENTS_CAN_REDO")
+        # Delete old WAV if exists
+        audio_dir = outputs_dir / "podcasts" / project_id
+        old_wav = audio_dir / f"live_{index:04d}.wav"
+        deleted = False
+        if old_wav.exists():
+            old_wav.unlink()
+            deleted = True
+        # Move cursor back
+        session.cursor = index
+        return {"session_id": session_id, "index": index, "previous_wav_deleted": deleted}
+
+    @app.post("/api/podcasts/{project_id}/live/{session_id}/resume")
+    def resume_live_session(project_id: str, session_id: str) -> dict:
+        """ACC-016-1: Resume a persisted session from disk."""
+        # Check if session is in memory
+        session = live_registry.get(project_id, session_id)
+        if session is not None:
+            if session.can_accept_command():
+                return {"session_id": session_id, "state": session.state.value,
+                        "cursor": session.cursor, "resumed_from_disk": False}
+            raise HTTPException(status_code=409, detail="SESSION_TERMINATED")
+        # Try loading from disk
+        session_json = outputs_dir / "podcasts" / project_id / "live_sessions" / f"{session_id}.json"
+        if not session_json.exists():
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        data = json.loads(session_json.read_text(encoding="utf-8"))
+        # Reconstruct session in memory
+        project = podcast_manager.get_project(project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
+        from .live.session import LiveSession, LiveState
+        restored = LiveSession(
+            session_id=session_id,
+            project_id=project_id,
+            cursor=data.get("cursor", 0),
+            state=LiveState(data.get("state", "IDLE")),
+            segments=project.segments,
+            started_at=data.get("started_at", 0.0),
+        )
+        live_registry._sessions[(project_id, session_id)] = restored
+        return {"session_id": session_id, "state": restored.state.value,
+                "cursor": restored.cursor, "resumed_from_disk": True}
+
+    def _persist_session(session):
+        """Write session state to live_sessions/{sid}.json (ACC-016-1)."""
+        session_dir = outputs_dir / "podcasts" / session.project_id / "live_sessions"
+        session_dir.mkdir(parents=True, exist_ok=True)
+        session_json = session_dir / f"{session.session_id}.json"
+        import time as _time
+        data = {
+            "cursor": session.cursor,
+            "state": session.state.value,
+            "captured_segments": list(session.audio_buffer.keys()),
+            "started_at": session.started_at,
+            "last_save_at": _time.time(),
+        }
+        session_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    @app.websocket("/ws/podcasts/{project_id}/live/{session_id}")
+    async def ws_live(ws: WebSocket, project_id: str, session_id: str, role: str = "observe"):
+        """ACC-006-1: WebSocket handler for live podcast sessions."""
+        session = live_registry.get(project_id, session_id)
+        if session is None:
+            await ws.close(code=1008, reason="SESSION_NOT_FOUND")
+            return
+
+        await ws.accept()
+
+        # Assign driver role
+        if role == "driver":
+            if hasattr(session, "_driver_ws") and session._driver_ws is not None:
+                await ws.close(code=1008, reason="driver already connected")
+                return
+            session._driver_ws = ws
+        if not hasattr(session, "_ws_clients"):
+            session._ws_clients = set()
+        session._ws_clients.add(ws)
+
+        # Send initial state frame
+        from .live.ws_protocol import live_state, encode_json_frame
+        await ws.send_text(encode_json_frame(live_state(session.state.value)))
+
+        try:
+            while True:
+                msg = await ws.receive()
+                if msg["type"] == "websocket.disconnect":
+                    break
+                if "bytes" in msg and msg["bytes"] is not None:
+                    # Binary PCM frame from client (driver only)
+                    if role != "driver":
+                        await ws.close(code=1003, reason="observe role cannot send audio")
+                        break
+                    pcm = msg["bytes"]
+                    if not hasattr(session, "audio_buffer"):
+                        session.audio_buffer = {}
+                    buf = session.audio_buffer.setdefault(session.cursor, bytearray())
+                    buf.extend(pcm)
+                elif "text" in msg and msg["text"] is not None:
+                    # JSON control frame
+                    try:
+                        data = json.loads(msg["text"])
+                        if data.get("type") == "client_log":
+                            pass  # Log if needed
+                    except json.JSONDecodeError:
+                        pass
+        except WebSocketDisconnect:
+            pass
+        finally:
+            session._ws_clients.discard(ws)
+            if getattr(session, "_driver_ws", None) is ws:
+                session._driver_ws = None
 
     return app

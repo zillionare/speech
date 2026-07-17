@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Speech Studio</title>
-    <link rel="stylesheet" href="/static/styles.css?v=9">
+    <link rel="stylesheet" href="/static/styles.css?v=14">
   </head>
   <body>
     <div class="shell">
@@ -46,6 +46,13 @@
             <span class="nav-copy">
               <strong>声音转文本</strong>
               <small>语音识别</small>
+            </span>
+          </a>
+          <a class="nav-link" href="#live-studio" data-section="live-studio">
+            <span class="nav-index">06</span>
+            <span class="nav-copy">
+              <strong>在线演播</strong>
+              <small>AI 与真人交替</small>
             </span>
           </a>
         </nav>
@@ -214,31 +221,6 @@
                 <button type="button" id="podcast-bgm-upload-btn" class="small">上传BGM</button>
               </div>
               <span id="podcast-status" class="field-hint"></span>
-            </div>
-
-            <div id="live-panel" class="live-panel" hidden>
-              <div class="live-toolbar">
-                <button type="button" id="live-start-btn" class="primary">开始直播录制</button>
-                <button type="button" id="live-stop-btn" class="secondary" disabled>停止</button>
-                <label class="live-only-toggle">
-                  <input type="checkbox" id="live-only-checkbox"> 仅录真人（跳过 AI）
-                </label>
-                <span id="live-status" class="field-hint"></span>
-              </div>
-              <div class="live-content">
-                <div class="live-target-panel">
-                  <label>目标文本</label>
-                  <div id="live-target-text" class="live-target-text"></div>
-                </div>
-                <div class="live-asr-panel">
-                  <label>实时识别</label>
-                  <div id="live-asr-text" class="live-asr-text"></div>
-                </div>
-                <div class="live-vu-panel">
-                  <canvas id="live-vu-canvas" width="200" height="40"></canvas>
-                </div>
-              </div>
-              <div id="live-warning" class="live-warning" hidden>请佩戴耳机以避免回授</div>
             </div>
 
             <div class="podcast-workspace">
@@ -540,6 +522,64 @@
             </div>
           </div>
         </section>
+
+        <section id="live-studio" class="section-card anchor-section">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">在线演播</p>
+              <h2>在线演播</h2>
+            </div>
+          </div>
+
+          <div class="section-layout tts-layout">
+            <form id="live-studio-form" class="stack form-card generator-card">
+              <h3>演播脚本</h3>
+              <div class="markdown-select-row">
+                <input id="live-md-file-input" type="file" accept=".md,.markdown" style="visibility:hidden; position:absolute;">
+                <button type="button" class="secondary small" id="live-md-select-btn">选择文件</button>
+                <span id="live-md-selected-name" class="field-hint">请选择 Markdown 文件导入</span>
+              </div>
+              <label>
+                文本
+                <textarea id="live-studio-text" rows="12" placeholder="Aaron: 大家好！欢迎来到节目。&#10;Bowen: 今天我们聊聊语音合成。" required></textarea>
+              </label>
+              <button id="live-studio-start-btn" type="submit">开始</button>
+            </form>
+
+            <div class="result-stack">
+              <div id="live-studio-panel" class="result-card empty" hidden>
+                <div class="live-toolbar">
+                  <span id="live-studio-state" class="seg-status pending">IDLE</span>
+                  <button type="button" id="live-studio-pause-btn" class="secondary small" disabled>暂停</button>
+                  <a id="live-studio-download" class="download-link small" hidden download>下载完整音频</a>
+                  <span id="live-studio-status" class="field-hint"></span>
+                </div>
+                <div id="live-asr-progress" class="asr-progress" hidden>
+                  <div class="asr-progress-head">
+                    <strong>ASR 模型准备</strong>
+                    <span id="live-asr-progress-text">准备中...</span>
+                  </div>
+                  <div class="progress-track">
+                    <div id="live-asr-progress-fill" class="progress-fill"></div>
+                  </div>
+                </div>
+                <div class="live-content">
+                  <div class="live-target-panel">
+                    <label>当前段落</label>
+                    <div id="live-studio-target-text" class="live-target-text"></div>
+                  </div>
+                  <div class="live-asr-panel">
+                    <label>实时识别 / 对齐</label>
+                    <div id="live-studio-asr-text" class="live-asr-text"></div>
+                  </div>
+                </div>
+                <audio id="live-studio-player" preload="none" style="display:none;"></audio>
+                <div id="live-studio-warning" class="live-warning" hidden>请佩戴耳机以避免回授</div>
+              </div>
+              <div id="live-studio-empty" class="result-card empty">尚未开始演播。</div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
 
@@ -580,7 +620,7 @@
       </article>
     </template>
 
-    <script src="/static/app.js?v=14" defer></script>
-    <script src="/static/live.js?v=1" defer></script>
+    <script src="/static/app.js?v=15" defer></script>
+    <script src="/static/live_studio.js?v=15" defer></script>
   </body>
   </html>

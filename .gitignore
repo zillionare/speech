@@ -29,7 +29,10 @@ VibeVoiceFusion/
 
 # Temporary / generated files
 .playwright-mcp/
+.certs/
 config-cc-connect.toml
 deploy-check.yml
 generate_ref_voices.py
 test_strip.js
+.venv/
+uv.lock

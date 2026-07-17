@@ -9,8 +9,12 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import wave
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+import asyncio
+import numpy as np
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -71,6 +75,58 @@ def _resolve_engine(request_engine: str | None, config, sample_manager):
     return create_engine(config, sample_manager)
 
 
+def _discard_live_audio(session: dict, start_index: int) -> None:
+    """Discard segment files and statuses from a restart point onward."""
+    session_dir = Path(session["dir"])
+    for index, segment in enumerate(session["segments"]):
+        if index < start_index:
+            continue
+        filename = segment.get("audio_filename") or f"seg_{index:04d}.wav"
+        (session_dir / filename).unlink(missing_ok=True)
+        segment.pop("audio_filename", None)
+        segment["status"] = "pending"
+    (session_dir / "final.wav").unlink(missing_ok=True)
+
+
+def _merge_live_audio(session: dict) -> Optional[str]:
+    """Merge all recorded/generated WAVs into one 24 kHz mono WAV."""
+    session_dir = Path(session["dir"])
+    target_rate = 24000
+    chunks: list[np.ndarray] = []
+    for segment in session["segments"]:
+        filename = segment.get("audio_filename")
+        if not filename:
+            continue
+        path = session_dir / filename
+        if not path.exists():
+            continue
+        with wave.open(str(path), "rb") as source:
+            rate = source.getframerate()
+            channels = source.getnchannels()
+            samples = np.frombuffer(source.readframes(source.getnframes()), dtype="<i2")
+        if channels > 1:
+            samples = samples.reshape(-1, channels).mean(axis=1)
+        samples = samples.astype(np.float32)
+        if rate != target_rate and len(samples) > 1:
+            old_positions = np.linspace(0.0, 1.0, len(samples))
+            new_length = max(1, round(len(samples) * target_rate / rate))
+            samples = np.interp(
+                np.linspace(0.0, 1.0, new_length), old_positions, samples,
+            )
+        chunks.append(np.clip(samples, -32768, 32767).astype("<i2"))
+    if not chunks:
+        return None
+
+    output = session_dir / "final.wav"
+    merged = np.concatenate(chunks)
+    with wave.open(str(output), "wb") as target:
+        target.setnchannels(1)
+        target.setsampwidth(2)
+        target.setframerate(target_rate)
+        target.writeframes(merged.tobytes())
+    return output.name
+
+
 def create_app(config_path: Optional[str] = None) -> FastAPI:
     config = load_config(config_path)
     sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
@@ -79,7 +135,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     outputs_dir = config.outputs.expanded_base_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
     history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
-    podcast_manager = PodcastManager(outputs_dir / "podcasts", outputs_dir)
+    live_speakers_list = list(getattr(config.voices, "live_speakers", []) or [])
+    podcast_manager = PodcastManager(outputs_dir / "podcasts", outputs_dir, live_speakers=live_speakers_list)
     bgm_dir = outputs_dir / "bgm"
     bgm_dir.mkdir(parents=True, exist_ok=True)
 
@@ -642,12 +699,543 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Audio segment not found")
         return FileResponse(audio_path, media_type="audio/wav")
 
-    # ── Live Podcast routes ─────────────────────────────────
+    # ── Live session services ───────────────────────────────────────────
     from .live.session import (
         LiveSessionRegistry, LiveState, Trigger, IllegalStateTransition,
     )
+    from .live.asr_engine import ASRConfig
 
-    live_registry = LiveSessionRegistry()
+    live_registry = LiveSessionRegistry(
+        asr_config=ASRConfig(**config.asr.model_dump())
+    )
+
+    def _asr_status() -> dict:
+        asr = live_registry.get_asr()
+        status = asr.progress
+        status.update({
+            "enabled": bool(getattr(config.asr, "enabled", False)),
+            "ready": asr.is_ready,
+            "warming": asr.is_warming,
+            "model": config.asr.model,
+        })
+        return status
+
+    @app.get("/api/asr/status")
+    def get_asr_status() -> dict:
+        return _asr_status()
+
+    # ── Live Studio (independent online broadcast) ─────────────────────
+    # A self-contained live broadcast: AI segments are TTS-generated and
+    # streamed to the client; LIVE (human) segments open the mic only
+    # AFTER the previous AI segment finishes playing on the client.
+
+    live_studio_sessions: dict[str, dict] = {}
+
+    @app.post("/api/live/start")
+    async def start_live_studio(request: Request) -> dict:
+        """Start a live studio session from a tagged dialogue script.
+
+        Parses the script into segments, marks segments whose speaker is in
+        config.voices.live_speakers as LIVE (human), the rest as AI.
+        Returns a session_id to connect the WebSocket driver.
+        """
+        body = await request.json()
+        text = (body.get("text") or "").strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="text is required")
+
+        from .engines.base import _parse_tagged_dialogue
+        tagged, is_tagged = _parse_tagged_dialogue(text)
+        if not is_tagged:
+            # Plain narration -> single AI segment
+            tagged = [{"speaker": None, "text": text}]
+
+        live_speakers = set(getattr(config.voices, "live_speakers", []) or [])
+        segs = []
+        for i, seg in enumerate(tagged):
+            speaker = seg.get("speaker") or ""
+            resolved_speaker = speaker or config.voices.default_voice
+            is_live = bool(speaker) and speaker in live_speakers
+            segs.append({
+                "index": i,
+                "text": seg["text"].strip(),
+                "speaker": speaker,
+                "resolved_voice": resolved_speaker,
+                "source": "live" if is_live else "tts",
+                "status": "pending",
+            })
+
+        asr_required = bool(getattr(config.asr, "enabled", False)) and any(
+            seg["source"] == "live" for seg in segs
+        )
+        if asr_required:
+            live_registry.get_asr().start_warmup()
+
+        session_id = uuid.uuid4().hex[:12]
+        session_dir = outputs_dir / "live_studio" / session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+
+        live_studio_sessions[session_id] = {
+            "session_id": session_id,
+            "segments": segs,
+            "cursor": 0,
+            "state": "IDLE",
+            "dir": str(session_dir),
+            "stop_requested": False,
+        }
+        return {
+            "session_id": session_id,
+            "segments": segs,
+            "live_speakers": sorted(live_speakers),
+            "asr_required": asr_required,
+            "asr": _asr_status(),
+        }
+
+    @app.websocket("/ws/live/{session_id}")
+    async def ws_live_studio(ws: WebSocket, session_id: str) -> None:
+        """Drive a live studio session: AI -> play -> (human record) -> next.
+
+        Protocol (server -> client, JSON text unless noted):
+            {"type":"state","state":"AI_SPEAKING"|"RECORDING"|...}
+            {"type":"segment_start","index":i,"source":"tts"|"live",
+             "speaker":"...","text":"...","resolved_voice":"..."}
+            {"type":"audio","index":i}           # followed by binary WAV frame
+             {"type":"record_start","index":i,"target_text":"..."}
+             {"type":"asr_partial","text":"..."}
+             {"type":"alignment","matched":n,"total":n,"ratio":r}
+             {"type":"restart","to_index":i,"from_index":j}
+             {"type":"segment_done","index":i,"source":"tts"|"live",
+              "audio_url":"/api/live/{sid}/audio/{i}"}
+            {"type":"finished"}
+            {"type":"error","message":"..."}
+
+        Client -> server:
+             {"type":"ai_finished","index":i}     # client finished playing AI wav
+             {"type":"record_done","index":i}     # human finished recording
+             {"type":"restart_from","index":i}    # restart from a clicked segment
+             binary frames = PCM16 mono 16kHz mic audio during RECORDING
+        """
+        session = live_studio_sessions.get(session_id)
+        if session is None:
+            await ws.close(code=1008, reason="SESSION_NOT_FOUND")
+            return
+        await ws.accept()
+
+        # Bind driver
+        if session.get("_driver_ws") is not None:
+            await ws.close(code=1008, reason="driver already connected")
+            return
+        session["_driver_ws"] = ws
+        session["_driver_task"] = None
+
+        async def send_json(frame: dict) -> None:
+            try:
+                await ws.send_text(json.dumps(frame, ensure_ascii=False))
+            except Exception:
+                pass
+
+        async def send_bytes(data: bytes) -> None:
+            try:
+                await ws.send_bytes(data)
+            except Exception:
+                pass
+
+        asr = live_registry.get_asr()
+
+        async def send_asr_progress() -> None:
+            """Forward model download/load progress while the WS is open."""
+            if not config.asr.enabled:
+                await send_json({
+                    "type": "asr_unavailable",
+                    "reason": "ASR 未启用，真人段使用手动结束",
+                })
+                return
+            last = None
+            while True:
+                status = _asr_status()
+                comparable = (
+                    status.get("status"), status.get("progress"),
+                    status.get("downloaded_bytes"), status.get("total_bytes"),
+                    status.get("message"), status.get("error"),
+                )
+                if comparable != last:
+                    await send_json({"type": "asr_progress", **status})
+                    last = comparable
+                if status["ready"] or status["status"] == "error":
+                    return
+                await asyncio.sleep(0.25)
+
+        async def wait_for_asr() -> bool:
+            if not config.asr.enabled:
+                return False
+            while asr.is_warming:
+                await asyncio.sleep(0.25)
+            return asr.is_ready
+
+        # Record buffers per segment index
+        record_buffers: dict[int, bytearray] = {}
+        asr_buffer = bytearray()
+        asr_chunk_bytes = max(32000, int(16000 * 2 * config.asr.chunk_seconds))
+        record_state = {
+            "transcript": "",
+            "generation": 0,
+            "auto_done": False,
+            "auto_done_index": -1,
+        }
+        asr_queue: asyncio.Queue = asyncio.Queue()
+        auto_done_event = asyncio.Event()
+
+        async def run_driver():
+            segs = session["segments"]
+            idx = 0
+
+            async def restart_from(target_index: int, from_index: int) -> None:
+                for discarded_index in range(target_index, len(segs)):
+                    record_buffers.pop(discarded_index, None)
+                asr_buffer.clear()
+                record_state["generation"] += 1
+                record_state["transcript"] = ""
+                record_state["auto_done"] = False
+                record_state["auto_done_index"] = -1
+                auto_done_event.clear()
+                _discard_live_audio(session, target_index)
+                await send_json({
+                    "type": "restart",
+                    "to_index": target_index,
+                    "from_index": from_index,
+                })
+
+            try:
+                while idx < len(segs):
+                    if session.get("stop_requested"):
+                        break
+                    seg = segs[idx]
+                    session["cursor"] = idx
+                    text = seg["text"]
+
+                    await send_json({
+                        "type": "segment_start",
+                        "index": idx,
+                        "source": seg["source"],
+                        "speaker": seg["speaker"],
+                        "text": text,
+                        "resolved_voice": seg["resolved_voice"],
+                    })
+
+                    if seg["source"] == "tts":
+                        session["state"] = "AI_SPEAKING"
+                        await send_json({"type": "state", "state": "AI_SPEAKING"})
+                        # Generate TTS (blocking) in a thread
+                        target_engine = _resolve_engine(session.get("engine_name"), config, sample_manager)
+                        try:
+                            loop = asyncio.get_event_loop()
+                            result = await loop.run_in_executor(
+                                None,
+                                lambda: target_engine.generate_single(
+                                    text=text,
+                                    voice=seg["resolved_voice"],
+                                    output_format="wav",
+                                ),
+                            )
+                        except Exception as exc:
+                            # Configuration / engine failure: report and STOP.
+                            # Do not silently skip - the user must fix the
+                            # underlying issue (e.g. unreachable remote, bad
+                            # voice, model load failure) before resuming.
+                            seg["status"] = "error"
+                            session["state"] = "ERROR"
+                            await send_json({
+                                "type": "error",
+                                "message": f"第 {idx + 1} 段 TTS 生成失败：{exc}。请检查引擎配置/声音后重新开始。",
+                            })
+                            await send_json({"type": "state", "state": "ERROR"})
+                            return
+
+                        # Persist the WAV for replay/download
+                        wav_path = Path(session["dir"]) / f"seg_{idx:04d}.wav"
+                        wav_path.write_bytes(result.audio_bytes)
+                        seg["audio_filename"] = f"seg_{idx:04d}.wav"
+                        seg["status"] = "generated"
+
+                        # Send audio frame: JSON header then binary WAV
+                        await send_json({"type": "audio", "index": idx,
+                                         "sample_rate": target_engine.sample_rate})
+                        await send_bytes(result.audio_bytes)
+
+                        # Wait for playback completion or a manual restart.
+                        ai_result = await _wait_for(ws, lambda f: (
+                            f.get("type") == "ai_finished" and f.get("index") == idx
+                        ))
+                        if ai_result.get("type") == "restart_from":
+                            await restart_from(ai_result["index"], idx)
+                            idx = ai_result["index"]
+                            continue
+                    else:
+                        # LIVE (human) segment: open mic
+                        if config.asr.enabled and not await wait_for_asr():
+                            status = _asr_status()
+                            session["state"] = "ERROR"
+                            await send_json({
+                                "type": "error",
+                                "message": status.get("error") or "ASR 模型未就绪，请检查模型下载配置后重试。",
+                            })
+                            await send_json({"type": "state", "state": "ERROR"})
+                            return
+                        session["state"] = "RECORDING"
+                        asr_buffer.clear()
+                        record_state["generation"] += 1
+                        record_state["transcript"] = ""
+                        record_state["auto_done"] = False
+                        record_state["auto_done_index"] = -1
+                        auto_done_event.clear()
+                        await send_json({"type": "state", "state": "RECORDING"})
+                        await send_json({"type": "record_start", "index": idx,
+                                         "target_text": text,
+                                         "asr_enabled": config.asr.enabled,
+                                         "asr_ready": asr.is_ready})
+                        # Wait for the user to finish this segment or restart elsewhere.
+                        record_result = await _wait_for(ws, lambda f: (
+                            f.get("type") == "record_done" and f.get("index") == idx
+                        ))
+                        if record_result.get("type") == "restart_from":
+                            await restart_from(record_result["index"], idx)
+                            idx = record_result["index"]
+                            continue
+                        record_state["generation"] += 1
+                        auto_done_event.clear()
+                        # Flush buffered PCM for this segment to a WAV
+                        pcm = bytes(record_buffers.pop(idx, bytearray()))
+                        if pcm:
+                            wav_path = Path(session["dir"]) / f"seg_{idx:04d}.wav"
+                            from .live.wav_writer import write_wav
+                            write_wav(wav_path, pcm, sample_rate=16000, channels=1)
+                            seg["audio_filename"] = f"seg_{idx:04d}.wav"
+                            seg["status"] = "recorded"
+                        else:
+                            seg["status"] = "missing"
+
+                    audio_url = None
+                    if seg.get("audio_filename"):
+                        audio_url = f"/api/live/{session_id}/audio/{seg['audio_filename']}"
+                    await send_json({
+                        "type": "segment_done",
+                        "index": idx,
+                        "source": seg["source"],
+                        "audio_url": audio_url,
+                    })
+                    idx += 1
+
+                final_filename = _merge_live_audio(session)
+                final_url = (
+                    f"/api/live/{session_id}/audio/{final_filename}?download=true"
+                    if final_filename else None
+                )
+                session["state"] = "FINISHED"
+                await send_json({"type": "state", "state": "FINISHED"})
+                await send_json({"type": "finished", "audio_url": final_url})
+            except Exception as exc:
+                session["state"] = "ERROR"
+                await send_json({"type": "error", "message": str(exc)})
+
+        # Helper to await a matching JSON frame from the client, while
+        # routing binary mic frames into record_buffers.
+        async def _wait_for(websocket, predicate):
+            while True:
+                if (
+                    auto_done_event.is_set()
+                    and record_state["auto_done_index"] != session.get("cursor", 0)
+                ):
+                    auto_done_event.clear()
+                receive_task = asyncio.create_task(websocket.receive())
+                auto_task = asyncio.create_task(auto_done_event.wait())
+                done, _ = await asyncio.wait(
+                    {receive_task, auto_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if auto_task in done and auto_done_event.is_set():
+                    receive_task.cancel()
+                    await asyncio.gather(receive_task, return_exceptions=True)
+                    return {
+                        "type": "record_done",
+                        "index": session.get("cursor", 0),
+                        "auto": True,
+                    }
+                auto_task.cancel()
+                await asyncio.gather(auto_task, return_exceptions=True)
+                msg = receive_task.result()
+                if msg["type"] == "websocket.disconnect":
+                    raise WebSocketDisconnect()
+                if "bytes" in msg and msg["bytes"] is not None:
+                    # Mic PCM frame: buffer under current live cursor
+                    cur = session.get("cursor", 0)
+                    record_buffers.setdefault(cur, bytearray()).extend(msg["bytes"])
+                    if config.asr.enabled and asr.is_ready:
+                        asr_buffer.extend(msg["bytes"])
+                        while len(asr_buffer) >= asr_chunk_bytes:
+                            chunk = bytes(asr_buffer[:asr_chunk_bytes])
+                            del asr_buffer[:asr_chunk_bytes]
+                            await asr_queue.put((
+                                cur, record_state["generation"], chunk,
+                                len(record_buffers.get(cur, b"")) // 32,
+                            ))
+                    if (
+                        record_state["auto_done"]
+                        and record_state["auto_done_index"] == cur
+                    ):
+                        return {"type": "record_done", "index": cur, "auto": True}
+                    continue
+                if "text" in msg and msg["text"] is not None:
+                    try:
+                        frame = json.loads(msg["text"])
+                    except json.JSONDecodeError:
+                        continue
+                    if frame.get("type") == "pause":
+                        previous_state = session["state"]
+                        if previous_state != "PAUSED":
+                            session["state"] = "PAUSED"
+                            await send_json({"type": "state", "state": "PAUSED"})
+                            while True:
+                                paused_msg = await websocket.receive()
+                                if paused_msg["type"] == "websocket.disconnect":
+                                    raise WebSocketDisconnect()
+                                if not paused_msg.get("text"):
+                                    continue
+                                try:
+                                    paused_frame = json.loads(paused_msg["text"])
+                                except json.JSONDecodeError:
+                                    continue
+                                if paused_frame.get("type") == "resume":
+                                    break
+                                if paused_frame.get("type") == "restart_from":
+                                    target_index = paused_frame.get("index")
+                                    if isinstance(target_index, int) and 0 <= target_index < len(session["segments"]):
+                                        return {"type": "restart_from", "index": target_index}
+                            session["state"] = previous_state
+                            await send_json({"type": "state", "state": previous_state})
+                        continue
+                    if frame.get("type") == "resume":
+                        continue
+                    if frame.get("type") == "restart_from":
+                        target_index = frame.get("index")
+                        if isinstance(target_index, int) and 0 <= target_index < len(session["segments"]):
+                            return {"type": "restart_from", "index": target_index}
+                        continue
+                    # Optional: surface ASR partials to client
+                    if frame.get("type") == "asr_partial":
+                        await send_json({"type": "asr_partial", "text": frame.get("text", "")})
+                        continue
+                    if predicate(frame):
+                        if (
+                            frame.get("type") == "record_done"
+                            and config.asr.enabled
+                            and asr.is_ready
+                            and asr_buffer
+                        ):
+                            remainder = bytes(asr_buffer)
+                            asr_buffer.clear()
+                            padded = remainder + b"\x00" * (asr_chunk_bytes - len(remainder))
+                            await asr_queue.put((
+                                session.get("cursor", 0),
+                                record_state["generation"],
+                                padded,
+                                len(record_buffers.get(session.get("cursor", 0), b"")) // 32,
+                            ))
+                        if frame.get("type") == "record_done" and config.asr.enabled:
+                            await asr_queue.join()
+                        return frame
+
+        async def asr_worker() -> None:
+            """Transcribe queued chunks without blocking WebSocket receive."""
+            while True:
+                cur, generation, chunk, audio_ms = await asr_queue.get()
+                try:
+                    if generation != record_state["generation"]:
+                        continue
+                    result = await asr.transcribe_chunk(chunk)
+                    if generation != record_state["generation"] or not result.text:
+                        continue
+                    chunk_text = result.text.strip()
+                    if record_state["transcript"]:
+                        record_state["transcript"] += " " + chunk_text
+                    else:
+                        record_state["transcript"] = chunk_text
+                    await send_json({
+                        "type": "asr_partial",
+                        "text": record_state["transcript"],
+                        "audio_ms": audio_ms,
+                    })
+                    from .live.end_detector import compute_alignment_ratio
+                    await send_json({
+                        "type": "alignment",
+                        "ratio": compute_alignment_ratio(
+                            record_state["transcript"],
+                            session["segments"][cur]["text"],
+                        ),
+                    })
+                    ratio = compute_alignment_ratio(
+                        record_state["transcript"], session["segments"][cur]["text"],
+                    )
+                    if ratio >= 0.85 and not record_state["auto_done"]:
+                        record_state["auto_done"] = True
+                        record_state["auto_done_index"] = cur
+                        await send_json({
+                            "type": "record_auto_done",
+                            "index": cur,
+                            "ratio": ratio,
+                        })
+                        auto_done_event.set()
+                finally:
+                    asr_queue.task_done()
+
+        # Download/load progress, ASR, and the segment driver run concurrently.
+        asr_progress_task = asyncio.create_task(send_asr_progress())
+        asr_worker_task = asyncio.create_task(asr_worker()) if config.asr.enabled else None
+        driver_task = asyncio.create_task(run_driver())
+
+        # Keep the WS open; receive loop is handled inside run_driver via _wait_for.
+        # We still need to pump receive() to detect disconnects when the driver
+        # is NOT waiting (e.g. during TTS generation). We do a lightweight wait.
+        try:
+            await driver_task
+        except WebSocketDisconnect:
+            session["stop_requested"] = True
+        finally:
+            asr_progress_task.cancel()
+            if asr_worker_task is not None:
+                asr_worker_task.cancel()
+            session["_driver_ws"] = None
+
+    @app.get("/api/live/{session_id}/audio/{filename}")
+    def get_live_studio_audio(
+        session_id: str, filename: str, download: bool = False,
+    ) -> FileResponse:
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        target = (session_dir / filename).resolve()
+        try:
+            target.relative_to(session_dir)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Audio not found")
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="Audio not found")
+        download_name = (
+            f"live-studio-{session_id}.wav" if filename == "final.wav" else filename
+        )
+        return FileResponse(
+            target,
+            media_type="audio/wav",
+            filename=download_name if download else None,
+        )
+
+    @app.post("/api/live/{session_id}/stop")
+    def stop_live_studio(session_id: str) -> dict:
+        session = live_studio_sessions.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        session["stop_requested"] = True
+        session["state"] = "FINISHED"
+        return {"session_id": session_id, "state": "FINISHED"}
+
+    # ── Legacy Live Podcast routes (kept for compatibility) ────────────
 
     def _check_no_live_segments(project) -> bool:
         """Return True if project has at least one live segment."""
@@ -707,8 +1295,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     @app.post("/api/asr/warmup")
     def warmup_asr() -> dict:
         asr = live_registry.get_asr()
-        asr.warmup()
-        return {"ready": asr.is_ready}
+        asr.start_warmup()
+        return _asr_status()
 
     @app.post("/api/podcasts/{project_id}/live/{session_id}/redo/{index}")
     def redo_live_segment(project_id: str, session_id: str, index: int) -> dict:

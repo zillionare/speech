@@ -141,6 +141,7 @@ const state = {
     history: [],
     engine: "local",
 };
+window.state = state;
 
 // 存储从目录选择器或文件选择器中暂定的音频文件，供上传使用
 let pendingVoiceFiles = {
@@ -998,6 +999,7 @@ async function bootstrap() {
     const pruneBtn = document.getElementById("prune-outputs");
     if (pruneBtn) pruneBtn.addEventListener("click", handlePruneOutputs);
     await Promise.all([loadConfig(), loadVoices(), loadHistory()]);
+    window.dispatchEvent(new CustomEvent("speech-state-ready"));
     initPodcastEditor();
 }
 
@@ -1469,4 +1471,3 @@ function initPodcastEditor() {
     loadPodcastProjects();
     loadBgmTracks();
 }
-

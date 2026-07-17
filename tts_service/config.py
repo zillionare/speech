@@ -81,15 +81,21 @@ class ASRConfigPydantic(BaseModel):
     """ASR configuration (Pydantic wrapper for YAML persistence)."""
 
     enabled: bool = False
-    backend: str = "mlx_whisper"
-    model: str = "mlx-community/whisper-small"
+    backend: str = "qwen3_asr"
+    model: str = "mlx-community/whisper-medium-mlx-4bit"
     language: str = "zh"
-    chunk_seconds: float = 1.0
+    chunk_seconds: float = 4.0
     beam_size: int = 1
     vad_filter: bool = True
     compute_type: str = "float16"
     device: str = "auto"
     warmup_on_start: bool = False
+    download_endpoint: str = "https://hf-mirror.com"
+    cache_dir: str = ""
+    qwen3_model_dir: str = "~/.cache/sherpa-onnx/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25"
+    qwen3_num_threads: int = 4
+    qwen3_max_new_tokens: int = 512
+    qwen3_hotwords: str = ""
 
 
 class ServerConfig(BaseModel):
@@ -170,6 +176,7 @@ def save_config_to_yaml(config: Config, path: str) -> None:
         "outputs": config.outputs.model_dump(),
         "server": config.server.model_dump(),
         "live": config.live.model_dump(),
+        "asr": config.asr.model_dump(),
         "pid_file": config.pid_file,
     }
     with open(config_path, "w", encoding="utf-8") as handle:

@@ -1014,6 +1014,12 @@ button.secondary:hover,
     background: var(--panel-muted);
 }
 
+.live-seg-list .podcast-segment-row.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .podcast-segment-row.active {
     border-color: var(--accent);
     background: var(--accent-soft);
@@ -1297,4 +1303,84 @@ button.secondary:hover,
     font-size: 13px;
     margin-top: 8px;
     font-weight: bold;
+}
+
+/* ── Live Studio (online broadcast, light theme) ── */
+#live-studio-panel .live-toolbar {
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+#live-studio-panel .live-content {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+#live-studio-panel .live-target-text,
+#live-studio-panel .live-asr-text {
+    background: var(--bg-strong);
+    border: 1px solid var(--stroke);
+    color: var(--text);
+    border-radius: 8px;
+    min-height: 48px;
+}
+#live-studio-panel .live-asr-text {
+    color: var(--accent-dark);
+}
+.live-seg-list {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.live-seg-list .podcast-segment-row {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.live-seg-list .seg-text {
+    color: var(--muted);
+}
+.live-seg-list .segment-playback {
+    width: 150px;
+    height: 28px;
+    flex-shrink: 0;
+}
+#live-studio-download {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+#live-studio-pause-btn {
+    min-width: 52px;
+}
+#live-record-done-btn {
+    margin-left: auto;
+}
+.markdown-select-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.markdown-select-row #live-md-select-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+.asr-progress {
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--stroke);
+    border-radius: 10px;
+    background: var(--panel-muted);
+}
+.asr-progress-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-size: 12px;
+}
+.asr-progress-head strong {
+    color: var(--text);
+}
+.asr-progress-head .error {
+    color: var(--danger);
 }

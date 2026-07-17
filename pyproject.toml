@@ -1,0 +1,69 @@
+[project]
+name = "speech"
+version = "0.4.0"
+description = "Speech Studio - TTS, podcast generation, and live podcast (human + AI mix)"
+requires-python = ">=3.11,<3.14"
+license = "MIT"
+
+dependencies = [
+    # Web app
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "websockets>=12.0",
+    "python-multipart>=0.0.9",
+
+    # Config and validation
+    "pydantic>=2.8.0",
+    "pyyaml>=6.0.2",
+
+    # vibevoice-mlx runtime
+    "mlx>=0.22.0",
+    "numpy>=1.26.0",
+    "scipy>=1.13.0",
+    "soundfile>=0.12.1",
+    "transformers>=4.40.0",
+    "huggingface_hub>=0.23.0",
+    "safetensors>=0.4.3",
+
+    # Number-to-Chinese for TTS
+    "cn2an>=0.5.0",
+
+    # vibevoice-mlx (local vendored package, source configured in [tool.uv.sources])
+    "vibevoice-mlx",
+
+    # Live podcast: ASR (pick one or both depending on platform)
+    "mlx-whisper>=0.4.0",
+
+    # Live podcast: text normalization for end_detector
+    "zhconv>=1.4.0",
+]
+
+[project.optional-dependencies]
+# Cross-platform ASR fallback (non-Apple-Silicon)
+faster-whisper = ["faster-whisper>=1.0.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+speech-server = "tts_service.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tts_service"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.uv]
+# vibevoice-mlx is a local vendored package
+dev-dependencies = []
+
+[tool.uv.sources]
+vibevoice-mlx = { path = "./vibevoice-mlx", editable = true }

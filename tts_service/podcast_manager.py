@@ -9,7 +9,7 @@ import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import soundfile as sf
 
@@ -19,7 +19,7 @@ from .engines.base import (
     _concatenate_audio_segments,
     _generate_silence,
 )
-from .models import PodcastProject, PodcastSegment
+from .models import PodcastProject, PodcastSegment, SegmentSource
 from .segmentation import segment_dialogue, segment_long_text
 
 
@@ -49,9 +49,10 @@ def _preprocess_podcast_text(text: str) -> str:
 class PodcastManager:
     """Manage podcast projects with segmented audio generation."""
 
-    def __init__(self, projects_dir: Path, outputs_dir: Path):
+    def __init__(self, projects_dir: Path, outputs_dir: Path, live_speakers: List[str] = None):
         self.projects_dir = Path(projects_dir)
         self.outputs_dir = Path(outputs_dir)
+        self.live_speakers = set(live_speakers or [])
         self.projects_dir.mkdir(parents=True, exist_ok=True)
 
     # ── CRUD ────────────────────────────────────────────────
@@ -432,9 +433,11 @@ class PodcastManager:
             raise FileNotFoundError(f"Podcast project '{project_id}' not found")
         return project
 
-    @staticmethod
-    def _text_to_segments(text: str) -> list[PodcastSegment]:
-        """Parse tagged dialogue or plain text into podcast segments."""
+    def _text_to_segments(self, text: str) -> list[PodcastSegment]:
+        """Parse tagged dialogue or plain text into podcast segments.
+
+        ACC-002-2: Auto-mark segments with speakers in live_speakers as source=live.
+        """
         tagged, is_tagged = _parse_tagged_dialogue(text)
         if is_tagged:
             return [
@@ -442,6 +445,7 @@ class PodcastManager:
                     index=i,
                     text=seg["text"],
                     speaker=seg["speaker"],
+                    source=SegmentSource.LIVE if seg["speaker"] in self.live_speakers else SegmentSource.TTS,
                 )
                 for i, seg in enumerate(tagged)
             ]

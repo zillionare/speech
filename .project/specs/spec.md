@@ -146,7 +146,7 @@ class EmbeddedASR:
 class ASRConfig:
     enabled: bool = False
     backend: str = "mlx_whisper"     # "mlx_whisper" | "faster_whisper"
-    model: str = "mlx-community/whisper-small"
+    model: str = "mlx-community/whisper-medium-mlx-4bit"
     language: str = "zh"
     chunk_seconds: float = 1.0
     beam_size: int = 1
@@ -171,14 +171,14 @@ class ASRResult:
 import mlx_whisper
 result = mlx_whisper.transcribe(
     audio_np,             # 16kHz mono float32 numpy
-    path_or_hsp=self.cfg.model,
+    path_or_hf_repo=self.cfg.model,
     language=self.cfg.language,
     word_timestamps=True,
 )
 ```
-- 模型由 mlx-whisper 在首次调用时懒加载（无需手动 `load_models`）
+- 模型由服务通过 `hf-mirror.com` 下载并缓存，首次调用时懒加载
 - Metal/MLX 编译缓存首次推理后保留
-- 在 Apple Silicon 上 small 模型 P95 ≈ 200-300 ms / 1 s chunk
+- 在 Apple Silicon 上 medium-mlx-4bit 模型 P95 ≈ 200-300 ms / 1 s chunk
 
 **`backend == "faster_whisper"`（跨平台）：**
 ```python
@@ -890,7 +890,7 @@ WS URL 参数 `?role=observe`：注册为 observer，只接收 server → client
 | 浏览器录音 → WS 上行 | ≤ 100 ms | LAN 内 localhost |
 | 服务端收到 PCM → VAD | < 1 ms | 简单能量计算 |
 | 服务端收到 PCM → ASR 输入队列 | < 1 ms | 含 48k→16k 下采样 |
-| ASR 推理（whisper-small, 1 s chunk） | ≤ 250 ms | mlx / faster-whisper GPU |
+| ASR 推理（whisper-medium-mlx-4bit, 1 s chunk） | ≤ 250 ms | mlx / faster-whisper GPU |
 | ASR → LCS 对齐 | ≤ 5 ms | 文本 ≤ 100 字 |
 | 对齐 → WS 下行 frame | ≤ 1 ms | |
 | 客户端刷新 UI | ≤ 16 ms | 一帧 |

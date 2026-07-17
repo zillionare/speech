@@ -158,9 +158,10 @@ class LiveSession:
 class LiveSessionRegistry:
     """Registry of live sessions."""
 
-    def __init__(self):
+    def __init__(self, asr_config=None):
         self._sessions: Dict[tuple[str, str], LiveSession] = {}
         self._asr = None
+        self._asr_config = asr_config
 
     def start_live_session(
         self,
@@ -213,5 +214,5 @@ class LiveSessionRegistry:
         """Return the shared ASR instance (lazy-init)."""
         if self._asr is None:
             from tts_service.live.asr_engine import EmbeddedASR, ASRConfig
-            self._asr = EmbeddedASR(ASRConfig())
+            self._asr = EmbeddedASR(self._asr_config or ASRConfig())
         return self._asr

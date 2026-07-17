@@ -645,7 +645,7 @@ class ASRConfig(BaseModel):
     """ASR 引擎配置（SPEC-003）"""
     enabled: bool = False
     backend: Literal["mlx_whisper", "faster_whisper"] = "mlx_whisper"
-    model: str = "mlx-community/whisper-small"
+    model: str = "mlx-community/whisper-medium-mlx-4bit"
     language: str = "zh"
     chunk_seconds: float = Field(default=1.0, ge=0.1, le=10.0)
     beam_size: int = Field(default=1, ge=1, le=5)
@@ -868,7 +868,7 @@ voices:
 asr:                       # 新增（SPEC-003）
   enabled: false
   backend: "mlx_whisper"   # "mlx_whisper" | "faster_whisper"
-  model: "mlx-community/whisper-small"
+  model: "mlx-community/whisper-medium-mlx-4bit"
   language: "zh"
   chunk_seconds: 1.0
   beam_size: 1

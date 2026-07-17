@@ -99,6 +99,7 @@ class EndDetector:
         self.last_trigger: Optional[str] = None
         self.last_trigger_time: float = 0.0
         self._end_near_triggered = False
+        self._speech_seen = False
 
     def reset(self) -> None:
         """Reset all state for a new recording segment."""
@@ -108,10 +109,12 @@ class EndDetector:
         self.last_trigger = None
         self.last_trigger_time = 0.0
         self._end_near_triggered = False
+        self._speech_seen = False
 
     def on_speech_start(self) -> None:
         """Called when VAD detects speech onset."""
         self.is_speaking = True
+        self._speech_seen = True
         self.silence_ms = 0
 
     def on_speech_end(self) -> None:
@@ -141,7 +144,7 @@ class EndDetector:
             return None
 
         # Stuck / force end (highest priority)
-        if self.silence_ms >= self.force_end_silence_ms:
+        if self._speech_seen and self.silence_ms >= self.force_end_silence_ms:
             self.last_trigger = "user_skipped"
             self.last_trigger_time = now
             return "user_skipped"
@@ -153,7 +156,7 @@ class EndDetector:
             self.last_trigger_time = now
             return "end"
 
-        if self.silence_ms >= self.silence_only_end_ms:
+        if self._speech_seen and self.silence_ms >= self.silence_only_end_ms:
             self.last_trigger = "end"
             self.last_trigger_time = now
             return "end"

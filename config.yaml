@@ -16,9 +16,11 @@ model:
   segment_gap_seconds: 1.1
   speaker_gap_seconds: 1.0
 voices:
-  base_dir: /Users/aaronyang/workspace/speech/voices
+  base_dir: /Users/openclaw/workspace/speech/voices
   default_voice: Aaron
   cache_subdir: .cache
+  live_speakers:
+  - Aaron
   bundled_chinese_voices:
   - zh-007_man
   - zh-007_woman
@@ -28,10 +30,29 @@ voices:
   - zh-Xinran_woman
   - zh-Zxx_man
 outputs:
-  base_dir: /Users/aaronyang/workspace/speech/outputs
+  base_dir: /Users/openclaw/workspace/speech/outputs
   history_limit: 20
 server:
   host: 0.0.0.0
   port: 8123
   log_level: info
+asr:
+  enabled: true
+  backend: qwen3_asr
+  model: mlx-community/whisper-medium-mlx-4bit
+  language: zh
+  chunk_seconds: 4.0
+  beam_size: 1
+  vad_filter: true
+  download_endpoint: https://hf-mirror.com
+  cache_dir: ~/.cache/huggingface/hub
+  warmup_on_start: false
+  qwen3_model_dir: ~/.cache/sherpa-onnx/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25
+  qwen3_num_threads: 4
+  qwen3_max_new_tokens: 512
+  qwen3_hotwords: ""
+live:
+  tts_max_seconds: 60
+  tts_timeout_seconds: 30
+  max_ai_rephrases_per_segment: 2
 pid_file: /tmp/tts_service.pid

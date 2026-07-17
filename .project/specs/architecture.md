@@ -638,7 +638,7 @@ Live Podcast 采用**实时内存快照 + 最终定稿写回**的两层策略：
 
 **决策**：ASR 完全在 Python 进程内推理，不通过 HTTP 调用外部 ASR 服务。
 **理由**：端到端检测链路（录音->ASR->对齐->切段）任何跨进程跳转引入 50-150ms 抖动，破坏"贴"的听感。内嵌后单 tick 端到端 ≤ 400ms。
-**代价**：服务进程内存占用增加 ~1GB（whisper-small 模型），但 Apple Silicon unified memory 可接受。
+**代价**：服务进程内存占用增加（whisper-medium-mlx-4bit 模型），但 Apple Silicon unified memory 可接受。
 
 ### ADR-2: 闭包工厂而非 router/blueprint
 

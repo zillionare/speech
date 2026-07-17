@@ -60,7 +60,7 @@
 **U. `EmbeddedASR` 配置应在 `config.asr` 中包含如下字段：**
 - `enabled: bool`（默认 `false`）
 - `backend: str`（默认 `"mlx_whisper"`，枚举：`mlx_whisper` / `faster_whisper`）
-- `model: str`（默认 `"mlx-community/whisper-small"`）
+- `model: str`（默认 `"mlx-community/whisper-medium-mlx-4bit"`）
 - `language: str`（默认 `"zh"`）
 - `chunk_seconds: float`（默认 1.0，上传分片时长）
 - `beam_size: int`（默认 1，单 beam 优先速度）
@@ -69,7 +69,7 @@
 - `device: str`（默认 `"auto"`）
 - `warmup_on_start: bool`（默认 `false`，可启动后第一次推理才加载模型）
 
-**U. 服务进程启动后第一次调用 ASR 时，系统应** 在后台线程加载模型（`mlx_whisper.load_models` 或 `WhisperModel` 构造），加载期间使用 `asr_warming` 状态提示前端，避免冷启动阻塞。
+**U. 服务进程启动后第一次调用 ASR 时，系统应** 通过 `hf-mirror.com` 下载并缓存模型，再在后台线程加载模型（`mlx_whisper.load_model` 或 `WhisperModel` 构造），下载和加载期间使用 `asr_warming` 状态提示前端，避免冷启动阻塞。
 
 **U. 应用运行期间，`EmbeddedASR` 应** 把每段 `chunk_seconds` 的 16 kHz mono PCM（由录音 48 kHz 下采样得到）通过 `asr_engine.transcribe_chunk(pcm_bytes) -> ASRResult` 接口处理，返回识别文本与时间戳。下采样在服务端 `LiveSession` 中完成，不增加前端负担。
 

@@ -30,6 +30,7 @@ VibeVoiceFusion/
 # Temporary / generated files
 .playwright-mcp/
 .certs/
+.speech-secrets.yaml
 config-cc-connect.toml
 deploy-check.yml
 generate_ref_voices.py

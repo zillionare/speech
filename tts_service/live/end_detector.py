@@ -51,17 +51,57 @@ def longest_common_subsequence_length(a: str, b: str) -> int:
     return prev[n]
 
 
-def compute_alignment_ratio(asr_text: str, target_text: str) -> float:
-    """Compute alignment ratio using LCS.
+def tokenize_text(text: str) -> list[str]:
+    """Normalize and tokenize text for alignment.
 
-    ratio = len(LCS(normalize(asr), normalize(target))) / max(1, len(normalize(target)))
+    - Strip whitespace and control characters
+    - Convert traditional Chinese to simplified (zhconv, optional)
+    - Lowercase
+    - Remove punctuation
+    - Group consecutive ASCII letters/digits into words
+    - Treat every other character (e.g. CJK) as a single token
     """
-    norm_asr = normalize_text(asr_text)
-    norm_target = normalize_text(target_text)
-    if not norm_target:
+    import unicodedata
+
+    try:
+        import zhconv
+        text = zhconv.convert(text, "zh-cn")
+    except ImportError:
+        pass
+    text = text.lower()
+    tokens: list[str] = []
+    word_buf: list[str] = []
+    for ch in text:
+        cat = unicodedata.category(ch)
+        # Skip punctuation and whitespace/control characters
+        if cat.startswith("P") or cat.startswith("Z") or cat.startswith("C"):
+            if word_buf:
+                tokens.append("".join(word_buf))
+                word_buf = []
+            continue
+        if ("a" <= ch <= "z") or ("0" <= ch <= "9"):
+            word_buf.append(ch)
+        else:
+            if word_buf:
+                tokens.append("".join(word_buf))
+                word_buf = []
+            tokens.append(ch)
+    if word_buf:
+        tokens.append("".join(word_buf))
+    return tokens
+
+
+def compute_alignment_ratio(asr_text: str, target_text: str) -> float:
+    """Compute alignment ratio using token-level LCS.
+
+    ratio = len(LCS(tokenize(asr), tokenize(target))) / max(1, len(tokenize(target)))
+    """
+    asr_tokens = tokenize_text(asr_text)
+    target_tokens = tokenize_text(target_text)
+    if not target_tokens:
         return 0.0
-    lcs_len = longest_common_subsequence_length(norm_asr, norm_target)
-    return lcs_len / len(norm_target)
+    lcs_len = longest_common_subsequence_length(asr_tokens, target_tokens)
+    return lcs_len / len(target_tokens)
 
 
 class EndDetector:

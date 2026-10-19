@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import uuid
+import copy
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -19,7 +20,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import load_config, save_config_to_yaml
+from .audio_processing import normalize_wav_loudness
+from .config import TTSProviderProfile, load_config, save_config_to_yaml
 from .models import (
     AppConfigResponse,
     AppConfigUpdateRequest,
@@ -44,10 +46,16 @@ from .models import (
     LiveStartRequest,
     LiveStartResponse,
     LiveStopResponse,
+    TTSProviderProfileRequest,
+    TTSProviderTestRequest,
 )
 from .podcast_manager import PodcastManager
 from .sample_manager import SampleManager, VoiceSample
 from .tts_engine import create_engine
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
@@ -61,11 +69,42 @@ def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
     )
 
 
+def _configured_tts_provider(config) -> str:
+    provider = getattr(config.model, "tts_provider", "")
+    if provider in {"local", "qwen", "minimax", "omnivoice"}:
+        return provider
+    return "qwen" if getattr(config.model, "use_remote_qwen", False) else "local"
+
+
+def _tts_profile_response(profile: TTSProviderProfile, active_id: str) -> dict:
+    return {
+        "id": profile.id,
+        "name": profile.name,
+        "provider": profile.provider,
+        "api_mode": profile.api_mode,
+        "base_url": profile.base_url,
+        "model_id": profile.model_id,
+        "voice_id": profile.voice_id,
+        "emotion": profile.emotion,
+        "speed": profile.speed,
+        "volume": profile.volume,
+        "pitch": profile.pitch,
+        "api_key_configured": bool(profile.api_key),
+        "active": profile.id == active_id,
+    }
+
+
 def _resolve_engine(request_engine: str | None, config, sample_manager):
     """Return the appropriate engine based on request override."""
     if request_engine is None:
         return create_engine(config, sample_manager)
     is_remote = getattr(config.model, "use_remote_qwen", False)
+    if request_engine == "remote" and _configured_tts_provider(config) == "minimax":
+        from .engines.minimax import MiniMaxEngine
+        return MiniMaxEngine(config, sample_manager)
+    if request_engine == "remote" and _configured_tts_provider(config) == "omnivoice":
+        from .engines.omnivoice import OmniVoiceRemoteEngine
+        return OmniVoiceRemoteEngine(config, sample_manager)
     if request_engine == "remote" and not is_remote:
         from .engines.qwen_remote import QwenRemoteEngine
         return QwenRemoteEngine(config, sample_manager)
@@ -84,22 +123,26 @@ def _discard_live_audio(session: dict, start_index: int) -> None:
         filename = segment.get("audio_filename") or f"seg_{index:04d}.wav"
         (session_dir / filename).unlink(missing_ok=True)
         segment.pop("audio_filename", None)
+        segment.pop("loudness_normalized", None)
         segment["status"] = "pending"
     (session_dir / "final.wav").unlink(missing_ok=True)
 
 
 def _merge_live_audio(session: dict) -> Optional[str]:
-    """Merge all recorded/generated WAVs into one 24 kHz mono WAV."""
+    """Loudness-normalize and merge all available segments into one WAV."""
     session_dir = Path(session["dir"])
     target_rate = 24000
     chunks: list[np.ndarray] = []
     for segment in session["segments"]:
-        filename = segment.get("audio_filename")
-        if not filename:
-            continue
+        index = segment.get("index", 0)
+        filename = segment.get("audio_filename") or f"seg_{index:04d}.wav"
         path = session_dir / filename
         if not path.exists():
             continue
+        if not segment.get("loudness_normalized"):
+            normalize_wav_loudness(path)
+            segment["loudness_normalized"] = True
+            segment["audio_filename"] = filename
         with wave.open(str(path), "rb") as source:
             rate = source.getframerate()
             channels = source.getnchannels()
@@ -124,7 +167,72 @@ def _merge_live_audio(session: dict) -> Optional[str]:
         target.setsampwidth(2)
         target.setframerate(target_rate)
         target.writeframes(merged.tobytes())
+    normalize_wav_loudness(output)
     return output.name
+
+
+def _persist_live_session_segments(session: dict) -> None:
+    """Persist segment processing markers without changing session metadata."""
+    meta_path = Path(session["dir"]) / "meta.json"
+    if not meta_path.exists():
+        return
+    try:
+        metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+        metadata["segments"] = session["segments"]
+        meta_path.write_text(
+            json.dumps(metadata, ensure_ascii=False), encoding="utf-8",
+        )
+    except (OSError, TypeError, json.JSONDecodeError):
+        logger.warning("Unable to persist Live Studio segment metadata")
+
+
+def _ensure_live_preview_normalized(
+    session_id: str,
+    filename: str,
+    target: Path,
+    sessions: dict[str, dict],
+    outputs_dir: Path,
+) -> None:
+    """Normalize a segment on first preview, including legacy sessions."""
+    if filename == "final.wav":
+        return
+
+    session = sessions.get(session_id)
+    if session is None:
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        meta_path = session_dir / "meta.json"
+        if not meta_path.exists():
+            return
+        try:
+            metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        segments = metadata.get("segments", [])
+        for segment in segments:
+            index = segment.get("index", 0)
+            expected = segment.get("audio_filename") or f"seg_{index:04d}.wav"
+            if expected == filename and not segment.get("loudness_normalized"):
+                normalize_wav_loudness(target)
+                segment["audio_filename"] = filename
+                segment["loudness_normalized"] = True
+                metadata["segments"] = segments
+                meta_path.write_text(
+                    json.dumps(metadata, ensure_ascii=False), encoding="utf-8",
+                )
+            return
+        return
+
+    for segment in session["segments"]:
+        index = segment.get("index", 0)
+        expected = segment.get("audio_filename") or f"seg_{index:04d}.wav"
+        if expected != filename:
+            continue
+        if not segment.get("loudness_normalized"):
+            normalize_wav_loudness(target)
+            segment["audio_filename"] = filename
+            segment["loudness_normalized"] = True
+            _persist_live_session_segments(session)
+        return
 
 
 def create_app(config_path: Optional[str] = None) -> FastAPI:
@@ -182,6 +290,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                 effective_default = samples[0].speaker
         return AppConfigResponse(
             model=config.model.model_id,
+            tts_provider=_configured_tts_provider(config),
             quantize_bits=config.model.quantize_bits,
             default_voice=effective_default,
             diffusion_steps=config.model.diffusion_steps,
@@ -194,6 +303,17 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             outputs_path=str(config.outputs.base_dir),
             use_remote_qwen=getattr(config.model, "use_remote_qwen", False),
             qwen_base_url=getattr(config.model, "qwen_base_url", ""),
+            qwen_model_id=getattr(config.model, "qwen_model_id", ""),
+            qwen_api_key_configured=bool(getattr(config.model, "qwen_api_key", "")),
+            minimax_api_mode=getattr(config.model, "minimax_api_mode", "native"),
+            minimax_api_key_configured=bool(getattr(config.model, "minimax_api_key", "")),
+            minimax_base_url=getattr(config.model, "minimax_base_url", ""),
+            minimax_model_id=getattr(config.model, "minimax_model_id", ""),
+            minimax_voice_id=getattr(config.model, "minimax_voice_id", ""),
+            minimax_emotion=getattr(config.model, "minimax_emotion", ""),
+            minimax_speed=getattr(config.model, "minimax_speed", 1.0),
+            minimax_volume=getattr(config.model, "minimax_volume", 1.0),
+            minimax_pitch=getattr(config.model, "minimax_pitch", 0),
             max_segment_chars=getattr(config.model, "max_segment_chars", 200),
             stereo=getattr(config.model, "stereo", False),
             spatial_jitter=getattr(config.model, "spatial_jitter", False),
@@ -238,6 +358,46 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         if request.qwen_base_url is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["qwen_base_url"] = request.qwen_base_url
+        if request.qwen_model_id is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["qwen_model_id"] = request.qwen_model_id
+        if request.qwen_api_key is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["qwen_api_key"] = request.qwen_api_key
+        if request.tts_provider is not None:
+            if request.tts_provider not in {"local", "qwen", "minimax", "omnivoice"}:
+                raise HTTPException(status_code=400, detail="Invalid TTS provider")
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["tts_provider"] = request.tts_provider
+        if request.minimax_api_mode is not None:
+            if request.minimax_api_mode not in {"native", "openai"}:
+                raise HTTPException(status_code=400, detail="Invalid MiniMax API mode")
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_api_mode"] = request.minimax_api_mode
+        if request.minimax_api_key is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_api_key"] = request.minimax_api_key
+        if request.minimax_base_url is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_base_url"] = request.minimax_base_url
+        if request.minimax_model_id is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_model_id"] = request.minimax_model_id
+        if request.minimax_voice_id is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_voice_id"] = request.minimax_voice_id
+        if request.minimax_emotion is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_emotion"] = request.minimax_emotion
+        if request.minimax_speed is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_speed"] = request.minimax_speed
+        if request.minimax_volume is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_volume"] = request.minimax_volume
+        if request.minimax_pitch is not None:
+            overrides["model"] = overrides.get("model", {})
+            overrides["model"]["minimax_pitch"] = request.minimax_pitch
         if request.max_segment_chars is not None:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["max_segment_chars"] = request.max_segment_chars
@@ -255,6 +415,45 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             overrides["model"]["speaker_gap_seconds"] = request.speaker_gap_seconds
 
         config.apply_overrides(overrides)
+        config.ensure_tts_providers()
+        if any(
+            value is not None
+            for value in (
+                request.qwen_base_url,
+                request.qwen_model_id,
+                request.qwen_api_key,
+            )
+        ):
+            for profile in config.tts_providers:
+                if profile.provider == "qwen":
+                    profile.base_url = config.model.qwen_base_url
+                    profile.model_id = config.model.qwen_model_id
+                    profile.api_key = config.model.qwen_api_key
+        if any(
+            value is not None
+            for value in (
+                request.minimax_api_mode,
+                request.minimax_api_key,
+                request.minimax_base_url,
+                request.minimax_model_id,
+                request.minimax_voice_id,
+                request.minimax_emotion,
+                request.minimax_speed,
+                request.minimax_volume,
+                request.minimax_pitch,
+            )
+        ):
+            for profile in config.tts_providers:
+                if profile.provider == "minimax":
+                    profile.api_mode = config.model.minimax_api_mode
+                    profile.api_key = config.model.minimax_api_key
+                    profile.base_url = config.model.minimax_base_url
+                    profile.model_id = config.model.minimax_model_id
+                    profile.voice_id = config.model.minimax_voice_id
+                    profile.emotion = config.model.minimax_emotion
+                    profile.speed = config.model.minimax_speed
+                    profile.volume = config.model.minimax_volume
+                    profile.pitch = config.model.minimax_pitch
         if config_path:
             save_config_to_yaml(config, config_path)
         # Sync sample_manager with any changed voice settings
@@ -263,6 +462,114 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             default_voice=config.voices.default_voice,
         )
         return get_config()
+
+    @app.get("/api/tts/providers")
+    def list_tts_providers() -> list[dict]:
+        config.ensure_tts_providers()
+        return [
+            _tts_profile_response(profile, config.active_tts_provider)
+            for profile in config.tts_providers
+        ]
+
+    @app.post("/api/tts/providers")
+    def save_tts_provider(request: TTSProviderProfileRequest) -> dict:
+        config.ensure_tts_providers()
+        profile_id = request.id or f"{request.provider}-{uuid.uuid4().hex[:8]}"
+        existing = next(
+            (profile for profile in config.tts_providers if profile.id == profile_id),
+            None,
+        )
+        api_key = request.api_key
+        if api_key is None and existing is not None:
+            api_key = existing.api_key
+        profile = TTSProviderProfile(
+            id=profile_id,
+            name=request.name.strip(),
+            provider=request.provider,
+            api_mode=request.api_mode,
+            base_url=request.base_url.strip(),
+            api_key=(api_key or "").strip(),
+            model_id=request.model_id.strip(),
+            voice_id=request.voice_id.strip(),
+            emotion=request.emotion.strip(),
+            speed=request.speed,
+            volume=request.volume,
+            pitch=request.pitch,
+        )
+        if existing is None:
+            config.tts_providers.append(profile)
+        else:
+            config.tts_providers[
+                config.tts_providers.index(existing)
+            ] = profile
+        if request.active or not config.active_tts_provider:
+            config.active_tts_provider = profile.id
+        if config.active_tts_provider == profile.id:
+            config.apply_tts_provider(profile.id)
+        if config_path:
+            save_config_to_yaml(config, config_path)
+        return _tts_profile_response(profile, config.active_tts_provider)
+
+    @app.post("/api/tts/providers/{provider_id}/activate")
+    def activate_tts_provider(provider_id: str) -> dict:
+        config.ensure_tts_providers()
+        try:
+            profile = config.apply_tts_provider(provider_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        if config_path:
+            save_config_to_yaml(config, config_path)
+        return _tts_profile_response(profile, config.active_tts_provider)
+
+    @app.delete("/api/tts/providers/{provider_id}")
+    def delete_tts_provider(provider_id: str) -> dict:
+        config.ensure_tts_providers()
+        if provider_id == config.active_tts_provider:
+            raise HTTPException(status_code=409, detail="不能删除当前启用的 TTS 配置")
+        before = len(config.tts_providers)
+        config.tts_providers = [
+            profile for profile in config.tts_providers if profile.id != provider_id
+        ]
+        if len(config.tts_providers) == before:
+            raise HTTPException(status_code=404, detail="TTS 配置不存在")
+        if config_path:
+            save_config_to_yaml(config, config_path)
+        return {"id": provider_id, "deleted": True}
+
+    @app.post("/api/tts/providers/{provider_id}/test")
+    async def test_tts_provider(
+        provider_id: str, request: TTSProviderTestRequest,
+    ) -> dict:
+        config.ensure_tts_providers()
+        try:
+            profile = config.get_tts_provider(provider_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+        test_config = copy.deepcopy(config)
+        test_config.tts_providers = [copy.deepcopy(profile)]
+        test_config.active_tts_provider = profile.id
+        test_config.apply_tts_provider(profile.id)
+        target_engine = create_engine(test_config, sample_manager)
+        try:
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None,
+                lambda: target_engine.generate_single(
+                    text=request.text,
+                    voice=None,
+                    output_format="wav",
+                ),
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return {
+            "id": profile.id,
+            "name": profile.name,
+            "ok": True,
+            "generation_seconds": result.generation_seconds,
+            "duration_seconds": result.duration_seconds,
+        }
 
     @app.get("/api/voices", response_model=VoiceListResponse)
     def list_api_voices() -> VoiceListResponse:
@@ -741,6 +1048,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         """
         body = await request.json()
         text = (body.get("text") or "").strip()
+        title = (body.get("title") or "").strip()
         if not text:
             raise HTTPException(status_code=400, detail="text is required")
 
@@ -775,16 +1083,37 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         session_dir = outputs_dir / "live_studio" / session_id
         session_dir.mkdir(parents=True, exist_ok=True)
 
+        if not title and segs:
+            title = segs[0]["text"].strip()[:30]
+        if not title:
+            title = session_id
+
         live_studio_sessions[session_id] = {
             "session_id": session_id,
+            "title": title,
             "segments": segs,
             "cursor": 0,
             "state": "IDLE",
             "dir": str(session_dir),
             "stop_requested": False,
+            "prefetch_locks": {},
         }
+        # Persist metadata for sidebar history
+        import json as _json
+        (session_dir / "meta.json").write_text(
+            _json.dumps({
+                "session_id": session_id,
+                "title": title,
+                "created_at": datetime.now().isoformat(),
+                "segments": segs,
+                "segment_count": len(segs),
+                "first_text": segs[0]["text"][:50] if segs else "",
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
         return {
             "session_id": session_id,
+            "title": title,
             "segments": segs,
             "live_speakers": sorted(live_speakers),
             "asr_required": asr_required,
@@ -875,6 +1204,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         # Record buffers per segment index
         record_buffers: dict[int, bytearray] = {}
         asr_buffer = bytearray()
+        asr_silence_ms = 0
         asr_chunk_bytes = max(32000, int(16000 * 2 * config.asr.chunk_seconds))
         record_state = {
             "transcript": "",
@@ -925,42 +1255,54 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                     if seg["source"] == "tts":
                         session["state"] = "AI_SPEAKING"
                         await send_json({"type": "state", "state": "AI_SPEAKING"})
-                        # Generate TTS (blocking) in a thread
                         target_engine = _resolve_engine(session.get("engine_name"), config, sample_manager)
-                        try:
-                            loop = asyncio.get_event_loop()
-                            result = await loop.run_in_executor(
-                                None,
-                                lambda: target_engine.generate_single(
-                                    text=text,
-                                    voice=seg["resolved_voice"],
-                                    output_format="wav",
-                                ),
-                            )
-                        except Exception as exc:
-                            # Configuration / engine failure: report and STOP.
-                            # Do not silently skip - the user must fix the
-                            # underlying issue (e.g. unreachable remote, bad
-                            # voice, model load failure) before resuming.
-                            seg["status"] = "error"
-                            session["state"] = "ERROR"
-                            await send_json({
-                                "type": "error",
-                                "message": f"第 {idx + 1} 段 TTS 生成失败：{exc}。请检查引擎配置/声音后重新开始。",
-                            })
-                            await send_json({"type": "state", "state": "ERROR"})
-                            return
-
-                        # Persist the WAV for replay/download
                         wav_path = Path(session["dir"]) / f"seg_{idx:04d}.wav"
-                        wav_path.write_bytes(result.audio_bytes)
-                        seg["audio_filename"] = f"seg_{idx:04d}.wav"
-                        seg["status"] = "generated"
+
+                        # Use a per-segment lock so prefetch and runtime generation
+                        # don't race on the same WAV file.
+                        prefetch_locks = session.setdefault("prefetch_locks", {})
+                        lock = prefetch_locks.setdefault(idx, asyncio.Lock())
+                        async with lock:
+                            if not (seg.get("audio_filename") and wav_path.exists()):
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                    result = await loop.run_in_executor(
+                                        None,
+                                        lambda: target_engine.generate_single(
+                                            text=text,
+                                            voice=seg["resolved_voice"],
+                                            output_format="wav",
+                                        ),
+                                    )
+                                except Exception as exc:
+                                    # Configuration / engine failure: report and STOP.
+                                    # Do not silently skip - the user must fix the
+                                    # underlying issue (e.g. unreachable remote, bad
+                                    # voice, model load failure) before resuming.
+                                    seg["status"] = "error"
+                                    session["state"] = "ERROR"
+                                    await send_json({
+                                        "type": "error",
+                                        "message": f"第 {idx + 1} 段 TTS 生成失败：{exc}。请检查引擎配置/声音后重新开始。",
+                                    })
+                                    await send_json({"type": "state", "state": "ERROR"})
+                                    return
+
+                                wav_path.write_bytes(result.audio_bytes)
+                                seg["audio_filename"] = f"seg_{idx:04d}.wav"
+                            if not seg.get("loudness_normalized"):
+                                loop = asyncio.get_event_loop()
+                                await loop.run_in_executor(
+                                    None, normalize_wav_loudness, wav_path,
+                                )
+                                seg["loudness_normalized"] = True
+                            seg["status"] = "generated"
 
                         # Send audio frame: JSON header then binary WAV
+                        audio_bytes = wav_path.read_bytes()
                         await send_json({"type": "audio", "index": idx,
                                          "sample_rate": target_engine.sample_rate})
-                        await send_bytes(result.audio_bytes)
+                        await send_bytes(audio_bytes)
 
                         # Wait for playback completion or a manual restart.
                         ai_result = await _wait_for(ws, lambda f: (
@@ -1009,7 +1351,12 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                             wav_path = Path(session["dir"]) / f"seg_{idx:04d}.wav"
                             from .live.wav_writer import write_wav
                             write_wav(wav_path, pcm, sample_rate=16000, channels=1)
+                            loop = asyncio.get_event_loop()
+                            await loop.run_in_executor(
+                                None, normalize_wav_loudness, wav_path,
+                            )
                             seg["audio_filename"] = f"seg_{idx:04d}.wav"
+                            seg["loudness_normalized"] = True
                             seg["status"] = "recorded"
                         else:
                             seg["status"] = "missing"
@@ -1025,7 +1372,10 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                     })
                     idx += 1
 
-                final_filename = _merge_live_audio(session)
+                loop = asyncio.get_event_loop()
+                final_filename = await loop.run_in_executor(
+                    None, _merge_live_audio, session,
+                )
                 final_url = (
                     f"/api/live/{session_id}/audio/{final_filename}?download=true"
                     if final_filename else None
@@ -1048,20 +1398,41 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                     auto_done_event.clear()
                 receive_task = asyncio.create_task(websocket.receive())
                 auto_task = asyncio.create_task(auto_done_event.wait())
+                timeout_task = asyncio.create_task(asyncio.sleep(0.5))
                 done, _ = await asyncio.wait(
-                    {receive_task, auto_task},
+                    {receive_task, auto_task, timeout_task},
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if auto_task in done and auto_done_event.is_set():
                     receive_task.cancel()
-                    await asyncio.gather(receive_task, return_exceptions=True)
+                    timeout_task.cancel()
+                    await asyncio.gather(receive_task, timeout_task, return_exceptions=True)
                     return {
                         "type": "record_done",
                         "index": session.get("cursor", 0),
                         "auto": True,
                     }
+                if timeout_task in done:
+                    # No frame for 500 ms; the speaker likely paused or finished.
+                    # Flush any trailing ASR audio so the final words can be
+                    # transcribed and auto-completion can fire.
+                    receive_task.cancel()
+                    auto_task.cancel()
+                    await asyncio.gather(receive_task, auto_task, return_exceptions=True)
+                    if config.asr.enabled and asr.is_ready and asr_buffer:
+                        cur = session.get("cursor", 0)
+                        remainder = bytes(asr_buffer)
+                        asr_buffer.clear()
+                        padded = remainder + b"\x00" * (asr_chunk_bytes - len(remainder))
+                        await asr_queue.put((
+                            cur, record_state["generation"], padded,
+                            len(record_buffers.get(cur, b"")) // 32,
+                        ))
+                        asr_silence_ms = 0
+                    continue
+                timeout_task.cancel()
                 auto_task.cancel()
-                await asyncio.gather(auto_task, return_exceptions=True)
+                await asyncio.gather(auto_task, timeout_task, return_exceptions=True)
                 msg = receive_task.result()
                 if msg["type"] == "websocket.disconnect":
                     raise WebSocketDisconnect()
@@ -1078,6 +1449,25 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                                 cur, record_state["generation"], chunk,
                                 len(record_buffers.get(cur, b"")) // 32,
                             ))
+                        # After a short silence, flush any trailing audio so
+                        # the ASR can transcribe the final words and trigger
+                        # auto-completion without waiting for manual record_done.
+                        if asr_buffer:
+                            samples = np.frombuffer(msg["bytes"], dtype=np.int16)
+                            rms = float(np.sqrt(np.mean(samples.astype(np.float64) ** 2)))
+                            if rms < 500:
+                                asr_silence_ms += len(msg["bytes"]) // 32
+                            else:
+                                asr_silence_ms = 0
+                            if asr_silence_ms >= 500:
+                                remainder = bytes(asr_buffer)
+                                asr_buffer.clear()
+                                padded = remainder + b"\x00" * (asr_chunk_bytes - len(remainder))
+                                await asr_queue.put((
+                                    cur, record_state["generation"], padded,
+                                    len(record_buffers.get(cur, b"")) // 32,
+                                ))
+                                asr_silence_ms = 0
                     if (
                         record_state["auto_done"]
                         and record_state["auto_done_index"] == cur
@@ -1146,6 +1536,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
 
         async def asr_worker() -> None:
             """Transcribe queued chunks without blocking WebSocket receive."""
+            from .live.end_detector import compute_alignment_ratio, tokenize_text
             while True:
                 cur, generation, chunk, audio_ms = await asr_queue.get()
                 try:
@@ -1164,18 +1555,21 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
                         "text": record_state["transcript"],
                         "audio_ms": audio_ms,
                     })
-                    from .live.end_detector import compute_alignment_ratio
-                    await send_json({
-                        "type": "alignment",
-                        "ratio": compute_alignment_ratio(
-                            record_state["transcript"],
-                            session["segments"][cur]["text"],
-                        ),
-                    })
                     ratio = compute_alignment_ratio(
                         record_state["transcript"], session["segments"][cur]["text"],
                     )
-                    if ratio >= 0.85 and not record_state["auto_done"]:
+                    await send_json({
+                        "type": "alignment",
+                        "ratio": ratio,
+                    })
+                    # Require the speaker to have produced at least as many
+                    # tokens as the target, so that a single missing English
+                    # word doesn't trigger auto-completion prematurely.
+                    target_tokens = tokenize_text(session["segments"][cur]["text"])
+                    asr_tokens = tokenize_text(record_state["transcript"])
+                    if (ratio >= 0.85
+                            and len(asr_tokens) >= len(target_tokens)
+                            and not record_state["auto_done"]):
                         record_state["auto_done"] = True
                         record_state["auto_done_index"] = cur
                         await send_json({
@@ -1217,6 +1611,9 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Audio not found")
         if not target.exists():
             raise HTTPException(status_code=404, detail="Audio not found")
+        _ensure_live_preview_normalized(
+            session_id, filename, target, live_studio_sessions, outputs_dir,
+        )
         download_name = (
             f"live-studio-{session_id}.wav" if filename == "final.wav" else filename
         )
@@ -1234,6 +1631,263 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
         session["stop_requested"] = True
         session["state"] = "FINISHED"
         return {"session_id": session_id, "state": "FINISHED"}
+
+    @app.get("/api/live/sessions")
+    def list_live_sessions() -> list:
+        """List all live studio sessions from disk."""
+        import json as _json
+        base = outputs_dir / "live_studio"
+        if not base.exists():
+            return []
+        sessions = []
+        for d in sorted(base.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+            if not d.is_dir():
+                continue
+            meta_path = d / "meta.json"
+            if meta_path.exists():
+                try:
+                    meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+                    has_final = (d / "final.wav").exists()
+                    sessions.append({
+                        "session_id": meta.get("session_id", d.name),
+                        "title": meta.get("title") or meta.get("first_text", "") or d.name,
+                        "created_at": meta.get("created_at", ""),
+                        "segment_count": meta.get("segment_count", 0),
+                        "first_text": meta.get("first_text", ""),
+                        "has_final": has_final,
+                    })
+                except Exception:
+                    pass
+        return sessions
+
+    @app.get("/api/live/{session_id}")
+    def get_live_session(session_id: str) -> dict:
+        """Load a live studio session from disk (or memory) with current audio URLs."""
+        import json as _json
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        try:
+            session_dir.relative_to((outputs_dir / "live_studio").resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid session path")
+        if not session_dir.exists():
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        meta_path = session_dir / "meta.json"
+        if not meta_path.exists():
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        try:
+            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"无法读取会话元数据: {exc}") from exc
+
+        segs = meta.get("segments", [])
+        # Keep in-memory session in sync so PATCH/WS can operate after a refresh
+        session = live_studio_sessions.get(session_id)
+        if session is None:
+            has_final = (session_dir / "final.wav").exists()
+            session = {
+                "session_id": session_id,
+                "title": meta.get("title", meta.get("first_text", "")),
+                "segments": segs,
+                "cursor": 0,
+                "state": "FINISHED" if has_final else "IDLE",
+                "dir": str(session_dir),
+                "stop_requested": False,
+                "prefetch_locks": {},
+            }
+            live_studio_sessions[session_id] = session
+
+        response_segments = []
+        for seg in segs:
+            idx = seg.get("index", 0)
+            filename = seg.get("audio_filename") or f"seg_{idx:04d}.wav"
+            path = session_dir / filename
+            has_audio = path.exists()
+            source = seg.get("source", "tts")
+            status = seg.get("status", "pending")
+            if has_audio:
+                status = "recorded" if source == "live" else "generated"
+            audio_url = f"/api/live/{session_id}/audio/{filename}" if has_audio else None
+            response_segments.append({
+                "index": idx,
+                "text": seg.get("text", ""),
+                "speaker": seg.get("speaker", ""),
+                "resolved_voice": seg.get("resolved_voice", ""),
+                "source": source,
+                "status": status,
+                "audio_filename": filename if has_audio else None,
+                "audio_url": audio_url,
+            })
+
+        has_final = (session_dir / "final.wav").exists()
+        return {
+            "session_id": session_id,
+            "title": session.get("title") or meta.get("title") or meta.get("first_text", ""),
+            "created_at": meta.get("created_at", ""),
+            "state": session.get("state", "IDLE"),
+            "segments": response_segments,
+            "has_final": has_final,
+            "final_audio_url": f"/api/live/{session_id}/audio/final.wav?download=true" if has_final else None,
+        }
+
+    @app.post("/api/live/{session_id}/export")
+    def export_live_session(session_id: str) -> dict:
+        """Rebuild and return one merged, loudness-normalized WAV."""
+        session = live_studio_sessions.get(session_id)
+        if session is None:
+            get_live_session(session_id)
+            session = live_studio_sessions.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+
+        filename = _merge_live_audio(session)
+        if filename is None:
+            raise HTTPException(status_code=409, detail="NO_AUDIO_SEGMENTS")
+        return {
+            "session_id": session_id,
+            "filename": filename,
+            "audio_url": f"/api/live/{session_id}/audio/{filename}?download=true",
+        }
+
+    @app.post("/api/live/{session_id}/prefetch")
+    async def prefetch_live_tts(session_id: str, request: Request) -> dict:
+        """Prefetch TTS audio for all AI segments in the background."""
+        session = live_studio_sessions.get(session_id)
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        if session is None:
+            try:
+                session_dir.relative_to((outputs_dir / "live_studio").resolve())
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid session path")
+            meta_path = session_dir / "meta.json"
+            if not meta_path.exists():
+                raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+            import json as _json
+            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+            has_final = (session_dir / "final.wav").exists()
+            session = {
+                "session_id": session_id,
+                "title": meta.get("title", meta.get("first_text", "")),
+                "segments": meta.get("segments", []),
+                "cursor": 0,
+                "state": "FINISHED" if has_final else "IDLE",
+                "dir": str(session_dir),
+                "stop_requested": False,
+                "prefetch_locks": {},
+            }
+            live_studio_sessions[session_id] = session
+
+        body = await request.json()
+        engine_name = body.get("engine")
+        target_engine = _resolve_engine(engine_name, config, sample_manager)
+
+        async def _prefetch() -> None:
+            segs = session["segments"]
+            for seg in segs:
+                if seg.get("source") != "tts":
+                    continue
+                idx = seg.get("index", 0)
+                wav_path = Path(session["dir"]) / f"seg_{idx:04d}.wav"
+                prefetch_locks = session.setdefault("prefetch_locks", {})
+                lock = prefetch_locks.setdefault(idx, asyncio.Lock())
+                async with lock:
+                    if seg.get("audio_filename") and wav_path.exists():
+                        continue
+                    try:
+                        loop = asyncio.get_event_loop()
+                        result = await loop.run_in_executor(
+                            None,
+                            lambda: target_engine.generate_single(
+                                text=seg["text"],
+                                voice=seg["resolved_voice"],
+                                output_format="wav",
+                            ),
+                        )
+                        wav_path.write_bytes(result.audio_bytes)
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(
+                            None, normalize_wav_loudness, wav_path,
+                        )
+                        seg["audio_filename"] = f"seg_{idx:04d}.wav"
+                        seg["loudness_normalized"] = True
+                        seg["status"] = "generated"
+                    except Exception as exc:
+                        logger.warning("Prefetch failed for segment %s: %s", idx, exc)
+
+        asyncio.create_task(_prefetch())
+        return {"session_id": session_id, "prefetch": "started"}
+
+    @app.delete("/api/live/{session_id}")
+    def delete_live_session(session_id: str) -> dict:
+        import shutil
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        try:
+            session_dir.relative_to((outputs_dir / "live_studio").resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid session path")
+        if not session_dir.exists():
+            raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+        shutil.rmtree(session_dir, ignore_errors=True)
+        live_studio_sessions.pop(session_id, None)
+        return {"session_id": session_id, "deleted": True}
+
+    @app.patch("/api/live/{session_id}/segment/{index}")
+    async def update_live_segment(session_id: str, index: int, request: Request) -> dict:
+        """Update the text of a segment before or during a live session."""
+        session = live_studio_sessions.get(session_id)
+        session_dir = (outputs_dir / "live_studio" / session_id).resolve()
+        if session is None:
+            # Load from disk so edits can happen after a page refresh
+            try:
+                session_dir.relative_to((outputs_dir / "live_studio").resolve())
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid session path")
+            meta_path = session_dir / "meta.json"
+            if not meta_path.exists():
+                raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+            import json as _json
+            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+            has_final = (session_dir / "final.wav").exists()
+            session = {
+                "session_id": session_id,
+                "title": meta.get("title", meta.get("first_text", "")),
+                "segments": meta.get("segments", []),
+                "cursor": 0,
+                "state": "FINISHED" if has_final else "IDLE",
+                "dir": str(session_dir),
+                "stop_requested": False,
+                "prefetch_locks": {},
+            }
+            live_studio_sessions[session_id] = session
+
+        segs = session["segments"]
+        if index < 0 or index >= len(segs):
+            raise HTTPException(status_code=404, detail="SEGMENT_NOT_FOUND")
+        body = await request.json()
+        new_text = (body.get("text") or "").strip()
+        if new_text:
+            # If an AI segment's text changed, invalidate any prefetched audio
+            # so the driver regenerates it with the new text.
+            old_text = segs[index].get("text", "")
+            if old_text != new_text and segs[index].get("source") == "tts":
+                old_filename = segs[index].get("audio_filename")
+                if old_filename:
+                    old_path = Path(session["dir"]) / old_filename
+                    old_path.unlink(missing_ok=True)
+                segs[index]["audio_filename"] = None
+                segs[index].pop("loudness_normalized", None)
+                segs[index]["status"] = "pending"
+            segs[index]["text"] = new_text
+            # Persist so the edit survives a refresh
+            meta_path = Path(session["dir"]) / "meta.json"
+            if meta_path.exists():
+                try:
+                    import json as _json
+                    meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+                    meta["segments"] = segs
+                    meta_path.write_text(_json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+                except Exception:
+                    pass
+        return {"session_id": session_id, "index": index, "text": segs[index]["text"]}
 
     # ── Legacy Live Podcast routes (kept for compatibility) ────────────
 

@@ -27,8 +27,8 @@ def main() -> None:
         host=args.host or config.server.host,
         port=args.port or config.server.port,
         log_level=config.server.log_level,
-        ssl_keyfile=args.ssl_keyfile,
-        ssl_certfile=args.ssl_certfile,
+        ssl_keyfile=args.ssl_keyfile or config.server.ssl_keyfile,
+        ssl_certfile=args.ssl_certfile or config.server.ssl_certfile,
     )
 
 

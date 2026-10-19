@@ -204,7 +204,7 @@ class QwenRemoteEngine(BaseEngine):
             audio_b64 = base64.b64encode(f.read()).decode()
 
         payload = {
-            "model": self.DEFAULT_MODEL,
+            "model": getattr(self.config.model, "qwen_model_id", self.DEFAULT_MODEL),
             "input": text,
             "voice": wav_path.stem,
             "ref_audio": audio_b64,
@@ -217,12 +217,19 @@ class QwenRemoteEngine(BaseEngine):
         req = urllib.request.Request(
             f"{self.base_url}/v1/audio/speech",
             data=str.encode(__import__("json").dumps(payload)),
-            headers={"Content-Type": "application/json"},
+            headers=self._request_headers(),
             method="POST",
         )
 
         with urllib.request.urlopen(req, timeout=300) as resp:
             return resp.read()
+
+    def _request_headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        api_key = getattr(self.config.model, "qwen_api_key", "").strip()
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        return headers
 
     @staticmethod
     def _estimate_duration(audio_bytes: bytes) -> float:

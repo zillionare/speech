@@ -181,6 +181,12 @@ class LiveStudioE2ETests(unittest.TestCase):
             merged = client.get(finished["audio_url"])
             self.assertEqual(merged.status_code, 200)
             self.assertIn("attachment", merged.headers.get("content-disposition", ""))
+            exported = client.post(f"/api/live/{sid}/export")
+            self.assertEqual(exported.status_code, 200)
+            self.assertEqual(exported.json()["filename"], "final.wav")
+            exported_audio = client.get(exported.json()["audio_url"])
+            self.assertEqual(exported_audio.status_code, 200)
+            self.assertIn("attachment", exported_audio.headers.get("content-disposition", ""))
             seg_starts = [f for f in received if f["type"] == "segment_start"]
             self.assertEqual(len(seg_starts), 3)
             self.assertEqual(seg_starts[0]["source"], "tts")

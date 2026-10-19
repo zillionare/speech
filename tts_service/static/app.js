@@ -33,13 +33,14 @@ async function saveConfig() {
         segment_gap_seconds: parseFloat(document.getElementById('config-segment-gap-slider').value),
         speaker_gap_seconds: parseFloat(document.getElementById('config-speaker-gap-slider').value),
     };
-    
     try {
-        await requestJson('/api/config', {
+        state.config = await requestJson('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         });
+        renderConfig();
+        initEngineToggle();
         alert('配置已保存');
     } catch (err) {
         alert('保存失败: ' + err.message);
@@ -139,6 +140,7 @@ const state = {
     config: null,
     voices: [],
     history: [],
+    ttsProviders: [],
     engine: "local",
 };
 window.state = state;
@@ -188,6 +190,7 @@ async function requestJson(url, options = {}) {
 
 function setStatus(message, isError = false) {
     const card = document.getElementById("latest-result");
+    if (!card) return;
     card.classList.toggle("error", isError);
     card.classList.remove("empty");
     card.innerHTML = `<p>${message}</p>`;
@@ -274,6 +277,202 @@ function renderConfig() {
     if (outputsPath) outputsPath.value = state.config.outputs_path || "./outputs";
     const defaultVoiceSelect = document.getElementById("config-default-voice-select");
     if (defaultVoiceSelect) defaultVoiceSelect.value = state.config.default_voice;
+
+}
+
+const ttsProviderLabels = {
+    qwen: "Qwen",
+    minimax: "MiniMax",
+    omnivoice: "OmniVoice",
+    local: "本地 VibeVoice",
+};
+
+function setTtsProviderStatus(message, isError = false) {
+    const node = document.getElementById("tts-provider-status");
+    if (!node) return;
+    node.textContent = message;
+    node.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+function renderTtsProviders() {
+    const list = document.getElementById("tts-provider-list");
+    if (!list) return;
+    list.innerHTML = "";
+    if (!state.ttsProviders.length) {
+        list.innerHTML = '<div class="status-hint">还没有 TTS 配置，请添加一个服务。</div>';
+        return;
+    }
+    for (const profile of state.ttsProviders) {
+        const card = document.createElement("article");
+        card.className = `tts-provider-card${profile.active ? " active" : ""}`;
+        card.dataset.providerId = profile.id;
+        const mode = profile.api_mode === "native" ? "原生" : profile.api_mode === "openai" ? "OpenAI 兼容" : "本地";
+        const keyStatus = profile.api_key_configured ? "密钥已配置" : "未配置密钥";
+        card.innerHTML = `
+            <div class="provider-card-head">
+                <div>
+                    <h4>${escapeHtml(profile.name)}</h4>
+                    <span class="provider-badge">${escapeHtml(ttsProviderLabels[profile.provider] || profile.provider)} · ${mode}</span>
+                </div>
+                ${profile.active ? '<span class="provider-active-badge">当前使用</span>' : ""}
+            </div>
+            <div class="provider-card-meta">
+                <span title="${escapeHtml(profile.base_url || "本地引擎")}">${escapeHtml(profile.base_url || "本地引擎")}</span>
+                <span>模型：${escapeHtml(profile.model_id || "默认")}</span>
+                <span>${escapeHtml(keyStatus)}${profile.voice_id ? ` · Voice ID：${escapeHtml(profile.voice_id)}` : ""}</span>
+            </div>
+            <div class="provider-card-actions">
+                <button type="button" class="secondary small" data-provider-action="test">测试</button>
+                <button type="button" class="secondary small" data-provider-action="edit">编辑</button>
+                ${profile.active ? "" : '<button type="button" class="primary small" data-provider-action="activate">启用</button>'}
+                ${profile.id === "qwen" || profile.id === "minimax" || profile.id === "local" || profile.id === "omnivoice" ? "" : '<button type="button" class="ghost small" data-provider-action="delete">删除</button>'}
+            </div>
+        `;
+        card.querySelectorAll("[data-provider-action]").forEach((button) => {
+            button.addEventListener("click", () => handleTtsProviderAction(
+                button.dataset.providerAction,
+                profile,
+            ));
+        });
+        list.appendChild(card);
+    }
+}
+
+async function loadTtsProviders() {
+    try {
+        state.ttsProviders = await requestJson("/api/tts/providers");
+        renderTtsProviders();
+    } catch (err) {
+        setTtsProviderStatus(`加载 TTS 配置失败：${err.message}`, true);
+    }
+}
+
+function resetTtsProviderForm(profile = null) {
+    const form = document.getElementById("tts-provider-form");
+    if (form) form.dataset.editing = profile ? "true" : "false";
+    document.getElementById("tts-provider-id").value = profile?.id || "";
+    document.getElementById("tts-provider-name").value = profile?.name || "";
+    document.getElementById("tts-provider-kind").value = profile?.provider || "minimax";
+    document.getElementById("tts-provider-mode").value = profile?.api_mode || "native";
+    document.getElementById("tts-provider-base-url").value = profile?.base_url || "";
+    document.getElementById("tts-provider-api-key").value = "";
+    document.getElementById("tts-provider-model-id").value = profile?.model_id || "";
+    document.getElementById("tts-provider-voice-id").value = profile?.voice_id || "";
+    document.getElementById("tts-provider-emotion").value = profile?.emotion || "";
+    const keyHint = document.getElementById("tts-provider-key-hint");
+    if (keyHint) keyHint.textContent = profile?.api_key_configured ? "已有密钥，留空保持不变" : "尚未配置密钥";
+    updateTtsProviderFormDefaults(Boolean(profile));
+}
+
+function updateTtsProviderFormDefaults(hasExistingProfile = true) {
+    const kind = document.getElementById("tts-provider-kind")?.value;
+    const mode = document.getElementById("tts-provider-mode");
+    const base = document.getElementById("tts-provider-base-url");
+    const model = document.getElementById("tts-provider-model-id");
+    if (!mode || !base || !model || hasExistingProfile) return;
+    if (kind === "qwen") {
+        mode.value = "openai";
+        base.value = "http://192.168.0.102:8000";
+        model.value = "Qwen3-TTS-12Hz-1.7B-Base-8bit";
+    } else if (kind === "minimax") {
+        mode.value = "native";
+        base.value = "https://api.minimaxi.com";
+        model.value = "speech-2.8-hd";
+    } else if (kind === "omnivoice") {
+        mode.value = "openai";
+        base.value = "http://192.168.0.102:8002";
+        model.value = "k2-fsa/OmniVoice";
+    } else {
+        mode.value = "local";
+        base.value = "";
+        model.value = "gafiatulin/vibevoice-1.5b-mlx";
+    }
+}
+
+function openTtsProviderModal(profile = null) {
+    resetTtsProviderForm(profile);
+    const title = document.getElementById("tts-provider-modal-title");
+    if (title) title.textContent = profile ? "编辑 TTS 配置" : "添加 TTS 配置";
+    document.getElementById("tts-provider-modal").hidden = false;
+    document.getElementById("tts-provider-name").focus();
+}
+
+function closeTtsProviderModal() {
+    document.getElementById("tts-provider-modal").hidden = true;
+}
+
+async function saveTtsProvider(event) {
+    event.preventDefault();
+    const payload = {
+        id: document.getElementById("tts-provider-id").value || null,
+        name: document.getElementById("tts-provider-name").value.trim(),
+        provider: document.getElementById("tts-provider-kind").value,
+        api_mode: document.getElementById("tts-provider-mode").value,
+        base_url: document.getElementById("tts-provider-base-url").value.trim(),
+        model_id: document.getElementById("tts-provider-model-id").value.trim(),
+        voice_id: document.getElementById("tts-provider-voice-id").value.trim(),
+        emotion: document.getElementById("tts-provider-emotion").value.trim(),
+        active: false,
+    };
+    const apiKey = document.getElementById("tts-provider-api-key").value.trim();
+    if (apiKey) payload.api_key = apiKey;
+    try {
+        await requestJson("/api/tts/providers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        closeTtsProviderModal();
+        await loadTtsProviders();
+        setTtsProviderStatus("配置已保存；点击“启用”后应用到新生成任务。", false);
+    } catch (err) {
+        setTtsProviderStatus(`保存配置失败：${err.message}`, true);
+    }
+}
+
+async function handleTtsProviderAction(action, profile) {
+    try {
+        if (action === "edit") {
+            openTtsProviderModal(profile);
+            return;
+        }
+        if (action === "test") {
+            setTtsProviderStatus(`正在测试 ${profile.name}...`);
+            const result = await requestJson(`/api/tts/providers/${encodeURIComponent(profile.id)}/test`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            setTtsProviderStatus(`测试成功：${result.generation_seconds.toFixed(2)} 秒生成 ${result.duration_seconds.toFixed(2)} 秒音频。`);
+            return;
+        }
+        if (action === "activate") {
+            await requestJson(`/api/tts/providers/${encodeURIComponent(profile.id)}/activate`, { method: "POST" });
+            await Promise.all([loadTtsProviders(), loadConfig()]);
+            setTtsProviderStatus(`已启用 ${profile.name}`);
+            return;
+        }
+        if (action === "delete" && confirm(`确定删除配置“${profile.name}”吗？`)) {
+            await requestJson(`/api/tts/providers/${encodeURIComponent(profile.id)}`, { method: "DELETE" });
+            await loadTtsProviders();
+            setTtsProviderStatus("配置已删除");
+        }
+    } catch (err) {
+        setTtsProviderStatus(`操作失败：${err.message}`, true);
+    }
+}
+
+function initTtsProviderManager() {
+    const addButton = document.getElementById("add-tts-provider");
+    const form = document.getElementById("tts-provider-form");
+    const cancel = document.getElementById("tts-provider-cancel");
+    const kind = document.getElementById("tts-provider-kind");
+    if (addButton) addButton.addEventListener("click", () => openTtsProviderModal());
+    if (form) form.addEventListener("submit", saveTtsProvider);
+    if (cancel) cancel.addEventListener("click", closeTtsProviderModal);
+    if (kind) kind.addEventListener("change", () => updateTtsProviderFormDefaults(
+        document.getElementById("tts-provider-form")?.dataset.editing === "true",
+    ));
 }
 
 function renderCounters() {
@@ -488,27 +687,13 @@ function initEngineToggle() {
     });
 
     // If server default is remote, reflect that
-    if (state.config && state.config.use_remote_qwen) {
-        state.engine = "remote";
+    if (state.config) {
+        state.engine = state.config.tts_provider === "local"
+            ? "local"
+            : (state.config.tts_provider === "qwen" || state.config.tts_provider === "minimax" || state.config.use_remote_qwen)
+                ? "remote"
+                : "local";
     }
-    update();
-}
-
-function initSettingsToggle() {
-    const section = document.getElementById("system-settings");
-    const btn = document.getElementById("toggle-settings");
-    if (!section || !btn) return;
-
-    const update = () => {
-        const isCollapsed = section.classList.contains("collapsed");
-        btn.textContent = isCollapsed ? "展开" : "收起";
-    };
-
-    btn.addEventListener("click", () => {
-        section.classList.toggle("collapsed");
-        update();
-    });
-
     update();
 }
 
@@ -783,7 +968,9 @@ function initNavigation() {
             link.classList.toggle("active", link.dataset.section === sectionId);
         }
         for (const section of sections) {
-            section.classList.toggle("active", section.id === sectionId);
+            const isActive = section.id === sectionId;
+            section.classList.toggle("active", isActive);
+            section.hidden = !isActive;
         }
     };
 
@@ -984,7 +1171,7 @@ function handleMarkdownSelect() {
 
 async function bootstrap() {
     initNavigation();
-    initSettingsToggle();
+    initTtsProviderManager();
     document.getElementById("voice-upload-form").addEventListener("submit", handleVoiceUpload);
     const audioInput = document.getElementById("audio-file-input");
     if (audioInput) audioInput.addEventListener("change", handleAudioFileChange);
@@ -994,11 +1181,13 @@ async function bootstrap() {
     if (markdownInput) markdownInput.addEventListener("change", handleMarkdownFileChange);
     const markdownBtn = document.getElementById("markdown-select-btn");
     if (markdownBtn) markdownBtn.addEventListener("click", handleMarkdownSelect);
-    document.getElementById("generate-form").addEventListener("submit", handleGenerate);
-    document.getElementById("refresh-voices").addEventListener("click", loadVoices);
+    const generateForm = document.getElementById("generate-form");
+    if (generateForm) generateForm.addEventListener("submit", handleGenerate);
+    const refreshBtn = document.getElementById("refresh-voices");
+    if (refreshBtn) refreshBtn.addEventListener("click", loadVoices);
     const pruneBtn = document.getElementById("prune-outputs");
     if (pruneBtn) pruneBtn.addEventListener("click", handlePruneOutputs);
-    await Promise.all([loadConfig(), loadVoices(), loadHistory()]);
+    await Promise.all([loadConfig(), loadTtsProviders(), loadVoices(), loadHistory()]);
     window.dispatchEvent(new CustomEvent("speech-state-ready"));
     initPodcastEditor();
 }

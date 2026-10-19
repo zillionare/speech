@@ -29,8 +29,17 @@ pip install -r requirements.txt
 ```yaml
 model:
   model_id: "gafiatulin/vibevoice-1.5b-mlx"
+  tts_provider: "qwen"  # qwen | minimax | local
   quantize_bits: 8
   diffusion_steps: 10
+
+  qwen_base_url: "http://127.0.0.1:8000"
+  qwen_model_id: "Qwen3-TTS-12Hz-1.7B-Base-8bit"
+
+  minimax_api_mode: "native"  # native | openai
+  minimax_base_url: "https://api.minimaxi.com"
+  minimax_model_id: "speech-2.8-hd"
+  minimax_voice_id: "male-qn-qingse"
 
 voices:
   base_dir: "./voices"
@@ -82,6 +91,9 @@ http://127.0.0.1:8123/
 - 手动预热 `.safetensors` 缓存
 - 输入单人旁白或多角色对话文本
 - 查看最近生成结果并直接试听/下载
+- 在系统设置中切换 Qwen、MiniMax 或本地引擎，并配置远程地址、模型 ID 和音色 ID
+
+API Key 不写入普通 `config.yaml`。可以在 Web UI 的密码框中保存，或使用 `QWEN_TTS_API_KEY` / `MINIMAX_API_KEY` 环境变量；Web UI 保存的密钥位于本地权限为 `600` 的 `.speech-secrets.yaml`。
 
 上传的参考音频会在落盘前自动做轻量预处理：多声道下混为单声道、抑制底噪，并裁掉前后静音，避免把录音环境问题直接带进 voice clone。
 

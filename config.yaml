@@ -1,5 +1,6 @@
 model:
   model_id: gafiatulin/vibevoice-1.5b-mlx
+  tts_provider: omnivoice
   quantize_bits: 8
   diffusion_steps: 30
   cfg_scale: 1.0
@@ -9,8 +10,18 @@ model:
   use_coreml_semantic: false
   use_remote_qwen: true
   qwen_base_url: http://192.168.0.102:8000
+  qwen_model_id: Qwen3-TTS-12Hz-1.7B-Base-8bit
+  minimax_api_mode: native
+  minimax_base_url: https://api.minimaxi.com
+  minimax_model_id: speech-2.8-hd
+  minimax_voice_id: male-qn-qingse
+  minimax_emotion: ''
+  minimax_speed: 1.0
+  minimax_volume: 1.0
+  minimax_pitch: 0
+  omnivoice_base_url: http://192.168.0.102:8002
+  omnivoice_model_id: k2-fsa/OmniVoice
   max_segment_chars: 500
-  speed: 1.0
   stereo: true
   spatial_jitter: true
   segment_gap_seconds: 1.1
@@ -34,8 +45,14 @@ outputs:
   history_limit: 20
 server:
   host: 0.0.0.0
-  port: 8123
+  port: 8443
   log_level: info
+  ssl_keyfile: /Users/openclaw/workspace/speech/.certs/dev-key.pem
+  ssl_certfile: /Users/openclaw/workspace/speech/.certs/dev-cert.pem
+live:
+  tts_max_seconds: 60
+  tts_timeout_seconds: 30
+  max_ai_rephrases_per_segment: 2
 asr:
   enabled: true
   backend: qwen3_asr
@@ -44,15 +61,67 @@ asr:
   chunk_seconds: 4.0
   beam_size: 1
   vad_filter: true
+  compute_type: float16
+  device: auto
+  warmup_on_start: false
   download_endpoint: https://hf-mirror.com
   cache_dir: ~/.cache/huggingface/hub
-  warmup_on_start: false
   qwen3_model_dir: ~/.cache/sherpa-onnx/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25
   qwen3_num_threads: 4
   qwen3_max_new_tokens: 512
-  qwen3_hotwords: ""
-live:
-  tts_max_seconds: 60
-  tts_timeout_seconds: 30
-  max_ai_rephrases_per_segment: 2
+  qwen3_hotwords: ''
 pid_file: /tmp/tts_service.pid
+tts_providers:
+- id: qwen
+  name: Qwen 远程
+  provider: qwen
+  api_mode: openai
+  num_steps: 16
+  ref_audio_max_duration_s: 10.0
+  base_url: http://192.168.0.102:8000
+  model_id: Qwen3-TTS-12Hz-1.7B-Base-8bit
+  voice_id: ''
+  emotion: ''
+  speed: 1.0
+  volume: 1.0
+  pitch: 0
+- id: minimax
+  name: MiniMax
+  provider: minimax
+  api_mode: native
+  num_steps: 16
+  ref_audio_max_duration_s: 10.0
+  base_url: https://api.minimaxi.com
+  model_id: speech-2.8-hd
+  voice_id: male-qn-qingse
+  emotion: ''
+  speed: 1.0
+  volume: 1.0
+  pitch: 0
+- id: local
+  name: 本地 VibeVoice
+  provider: local
+  api_mode: local
+  num_steps: 16
+  ref_audio_max_duration_s: 10.0
+  base_url: ''
+  model_id: gafiatulin/vibevoice-1.5b-mlx
+  voice_id: ''
+  emotion: ''
+  speed: 1.0
+  volume: 1.0
+  pitch: 0
+- id: omnivoice
+  name: OmniVoice
+  provider: omnivoice
+  api_mode: openai
+  num_steps: 16
+  ref_audio_max_duration_s: 10.0
+  base_url: http://192.168.0.102:8002
+  model_id: k2-fsa/OmniVoice
+  voice_id: ''
+  emotion: ''
+  speed: 1.0
+  volume: 1.0
+  pitch: 0
+active_tts_provider: omnivoice

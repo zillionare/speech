@@ -82,6 +82,7 @@ class HealthResponse(BaseModel):
 
 class AppConfigResponse(BaseModel):
     model: str
+    tts_provider: str
     quantize_bits: int
     default_voice: str
     diffusion_steps: int
@@ -94,6 +95,17 @@ class AppConfigResponse(BaseModel):
     outputs_path: str
     use_remote_qwen: bool
     qwen_base_url: str
+    qwen_model_id: str
+    qwen_api_key_configured: bool
+    minimax_api_mode: str
+    minimax_api_key_configured: bool
+    minimax_base_url: str
+    minimax_model_id: str
+    minimax_voice_id: str
+    minimax_emotion: str
+    minimax_speed: float
+    minimax_volume: float
+    minimax_pitch: int
     max_segment_chars: int
     stereo: bool
     spatial_jitter: bool
@@ -114,11 +126,47 @@ class AppConfigUpdateRequest(BaseModel):
     seed: Optional[int] = None
     use_remote_qwen: Optional[bool] = None
     qwen_base_url: Optional[str] = None
+    qwen_model_id: Optional[str] = None
+    qwen_api_key: Optional[str] = None
+    tts_provider: Optional[str] = None
+    minimax_api_mode: Optional[str] = None
+    minimax_api_key: Optional[str] = None
+    minimax_base_url: Optional[str] = None
+    minimax_model_id: Optional[str] = None
+    minimax_voice_id: Optional[str] = None
+    minimax_emotion: Optional[str] = None
+    minimax_speed: Optional[float] = None
+    minimax_volume: Optional[float] = None
+    minimax_pitch: Optional[int] = None
     max_segment_chars: Optional[int] = None
     stereo: Optional[bool] = None
     spatial_jitter: Optional[bool] = None
     segment_gap_seconds: Optional[float] = None
     speaker_gap_seconds: Optional[float] = None
+
+
+class TTSProviderProfileRequest(BaseModel):
+    id: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=80)
+    provider: Literal["qwen", "minimax", "local", "omnivoice"] = "qwen"
+    api_mode: Literal["native", "openai", "local"] = "openai"
+    base_url: str = ""
+    api_key: Optional[str] = None
+    model_id: str = ""
+    voice_id: str = ""
+    emotion: str = ""
+    speed: float = Field(default=1.0, ge=0.5, le=2.0)
+    volume: float = Field(default=1.0, gt=0.0, le=10.0)
+    pitch: int = Field(default=0, ge=-12, le=12)
+    active: bool = False
+
+
+class TTSProviderTestRequest(BaseModel):
+    text: str = Field(
+        default="你好，这是一次 TTS 配置测试。",
+        min_length=1,
+        max_length=500,
+    )
 
 
 class PruneOutputsRequest(BaseModel):

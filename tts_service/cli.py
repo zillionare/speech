@@ -118,7 +118,8 @@ class TTSCLI:
 
         print(f"Starting TTS Service...")
         print(f"  Config: {config}")
-        print(f"  Host: {cfg.server.host}:{cfg.server.port}")
+        scheme = "https" if cfg.server.ssl_certfile else "http"
+        print(f"  Host: {scheme}://{cfg.server.host}:{cfg.server.port}")
         print(f"  Model: {cfg.model.model_id} ({cfg.model.quantize_bits}-bit)")
         print(f"  Voices: {cfg.voices.expanded_base_dir}")
 
@@ -144,6 +145,8 @@ class TTSCLI:
                 host=cfg.server.host,
                 port=cfg.server.port,
                 log_level=cfg.server.log_level,
+                ssl_keyfile=cfg.server.ssl_keyfile,
+                ssl_certfile=cfg.server.ssl_certfile,
                 reload=reload,
                 reload_dirs=[os.path.dirname(os.path.dirname(__file__))] if reload else None
             )
@@ -186,8 +189,9 @@ class TTSCLI:
 
             try:
                 cfg = load_config("config.yaml")
-                print(f"  Health: http://{cfg.server.host}:{cfg.server.port}/health")
-                print(f"  API: http://{cfg.server.host}:{cfg.server.port}/docs")
+                scheme = "https" if cfg.server.ssl_certfile else "http"
+                print(f"  Health: {scheme}://{cfg.server.host}:{cfg.server.port}/health")
+                print(f"  API: {scheme}://{cfg.server.host}:{cfg.server.port}/docs")
             except:
                 pass
         else:

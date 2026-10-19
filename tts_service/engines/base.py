@@ -521,8 +521,18 @@ def _apply_audio_effects(
 
 
 def create_engine(config, sample_manager) -> BaseEngine:
-    """Factory: return remote Qwen engine if configured, else local MLX."""
-    if getattr(config.model, "use_remote_qwen", False):
+    """Factory for the configured TTS provider."""
+    provider = getattr(config.model, "tts_provider", "")
+    if provider == "minimax":
+        from .minimax import MiniMaxEngine
+        return MiniMaxEngine(config, sample_manager)
+    if provider == "omnivoice":
+        from .omnivoice import OmniVoiceRemoteEngine
+        return OmniVoiceRemoteEngine(config, sample_manager)
+    if provider == "local":
+        from .local_vibevoice import LocalVibeVoiceEngine
+        return LocalVibeVoiceEngine(config, sample_manager)
+    if provider == "qwen" or getattr(config.model, "use_remote_qwen", False):
         from .qwen_remote import QwenRemoteEngine
         return QwenRemoteEngine(config, sample_manager)
     from .local_vibevoice import LocalVibeVoiceEngine

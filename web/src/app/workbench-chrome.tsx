@@ -28,6 +28,7 @@ import { SelectionAction, type TextSelection } from '../features/create/selectio
 import { Timeline } from '../features/media/timeline';
 import { TimelineEditor } from '../features/media/timeline-editor';
 import { Player } from '../features/media/player';
+import { LiveStudio } from '../features/live/live-studio';
 import { Selector } from '../shared/selector';
 import { ConfirmDelete } from '../shared/ui/app-dialog';
 import { call, isDesktop, mediaUrl, saveAudio } from '../shared/lib/client';
@@ -69,7 +70,7 @@ export function WorkbenchChrome({ state, catalog, engine, ready, session, error,
     if (isDesktop) {
       try {
         const saved = localStorage.getItem('yovoice-active-page');
-        const listPages = ['text', 'story', 'music', 'score', 'characters', 'settings'];
+        const listPages = ['text', 'story', 'music', 'score', 'characters', 'settings', 'live'];
         return saved && listPages.includes(saved) ? saved : 'text';
       } catch {
         return 'text';
@@ -464,6 +465,9 @@ export function WorkbenchChrome({ state, catalog, engine, ready, session, error,
           <VStack className="page-panel" gap={0} style={{ display: page === 'settings' ? 'flex' : 'none' }}>
             <PageBoundary name="settings"><Suspense fallback={<p role="status">{t('@yovoice.app.loadingSettings')}</p>}><Settings focus={settingsFocus} state={state} catalog={catalog} engine={engine} draft={draft} run={run} active={page === 'settings'} onError={onError}
               openProject={id => { const item = state.drafts.find(d => d.id === id); if (item) selectDraft(item); }} /></Suspense></PageBoundary>
+          </VStack>
+          <VStack className="page-panel" gap={0} style={{ display: page === 'live' ? 'flex' : 'none' }}>
+            <PageBoundary name="live"><LiveStudio /></PageBoundary>
           </VStack>
           {(['voices', 'history'] as const).map(destination => <VStack key={destination} id={destination === 'voices' ? 'reference-library-panel' : undefined} className="page-panel" gap={0} style={{ display: page === destination ? 'flex' : 'none' }}><PageBoundary name={destination}>
             <MediaLibrary page={destination} project={draft} controls={destination === 'voices' ? libraryTabs : <HStack gap={2} vAlign="center">

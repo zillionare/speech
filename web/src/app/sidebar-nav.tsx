@@ -3,7 +3,7 @@ import { ResizeHandle, type ResizableProps } from '@astryxdesign/core/Resizable'
 import { Button } from '@astryxdesign/core/Button';
 import { HStack, VStack } from '@astryxdesign/core/Layout';
 import { useTranslator } from '@astryxdesign/core/i18n';
-import { AudioLines, ChevronRight, Mic, Music, Pencil, Settings2, Trash2 } from 'lucide-react';
+import { AudioLines, ChevronRight, Mic, Music, Pencil, Radio, Settings2, Trash2 } from 'lucide-react';
 import { projectKind, type Draft, type State } from '../shared/workbench';
 import { overflowTitle } from '../shared/ui/overflow-title';
 import { UpdateSidebarCard } from '../features/update/update-notice';
@@ -33,6 +33,7 @@ export function SidebarNav(props: {
         return <Button key={kind} data-testid={`nav-${kind}`} label={t(`@yovoice.project.${kind}`)} variant="ghost" icon={kind === 'text' ? <Mic /> : kind === 'story' ? <Pencil /> : <Music />} className={`nav-item ${selected ? 'selected' : ''}`} aria-current={selected ? 'page' : undefined} onClick={() => setPage(kind)} />;
       })}
       <Button data-testid="nav-characters" label={t('@yovoice.nav.characters')} variant="ghost" icon={<AudioLines />} className={`nav-item ${page === 'characters' || page === 'voices' ? 'selected' : ''}`} aria-current={page === 'characters' || page === 'voices' ? 'page' : undefined} onClick={() => setPage('characters')} />
+      <Button data-testid="nav-live" label={t('@yovoice.nav.live')} variant="ghost" icon={<Radio />} className={`nav-item ${page === 'live' ? 'selected' : ''}`} aria-current={page === 'live' ? 'page' : undefined} onClick={() => setPage('live')} />
     </VStack>
     <details className="recent-projects" open={recentOpen}>
       <summary onClick={event => { event.preventDefault(); const open = !recentOpen; setRecentOpen(open); localStorage.setItem('yovoice-recent-open', String(open)); }}><ChevronRight aria-hidden />{t('@yovoice.nav.recent')}</summary>

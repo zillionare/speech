@@ -3796,5 +3796,218 @@
   },
   "@yovoice.create.precision": {
     "defaultMessage": "Precision"
+  },
+  "@yovoice.nav.live": {
+    "defaultMessage": "Live studio"
+  },
+  "@yovoice.live.new": {
+    "defaultMessage": "New"
+  },
+  "@yovoice.live.newTitle": {
+    "defaultMessage": "New live session"
+  },
+  "@yovoice.live.titleLabel": {
+    "defaultMessage": "Title (optional)"
+  },
+  "@yovoice.live.scriptLabel": {
+    "defaultMessage": "Script"
+  },
+  "@yovoice.live.scriptPlaceholder": {
+    "defaultMessage": "One segment per line as \"Speaker: text\". Separate segments with a blank line."
+  },
+  "@yovoice.live.create": {
+    "defaultMessage": "Create"
+  },
+  "@yovoice.live.needScript": {
+    "defaultMessage": "Enter a script to create a session."
+  },
+  "@yovoice.live.start": {
+    "defaultMessage": "Start broadcast"
+  },
+  "@yovoice.live.pause": {
+    "defaultMessage": "Pause"
+  },
+  "@yovoice.live.resume": {
+    "defaultMessage": "Resume"
+  },
+  "@yovoice.live.preview": {
+    "defaultMessage": "Preview"
+  },
+  "@yovoice.live.previewStop": {
+    "defaultMessage": "Stop preview"
+  },
+  "@yovoice.live.export": {
+    "defaultMessage": "Export merged audio"
+  },
+  "@yovoice.live.exporting": {
+    "defaultMessage": "Merging audio…"
+  },
+  "@yovoice.live.exported": {
+    "defaultMessage": "Merged audio exported"
+  },
+  "@yovoice.live.exportFailed": {
+    "defaultMessage": "Export failed: {reason}"
+  },
+  "@yovoice.live.finishRecording": {
+    "defaultMessage": "Finish recording"
+  },
+  "@yovoice.live.empty": {
+    "defaultMessage": "No live sessions yet"
+  },
+  "@yovoice.live.selectHint": {
+    "defaultMessage": "Select a segment to edit its text."
+  },
+  "@yovoice.live.editLabel": {
+    "defaultMessage": "Segment text"
+  },
+  "@yovoice.live.editHint": {
+    "defaultMessage": "Edits sync automatically after a short pause."
+  },
+  "@yovoice.live.narrator": {
+    "defaultMessage": "Narrator"
+  },
+  "@yovoice.live.segmentCount": {
+    "defaultMessage": "{count} segments"
+  },
+  "@yovoice.live.finishedMark": {
+    "defaultMessage": "Done"
+  },
+  "@yovoice.live.segmentUpdated": {
+    "defaultMessage": "Segment {n} updated"
+  },
+  "@yovoice.live.segmentDone": {
+    "defaultMessage": "Segment {n} done"
+  },
+  "@yovoice.live.status.pending": {
+    "defaultMessage": "Queued"
+  },
+  "@yovoice.live.status.generating": {
+    "defaultMessage": "Generating"
+  },
+  "@yovoice.live.status.generated": {
+    "defaultMessage": "Generated"
+  },
+  "@yovoice.live.status.recorded": {
+    "defaultMessage": "Recorded"
+  },
+  "@yovoice.live.status.missing": {
+    "defaultMessage": "No recording"
+  },
+  "@yovoice.live.status.error": {
+    "defaultMessage": "Error"
+  },
+  "@yovoice.live.source.ai": {
+    "defaultMessage": "AI"
+  },
+  "@yovoice.live.source.live": {
+    "defaultMessage": "Human"
+  },
+  "@yovoice.live.state.idle": {
+    "defaultMessage": "Idle"
+  },
+  "@yovoice.live.state.aiSpeaking": {
+    "defaultMessage": "AI speaking"
+  },
+  "@yovoice.live.state.recording": {
+    "defaultMessage": "Recording"
+  },
+  "@yovoice.live.state.paused": {
+    "defaultMessage": "Paused"
+  },
+  "@yovoice.live.state.finished": {
+    "defaultMessage": "Finished"
+  },
+  "@yovoice.live.state.error": {
+    "defaultMessage": "Error"
+  },
+  "@yovoice.live.micActive": {
+    "defaultMessage": "Microphone on"
+  },
+  "@yovoice.live.alignment": {
+    "defaultMessage": "Alignment {percent}%"
+  },
+  "@yovoice.live.asr.preparing": {
+    "defaultMessage": "Preparing…"
+  },
+  "@yovoice.live.requestMic": {
+    "defaultMessage": "Requesting microphone access…"
+  },
+  "@yovoice.live.micDenied": {
+    "defaultMessage": "Microphone access is required: {reason}"
+  },
+  "@yovoice.live.micOn": {
+    "defaultMessage": "Microphone is on, recording…"
+  },
+  "@yovoice.live.micError": {
+    "defaultMessage": "Microphone error: {reason}"
+  },
+  "@yovoice.live.recordHint": {
+    "defaultMessage": "Recording. Speak the line; it finishes automatically, or click Finish recording."
+  },
+  "@yovoice.live.recordAutoDone": {
+    "defaultMessage": "Recording finished"
+  },
+  "@yovoice.live.restarting": {
+    "defaultMessage": "Restarting from segment {n}…"
+  },
+  "@yovoice.live.restarted": {
+    "defaultMessage": "Restarted from segment {n}"
+  },
+  "@yovoice.live.playing": {
+    "defaultMessage": "Playing AI audio for segment {n}…"
+  },
+  "@yovoice.live.pausedHint": {
+    "defaultMessage": "Paused. Click Resume to continue playback."
+  },
+  "@yovoice.live.previewing": {
+    "defaultMessage": "Previewing…"
+  },
+  "@yovoice.live.previewSegment": {
+    "defaultMessage": "Previewing segment {n}"
+  },
+  "@yovoice.live.previewStopped": {
+    "defaultMessage": "Preview stopped"
+  },
+  "@yovoice.live.noPreview": {
+    "defaultMessage": "No playable segments to preview"
+  },
+  "@yovoice.live.sessionFinished": {
+    "defaultMessage": "This session has finished. Pick another or create a new one."
+  },
+  "@yovoice.live.loaded": {
+    "defaultMessage": "Loaded {count} segments."
+  },
+  "@yovoice.live.loadFailed": {
+    "defaultMessage": "Failed to load session: {reason}"
+  },
+  "@yovoice.live.created": {
+    "defaultMessage": "Created {count} segments. Click Start broadcast to begin."
+  },
+  "@yovoice.live.alreadyFinished": {
+    "defaultMessage": "This session has finished."
+  },
+  "@yovoice.live.allDone": {
+    "defaultMessage": "Broadcast complete"
+  },
+  "@yovoice.live.deleted": {
+    "defaultMessage": "Session deleted"
+  },
+  "@yovoice.live.allDeleted": {
+    "defaultMessage": "All sessions deleted"
+  },
+  "@yovoice.live.deleteFailed": {
+    "defaultMessage": "Delete failed: {reason}"
+  },
+  "@yovoice.live.connected": {
+    "defaultMessage": "Connected, starting broadcast…"
+  },
+  "@yovoice.live.disconnected": {
+    "defaultMessage": "Connection closed"
+  },
+  "@yovoice.live.connectError": {
+    "defaultMessage": "Connection error"
+  },
+  "@yovoice.live.insecure": {
+    "defaultMessage": "Microphone needs HTTPS. Open https://{host}:8443"
   }
 }

@@ -1072,3 +1072,49 @@
 /* 自定义属性注册必须写在 @layer 之外才会生效；滚动渐隐要靠它做长度插值。 */
 @property --app-fade-top { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --app-fade-bottom { syntax: "<length>"; inherits: false; initial-value: 0px; }
+
+/* ═══════════ 在线演播（Live Studio） ═══════════
+   两栏：左侧会话列表、右侧分段/编辑；底部状态栏含 ASR 进度与对齐度。 */
+@layer app {
+  .live-page { height: 100%; min-height: 0; background: var(--app-paper); color: var(--app-ink); }
+  .live-header { flex: none; padding: var(--spacing-4) var(--spacing-5); border-bottom: var(--border-width) solid var(--app-line); }
+  .live-header h2 { margin: 0; font-family: var(--app-title-font); font-size: var(--font-size-xl); font-weight: var(--font-weight-medium); }
+  .live-toolbar { flex: none; padding: var(--spacing-2) var(--spacing-5); border-bottom: var(--border-width) solid var(--app-line); }
+  .live-body { flex: 1; min-height: 0; }
+  .live-sessions { flex: none; width: calc(var(--spacing-8) * 8); max-width: 320px; padding: var(--spacing-3); overflow-y: auto; border-right: var(--border-width) solid var(--app-line); }
+  .live-empty { margin: 0; padding: var(--spacing-3); }
+  .live-session { padding: var(--spacing-1); border: var(--border-width) solid transparent; border-radius: var(--radius-element); }
+  .live-session.active { border-color: var(--app-accent); background: var(--app-surface); }
+  .live-session-link { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--spacing-1) var(--spacing-2); background: none; border: 0; border-radius: var(--radius-inner); color: inherit; font: inherit; text-align: start; cursor: pointer; }
+  .live-session-link:hover { background: var(--app-surface); }
+  .live-session-title, .live-session-meta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live-session-delete { flex: none; width: var(--spacing-6); height: var(--spacing-6); border: 0; border-radius: var(--radius-inner); background: none; color: var(--app-muted); font-size: var(--font-size-lg); line-height: 1; cursor: pointer; }
+  .live-session-delete:hover { color: var(--color-error); background: var(--color-error-muted); }
+  .live-stage { flex: 1; min-width: 0; min-height: 0; }
+  .live-segments { flex: 1; min-height: 0; overflow-y: auto; padding: var(--spacing-3) var(--spacing-5); }
+  .live-seg-row { border: var(--border-width) solid var(--app-line); border-radius: var(--radius-element); padding: var(--spacing-1) var(--spacing-2); transition: border-color var(--duration-fast) var(--ease-standard); }
+  .live-seg-row.selected { border-color: var(--app-accent); }
+  .live-seg-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--spacing-2); padding: var(--spacing-2); background: none; border: 0; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+  .seg-num { flex: none; min-width: var(--spacing-5); color: var(--app-muted); font-family: var(--app-mono); font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; }
+  .seg-speaker { flex: none; max-width: calc(var(--spacing-8) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+  .seg-tag { flex: none; padding: 0 var(--spacing-2); border-radius: var(--radius-full); background: var(--app-surface); font-size: var(--font-size-xs); }
+  .seg-tag.live { background: var(--app-accent); color: var(--app-on-film); }
+  .seg-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seg-status { flex: none; padding: 0 var(--spacing-2); border: var(--border-width) solid currentColor; border-radius: var(--radius-full); font-size: var(--font-size-xs); }
+  .seg-status.pending, .seg-status.missing { color: var(--app-muted); }
+  .seg-status.generating { color: var(--app-accent); }
+  .seg-status.generated, .seg-status.recorded { color: var(--color-text-secondary); }
+  .seg-status.error { color: var(--color-error); }
+  .live-seg-audio { flex: none; width: calc(var(--spacing-8) * 7); }
+  .live-edit { flex: none; padding: var(--spacing-3) var(--spacing-5); border-top: var(--border-width) solid var(--app-line); }
+  .live-status { flex: none; padding: var(--spacing-3) var(--spacing-5); border-top: var(--border-width) solid var(--app-line); background: var(--app-surface); }
+  .live-state { flex: none; }
+  .live-mic { color: var(--color-error); font-size: var(--font-size-xs); }
+  .live-hint { margin: 0; font-size: var(--app-small-font); }
+  .live-hint.error { color: var(--color-error); }
+  .live-asr-track { display: block; height: var(--spacing-1); min-height: 4px; border-radius: var(--radius-full); background: var(--app-line); overflow: hidden; }
+  .live-asr-fill { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); transition: width var(--duration-medium) var(--ease-standard); }
+  .live-asr-fill.error { background: var(--color-error); }
+  .live-partial { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-base); }
+  .live-alignment { font-variant-numeric: tabular-nums; }
+}

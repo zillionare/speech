@@ -3796,5 +3796,218 @@
   },
   "@yovoice.create.precision": {
     "defaultMessage": "精度"
+  },
+  "@yovoice.nav.live": {
+    "defaultMessage": "在线演播"
+  },
+  "@yovoice.live.new": {
+    "defaultMessage": "新建"
+  },
+  "@yovoice.live.newTitle": {
+    "defaultMessage": "新建演播"
+  },
+  "@yovoice.live.titleLabel": {
+    "defaultMessage": "标题（可选）"
+  },
+  "@yovoice.live.scriptLabel": {
+    "defaultMessage": "脚本"
+  },
+  "@yovoice.live.scriptPlaceholder": {
+    "defaultMessage": "每行一段，格式为「说话人：文本」，段与段之间空一行。"
+  },
+  "@yovoice.live.create": {
+    "defaultMessage": "创建"
+  },
+  "@yovoice.live.needScript": {
+    "defaultMessage": "请输入脚本后再创建。"
+  },
+  "@yovoice.live.start": {
+    "defaultMessage": "开始演播"
+  },
+  "@yovoice.live.pause": {
+    "defaultMessage": "暂停"
+  },
+  "@yovoice.live.resume": {
+    "defaultMessage": "继续"
+  },
+  "@yovoice.live.preview": {
+    "defaultMessage": "试听"
+  },
+  "@yovoice.live.previewStop": {
+    "defaultMessage": "停止试听"
+  },
+  "@yovoice.live.export": {
+    "defaultMessage": "导出合并音频"
+  },
+  "@yovoice.live.exporting": {
+    "defaultMessage": "正在合并音频…"
+  },
+  "@yovoice.live.exported": {
+    "defaultMessage": "合并音频已导出"
+  },
+  "@yovoice.live.exportFailed": {
+    "defaultMessage": "导出失败：{reason}"
+  },
+  "@yovoice.live.finishRecording": {
+    "defaultMessage": "结束录音"
+  },
+  "@yovoice.live.empty": {
+    "defaultMessage": "暂无演播会话"
+  },
+  "@yovoice.live.selectHint": {
+    "defaultMessage": "点击段落以编辑其文本。"
+  },
+  "@yovoice.live.editLabel": {
+    "defaultMessage": "段落文本"
+  },
+  "@yovoice.live.editHint": {
+    "defaultMessage": "编辑后会稍作停顿自动同步。"
+  },
+  "@yovoice.live.narrator": {
+    "defaultMessage": "旁白"
+  },
+  "@yovoice.live.segmentCount": {
+    "defaultMessage": "{count} 段"
+  },
+  "@yovoice.live.finishedMark": {
+    "defaultMessage": "已完成"
+  },
+  "@yovoice.live.segmentUpdated": {
+    "defaultMessage": "第 {n} 段已更新"
+  },
+  "@yovoice.live.segmentDone": {
+    "defaultMessage": "第 {n} 段已完成"
+  },
+  "@yovoice.live.status.pending": {
+    "defaultMessage": "待播"
+  },
+  "@yovoice.live.status.generating": {
+    "defaultMessage": "生成中"
+  },
+  "@yovoice.live.status.generated": {
+    "defaultMessage": "已生成"
+  },
+  "@yovoice.live.status.recorded": {
+    "defaultMessage": "已录制"
+  },
+  "@yovoice.live.status.missing": {
+    "defaultMessage": "未录制"
+  },
+  "@yovoice.live.status.error": {
+    "defaultMessage": "错误"
+  },
+  "@yovoice.live.source.ai": {
+    "defaultMessage": "AI"
+  },
+  "@yovoice.live.source.live": {
+    "defaultMessage": "真人"
+  },
+  "@yovoice.live.state.idle": {
+    "defaultMessage": "空闲"
+  },
+  "@yovoice.live.state.aiSpeaking": {
+    "defaultMessage": "AI 播报中"
+  },
+  "@yovoice.live.state.recording": {
+    "defaultMessage": "录音中"
+  },
+  "@yovoice.live.state.paused": {
+    "defaultMessage": "已暂停"
+  },
+  "@yovoice.live.state.finished": {
+    "defaultMessage": "已结束"
+  },
+  "@yovoice.live.state.error": {
+    "defaultMessage": "错误"
+  },
+  "@yovoice.live.micActive": {
+    "defaultMessage": "麦克风已开启"
+  },
+  "@yovoice.live.alignment": {
+    "defaultMessage": "对齐度 {percent}%"
+  },
+  "@yovoice.live.asr.preparing": {
+    "defaultMessage": "准备中…"
+  },
+  "@yovoice.live.requestMic": {
+    "defaultMessage": "正在申请麦克风权限…"
+  },
+  "@yovoice.live.micDenied": {
+    "defaultMessage": "需要麦克风权限：{reason}"
+  },
+  "@yovoice.live.micOn": {
+    "defaultMessage": "麦克风已开启，正在录音…"
+  },
+  "@yovoice.live.micError": {
+    "defaultMessage": "麦克风错误：{reason}"
+  },
+  "@yovoice.live.recordHint": {
+    "defaultMessage": "录音中。请朗读台词，系统会自动结束，或点击「结束录音」。"
+  },
+  "@yovoice.live.recordAutoDone": {
+    "defaultMessage": "录音已结束"
+  },
+  "@yovoice.live.restarting": {
+    "defaultMessage": "正在从第 {n} 段重新开始…"
+  },
+  "@yovoice.live.restarted": {
+    "defaultMessage": "已从第 {n} 段重新开始"
+  },
+  "@yovoice.live.playing": {
+    "defaultMessage": "正在播放第 {n} 段 AI 音频…"
+  },
+  "@yovoice.live.pausedHint": {
+    "defaultMessage": "已暂停，点击继续恢复播放。"
+  },
+  "@yovoice.live.previewing": {
+    "defaultMessage": "正在试听…"
+  },
+  "@yovoice.live.previewSegment": {
+    "defaultMessage": "正在试听第 {n} 段"
+  },
+  "@yovoice.live.previewStopped": {
+    "defaultMessage": "试听已停止"
+  },
+  "@yovoice.live.noPreview": {
+    "defaultMessage": "暂无可试听的段落"
+  },
+  "@yovoice.live.sessionFinished": {
+    "defaultMessage": "该会话已结束，请选择其他会话或新建。"
+  },
+  "@yovoice.live.loaded": {
+    "defaultMessage": "已载入 {count} 段。"
+  },
+  "@yovoice.live.loadFailed": {
+    "defaultMessage": "加载会话失败：{reason}"
+  },
+  "@yovoice.live.created": {
+    "defaultMessage": "已创建 {count} 段，点击「开始演播」开始。"
+  },
+  "@yovoice.live.alreadyFinished": {
+    "defaultMessage": "该会话已结束。"
+  },
+  "@yovoice.live.allDone": {
+    "defaultMessage": "演播完成"
+  },
+  "@yovoice.live.deleted": {
+    "defaultMessage": "会话已删除"
+  },
+  "@yovoice.live.allDeleted": {
+    "defaultMessage": "已删除全部会话"
+  },
+  "@yovoice.live.deleteFailed": {
+    "defaultMessage": "删除失败：{reason}"
+  },
+  "@yovoice.live.connected": {
+    "defaultMessage": "已连接，开始演播…"
+  },
+  "@yovoice.live.disconnected": {
+    "defaultMessage": "连接已断开"
+  },
+  "@yovoice.live.connectError": {
+    "defaultMessage": "连接错误"
+  },
+  "@yovoice.live.insecure": {
+    "defaultMessage": "麦克风需要 HTTPS，请打开 https://{host}:8443"
   }
 }

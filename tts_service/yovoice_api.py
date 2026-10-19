@@ -13,6 +13,9 @@ import base64
 import json
 import logging
 import threading
+import time
+import urllib.error
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
@@ -37,6 +40,10 @@ ERROR_AUDIO_DURATION = "@yovoice.error.audioDuration"
 ERROR_NAME_LENGTH = "@yovoice.error.nameLength"
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
+# yovoice 服务模型目录的缓存时长与请求超时（秒）。
+_REMOTE_MODELS_TTL = 5.0
+_REMOTE_MODELS_TIMEOUT = 3.0
 
 _duration_cache: dict[tuple[str, float], float] = {}
 
@@ -141,6 +148,9 @@ class YovoiceBackend:
         self._activity: Optional[dict[str, Any]] = None
         self._cancel = threading.Event()
         self._lock = threading.RLock()
+        # yovoice 服务里的模型目录：TTL 缓存，避免每次 state.get 都打网络。
+        self._remote_models_cache: Optional[tuple[float, list[dict[str, Any]], list[dict[str, Any]]]] = None
+        self._remote_models_lock = threading.Lock()
         self._local_api = {
             "enabled": False,
             "port": 8080,
@@ -210,6 +220,7 @@ class YovoiceBackend:
         with self._lock:
             activity = dict(self._activity) if self._activity else None
             characters = [dict(item) for item in self._characters]
+        catalog, installed = self._remote_models()
         state = bridge.build_state(
             projects=self.podcast_manager.list_projects(),
             voices=self.voices(),
@@ -218,9 +229,63 @@ class YovoiceBackend:
             activity=activity,
             runtime_backend=self._preferences.get("backend"),
             runtime_version=None,
+            models=installed,
+            runtime_path=self._models_endpoint()[0] or None,
         )
         state["characters"] = characters
         return state
+
+    def catalog(self) -> list[dict[str, Any]]:
+        """界面「模型」页展示用的完整目录（含未安装项）。"""
+        return self._remote_models()[0]
+
+    def _models_endpoint(self) -> tuple[str, str]:
+        base = getattr(self.config.model, "yovoice_base_url", "") or ""
+        token = getattr(self.config.model, "yovoice_api_token", "") or ""
+        return base.rstrip("/"), token
+
+    def _default_model(self) -> dict[str, Any]:
+        """yovoice 不可达时的兜底模型，取配置里的 model id，保证生成不被门禁卡住。"""
+        model_id = getattr(self.config.model, "yovoice_model_id", "") or "index-2.5-q8"
+        return {"id": model_id, "path": "", "managed": True}
+
+    def _fetch_remote_models(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        base, token = self._models_endpoint()
+        if not base:
+            return [], []
+        request = urllib.request.Request(f"{base}/v1/models")
+        if token:
+            request.add_header("Authorization", f"Bearer {token}")
+        try:
+            with urllib.request.urlopen(request, timeout=_REMOTE_MODELS_TIMEOUT) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            logger.warning("无法读取 yovoice 模型目录（%s），改用默认模型：%s", base, exc)
+            return [], []
+        if not isinstance(payload, dict):
+            return [], []
+        catalog = payload.get("catalog")
+        installed = payload.get("installed")
+        return (
+            catalog if isinstance(catalog, list) else [],
+            installed if isinstance(installed, list) else [],
+        )
+
+    def _remote_models(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """返回 (目录, 已安装)；带 TTL 缓存，yovoice 不可达时回退到配置的默认模型。"""
+        now = time.monotonic()
+        with self._remote_models_lock:
+            cached = self._remote_models_cache
+            if cached and now - cached[0] < _REMOTE_MODELS_TTL:
+                return list(cached[1]), list(cached[2])
+        catalog, installed = self._fetch_remote_models()
+        if not installed:
+            installed = [self._default_model()]
+        if not catalog:
+            catalog = [{**self._default_model(), "name": installed[0]["id"]}]
+        with self._remote_models_lock:
+            self._remote_models_cache = (now, catalog, installed)
+        return list(catalog), list(installed)
 
     def notify(self) -> None:
         self.hub.notify()
@@ -286,7 +351,11 @@ class YovoiceBackend:
 
     # 状态与偏好
     def _rpc_state_get(self, _data: Any) -> dict[str, Any]:
-        return {"state": self.state(), "engine": {"version": "", "minimum": ""}}
+        return {
+            "state": self.state(),
+            "catalog": self.catalog(),
+            "engine": {"version": "", "minimum": ""},
+        }
 
     def _rpc_preferences_save(self, data: Any) -> bool:
         if isinstance(data, dict):

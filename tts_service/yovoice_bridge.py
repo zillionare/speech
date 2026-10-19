@@ -317,6 +317,8 @@ def build_state(
     activity: Optional[dict[str, Any]] = None,
     runtime_backend: Optional[str] = None,
     runtime_version: Optional[str] = None,
+    models: Optional[list[dict[str, Any]]] = None,
+    runtime_path: Optional[str] = None,
 ) -> dict[str, Any]:
     voice_names = [voice["id"] for voice in voices]
     drafts: list[dict[str, Any]] = []
@@ -332,10 +334,10 @@ def build_state(
         "previews": [],
         "drafts": drafts,
         "voices": voices,
-        "models": [],
+        "models": list(models or []),
         "history": history,
         "preferences": preferences,
-        "runtimePath": None,
+        "runtimePath": runtime_path,
         "runtimeBackend": runtime_backend,
         "runtimeVersion": runtime_version,
         "activity": activity,

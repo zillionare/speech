@@ -71,7 +71,7 @@ def _voice_info(sample: VoiceSample, default_voice: str) -> VoiceInfo:
 
 def _configured_tts_provider(config) -> str:
     provider = getattr(config.model, "tts_provider", "")
-    if provider in {"local", "qwen", "minimax", "omnivoice"}:
+    if provider in {"local", "qwen", "minimax", "omnivoice", "yovoice"}:
         return provider
     return "qwen" if getattr(config.model, "use_remote_qwen", False) else "local"
 
@@ -105,6 +105,9 @@ def _resolve_engine(request_engine: str | None, config, sample_manager):
     if request_engine == "remote" and _configured_tts_provider(config) == "omnivoice":
         from .engines.omnivoice import OmniVoiceRemoteEngine
         return OmniVoiceRemoteEngine(config, sample_manager)
+    if request_engine == "remote" and _configured_tts_provider(config) == "yovoice":
+        from .engines.yovoice_remote import YovoiceRemoteEngine
+        return YovoiceRemoteEngine(config, sample_manager)
     if request_engine == "remote" and not is_remote:
         from .engines.qwen_remote import QwenRemoteEngine
         return QwenRemoteEngine(config, sample_manager)
@@ -377,7 +380,7 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["qwen_api_key"] = request.qwen_api_key
         if request.tts_provider is not None:
-            if request.tts_provider not in {"local", "qwen", "minimax", "omnivoice"}:
+            if request.tts_provider not in {"local", "qwen", "minimax", "omnivoice", "yovoice"}:
                 raise HTTPException(status_code=400, detail="Invalid TTS provider")
             overrides["model"] = overrides.get("model", {})
             overrides["model"]["tts_provider"] = request.tts_provider

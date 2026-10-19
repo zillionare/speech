@@ -11,11 +11,15 @@ ACC-003-4: failure degradation
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 import logging
 import os
 import threading
 import urllib.parse
 import urllib.request
+import uuid
+import wave
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Callable, Optional
@@ -54,6 +58,73 @@ class ASRConfig:
     qwen3_num_threads: int = 4
     qwen3_max_new_tokens: int = 512
     qwen3_hotwords: str = ""
+    remote_base_url: str = ""
+    remote_api_key: str = ""
+    remote_model: str = ""
+    remote_timeout: float = 60.0
+
+
+def _encode_wav(audio_np: np.ndarray, sample_rate: int = 16000) -> bytes:
+    """Encode a float32 [-1, 1] mono signal as a 16-bit PCM WAV blob."""
+    pcm16 = (np.clip(audio_np, -1.0, 1.0) * 32767.0).astype(np.int16)
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(pcm16.tobytes())
+    return buffer.getvalue()
+
+
+def _post_transcription(
+    audio_np: np.ndarray,
+    base_url: str,
+    api_key: str,
+    model: str,
+    language: str,
+    timeout: float,
+) -> dict:
+    """POST a WAV chunk to an OpenAI-compatible /v1/audio/transcriptions endpoint."""
+    boundary = "----SpeechStudioASR" + uuid.uuid4().hex
+    parts: list[bytes] = []
+
+    def add_field(name: str, value: str) -> None:
+        parts.append(
+            (
+                f'--{boundary}\r\n'
+                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+                f"{value}\r\n"
+            ).encode("utf-8")
+        )
+
+    add_field("model", model)
+    if language:
+        add_field("language", language)
+    add_field("response_format", "json")
+    parts.append(
+        (
+            f'--{boundary}\r\n'
+            f'Content-Disposition: form-data; name="file"; filename="chunk.wav"\r\n'
+            f"Content-Type: audio/wav\r\n\r\n"
+        ).encode("utf-8")
+    )
+    parts.append(_encode_wav(audio_np))
+    parts.append(f"\r\n--{boundary}--\r\n".encode("utf-8"))
+    body = b"".join(parts)
+
+    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/v1/audio/transcriptions",
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    text = payload.get("text") if isinstance(payload, dict) else None
+    return {"text": (text or "").strip(), "segments": []}
 
 
 @dataclass
@@ -365,6 +436,24 @@ class EmbeddedASR:
                 self._model = _fw_transcribe
             except ImportError:
                 raise RuntimeError("faster-whisper 未安装，无法使用 ASR")
+        elif backend == "openai_remote":
+            base_url = (self.cfg.remote_base_url or "").strip()
+            if not base_url:
+                raise RuntimeError("远程 ASR 需要配置 asr.remote_base_url")
+            model_name = self.cfg.remote_model or "whisper-1"
+            self._set_progress(status="loading", message=f"正在连接远程 ASR 服务 {base_url}")
+
+            def _remote_transcribe(audio_np: np.ndarray, cfg: ASRConfig) -> dict:
+                return _post_transcription(
+                    audio_np,
+                    base_url=base_url,
+                    api_key=cfg.remote_api_key,
+                    model=model_name,
+                    language=cfg.language,
+                    timeout=cfg.remote_timeout,
+                )
+
+            self._model = _remote_transcribe
         else:
             raise RuntimeError(f"未知 ASR backend: {backend}")
 

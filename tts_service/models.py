@@ -148,7 +148,7 @@ class AppConfigUpdateRequest(BaseModel):
 class TTSProviderProfileRequest(BaseModel):
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=80)
-    provider: Literal["qwen", "minimax", "local", "omnivoice"] = "qwen"
+    provider: Literal["qwen", "minimax", "local", "omnivoice", "yovoice"] = "qwen"
     api_mode: Literal["native", "openai", "local"] = "openai"
     base_url: str = ""
     api_key: Optional[str] = None

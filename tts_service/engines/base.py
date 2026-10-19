@@ -529,6 +529,9 @@ def create_engine(config, sample_manager) -> BaseEngine:
     if provider == "omnivoice":
         from .omnivoice import OmniVoiceRemoteEngine
         return OmniVoiceRemoteEngine(config, sample_manager)
+    if provider == "yovoice":
+        from .yovoice_remote import YovoiceRemoteEngine
+        return YovoiceRemoteEngine(config, sample_manager)
     if provider == "local":
         from .local_vibevoice import LocalVibeVoiceEngine
         return LocalVibeVoiceEngine(config, sample_manager)

@@ -214,5 +214,68 @@ class EmbeddedASRFailureTests(unittest.TestCase):
         self.assertFalse(asr.degraded)
 
 
+class RemoteASRBackendTests(unittest.TestCase):
+    """ACC-003-5: openai_remote backend posts WAV chunks to /v1/audio/transcriptions."""
+
+    class _Response:
+        def __init__(self, body: bytes):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return self.body
+
+    def test_load_model_requires_base_url(self):
+        asr = EmbeddedASR(ASRConfig(backend="openai_remote"))
+        asr.warmup()
+        self.assertFalse(asr.is_ready)
+        self.assertEqual(asr.progress["status"], "error")
+
+    def test_load_model_uses_configured_base_url(self):
+        asr = EmbeddedASR(ASRConfig(
+            backend="openai_remote",
+            remote_base_url="http://127.0.0.1:8000",
+            remote_model="Qwen3-ASR-0.6B-MLX-8bit",
+        ))
+        asr.warmup()
+        self.assertTrue(asr.is_ready)
+
+    def test_transcribe_posts_multipart_and_parses_text(self):
+        import numpy as np
+
+        asr = EmbeddedASR(ASRConfig(
+            backend="openai_remote",
+            remote_base_url="http://127.0.0.1:8000",
+            remote_api_key="1234",
+            remote_model="Qwen3-ASR-0.6B-MLX-8bit",
+        ))
+        captured = {}
+
+        def _fake_urlopen(request, timeout=None):
+            captured["url"] = request.full_url
+            captured["headers"] = request.headers
+            captured["body"] = request.data
+            return self._Response(b'{"text": " \\u4f60\\u597d "}')
+
+        with patch("tts_service.live.asr_engine.urllib.request.urlopen", _fake_urlopen):
+            asr.warmup()
+            pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
+            result = asyncio.run(asr.transcribe_chunk(pcm))
+
+        self.assertEqual(captured["url"], "http://127.0.0.1:8000/v1/audio/transcriptions")
+        self.assertEqual(captured["headers"]["Authorization"], "Bearer 1234")
+        self.assertIn(b'name="model"', captured["body"])
+        self.assertIn(b'Qwen3-ASR-0.6B-MLX-8bit', captured["body"])
+        self.assertIn(b'name="file"; filename="chunk.wav"', captured["body"])
+        self.assertIn(b"audio/wav", captured["body"])
+        self.assertEqual(result.text, "你好")
+        self.assertEqual(result.confidence, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()

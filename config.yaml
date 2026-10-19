@@ -55,8 +55,8 @@ live:
   max_ai_rephrases_per_segment: 2
 asr:
   enabled: true
-  backend: qwen3_asr
-  model: mlx-community/whisper-medium-mlx-4bit
+  backend: openai_remote
+  model: Qwen3-ASR-0.6B-MLX-8bit
   language: zh
   chunk_seconds: 4.0
   beam_size: 1
@@ -70,6 +70,10 @@ asr:
   qwen3_num_threads: 4
   qwen3_max_new_tokens: 512
   qwen3_hotwords: ''
+  remote_base_url: http://192.168.0.102:8000
+  remote_api_key: '1234'
+  remote_model: Qwen3-ASR-0.6B-MLX-8bit
+  remote_timeout: 60.0
 pid_file: /tmp/tts_service.pid
 tts_providers:
 - id: qwen

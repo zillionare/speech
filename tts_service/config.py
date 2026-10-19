@@ -46,6 +46,9 @@ class ModelConfig(BaseModel):
     omnivoice_base_url: str = "http://192.168.0.102:8002"
     omnivoice_model_id: str = "k2-fsa/OmniVoice"
     omnivoice_api_key: str = ""
+    yovoice_base_url: str = "http://192.168.0.102:8080"
+    yovoice_api_token: str = ""
+    yovoice_model_id: str = "index-2.5-q8"
     max_segment_chars: int = 200
     stereo: bool = True
     spatial_jitter: bool = True
@@ -130,6 +133,10 @@ class ASRConfigPydantic(BaseModel):
     qwen3_num_threads: int = 4
     qwen3_max_new_tokens: int = 512
     qwen3_hotwords: str = ""
+    remote_base_url: str = ""
+    remote_api_key: str = ""
+    remote_model: str = ""
+    remote_timeout: float = 60.0
 
 
 class ServerConfig(BaseModel):
@@ -197,6 +204,15 @@ class Config(BaseModel):
                 api_key=self.model.omnivoice_api_key,
                 model_id=self.model.omnivoice_model_id,
             ),
+            TTSProviderProfile(
+                id="yovoice",
+                name="Yovoice",
+                provider="yovoice",
+                api_mode="openai",
+                base_url=self.model.yovoice_base_url,
+                api_key=self.model.yovoice_api_token,
+                model_id=self.model.yovoice_model_id,
+            ),
         ]
         if not self.tts_providers:
             self.tts_providers = list(defaults)
@@ -249,6 +265,11 @@ class Config(BaseModel):
             self.model.omnivoice_base_url = profile.base_url
             self.model.omnivoice_api_key = profile.api_key
             self.model.omnivoice_model_id = profile.model_id
+        elif profile.provider == "yovoice":
+            self.model.use_remote_qwen = True
+            self.model.yovoice_base_url = profile.base_url
+            self.model.yovoice_api_token = profile.api_key
+            self.model.yovoice_model_id = profile.model_id
         elif profile.provider == "local":
             self.model.use_remote_qwen = False
         else:
@@ -277,6 +298,10 @@ class Config(BaseModel):
             profile.base_url = self.model.omnivoice_base_url
             profile.api_key = self.model.omnivoice_api_key
             profile.model_id = self.model.omnivoice_model_id
+        elif profile.provider == "yovoice":
+            profile.base_url = self.model.yovoice_base_url
+            profile.api_key = self.model.yovoice_api_token
+            profile.model_id = self.model.yovoice_model_id
 
     @classmethod
     def from_yaml(cls, path: str) -> "Config":
@@ -340,7 +365,12 @@ def load_config(config_path: Optional[str] = None, **overrides: Any) -> Config:
             try:
                 with open(secrets_path, "r", encoding="utf-8") as handle:
                     secrets = yaml.safe_load(handle) or {}
-                for key in ("qwen_api_key", "minimax_api_key", "omnivoice_api_key"):
+                for key in (
+                    "qwen_api_key",
+                    "minimax_api_key",
+                    "omnivoice_api_key",
+                    "yovoice_api_token",
+                ):
                     api_key = secrets.get(key)
                     if isinstance(api_key, str):
                         setattr(config.model, key, api_key)
@@ -368,6 +398,8 @@ def load_config(config_path: Optional[str] = None, **overrides: Any) -> Config:
             profile.api_key = config.model.minimax_api_key
         elif profile.provider == "omnivoice" and config.model.omnivoice_api_key:
             profile.api_key = config.model.omnivoice_api_key
+        elif profile.provider == "yovoice" and config.model.yovoice_api_token:
+            profile.api_key = config.model.yovoice_api_token
     if overrides:
         config.apply_overrides(overrides)
     config.ensure_tts_providers()
@@ -388,6 +420,7 @@ def save_config_to_yaml(config: Config, path: str) -> None:
     qwen_api_key = model_data.pop("qwen_api_key", "")
     minimax_api_key = model_data.pop("minimax_api_key", "")
     omnivoice_api_key = model_data.pop("omnivoice_api_key", "")
+    yovoice_api_token = model_data.pop("yovoice_api_token", "")
     data = {
         "model": model_data,
         "voices": config.voices.model_dump(),
@@ -417,6 +450,8 @@ def save_config_to_yaml(config: Config, path: str) -> None:
         secret_data["minimax_api_key"] = minimax_api_key.strip()
     if omnivoice_api_key.strip():
         secret_data["omnivoice_api_key"] = omnivoice_api_key.strip()
+    if yovoice_api_token.strip():
+        secret_data["yovoice_api_token"] = yovoice_api_token.strip()
     profile_secrets = {
         profile.id: profile.api_key.strip()
         for profile in config.tts_providers

@@ -1,0 +1,227 @@
+diff --git a/dist/Layer/position-legacy-layer.js b/dist/Layer/position-legacy-layer.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..aaf137fde3799de6bcc91dc0a49f3166a3bea453
+--- /dev/null
++++ b/dist/Layer/position-legacy-layer.js
+@@ -0,0 +1,60 @@
++import { autoUpdate, computePosition, flip, offset as floatingOffset, shift, size } from '@floating-ui/dom';
++// 旧 WebKit 仅补定位，菜单样式、焦点和键盘交互继续由 Astryx 管理。
++export function positionLegacyLayer(layer, trigger, { placement = 'above', alignment = 'center', offset, positioning }) {
++    if (positioning === 'custom')
++        return;
++    const originalStyle = layer.getAttribute('style');
++    const originalOpacity = layer.style.opacity;
++    const originalAnimation = layer.style.animation;
++    const selector = layer.querySelector('.astryx-selector-popup');
++    const rtl = getComputedStyle(trigger).direction === 'rtl';
++    const side = { above: 'top', below: 'bottom', start: rtl ? 'right' : 'left', end: rtl ? 'left' : 'right' }[placement];
++    const floatingPlacement = `${side}${alignment === 'center' ? '' : `-${alignment}`}`;
++    // 清除原生居中和残留锚点约束；首次定位前透明显示，既避免闪动，也允许 WebKit 把焦点移入菜单。
++    Object.assign(layer.style, {
++        position: 'fixed', inset: 'auto', top: '0px', left: '0px',
++        positionAnchor: 'auto', positionArea: 'none', positionTryFallbacks: 'none',
++        margin: typeof offset === 'number' ? `${offset}px` : offset ?? '0px',
++        width: selector ? `${trigger.getBoundingClientRect().width}px` : 'max-content',
++        opacity: '0', animation: 'none',
++    });
++    const gap = parseFloat(getComputedStyle(layer).marginTop) || 0;
++    layer.style.margin = '0';
++    let revision = 0;
++    let disposed = false;
++    const cleanup = autoUpdate(trigger, layer, () => {
++        const current = ++revision;
++        const isCurrent = () => !disposed && current === revision;
++        void computePosition(trigger, layer, {
++            strategy: 'fixed',
++            placement: floatingPlacement,
++            middleware: [
++                floatingOffset(gap), flip(), shift(),
++                size({ apply({ availableWidth, availableHeight, rects }) {
++                        if (!isCurrent())
++                            return;
++                        Object.assign(layer.style, {
++                            maxWidth: `${Math.max(0, availableWidth)}px`,
++                            maxHeight: `${Math.max(0, availableHeight)}px`,
++                        });
++                        if (selector)
++                            layer.style.width = `${Math.min(rects.reference.width, Math.max(0, availableWidth))}px`;
++                        // 超大菜单允许滚动，常规菜单保留阴影。
++                        layer.style.overflow = layer.scrollHeight > layer.clientHeight || layer.scrollWidth > layer.clientWidth ? 'auto' : 'visible';
++                    } }),
++            ],
++        }).then(({ x, y }) => {
++            // 关闭、卸载或后续更新后，旧计算结果不能再写回弹层。
++            if (isCurrent())
++                Object.assign(layer.style, { left: `${x}px`, top: `${y}px`, opacity: originalOpacity, animation: originalAnimation });
++        });
++    });
++    return () => {
++        disposed = true;
++        cleanup();
++        if (originalStyle === null)
++            layer.removeAttribute('style');
++        else
++            layer.setAttribute('style', originalStyle);
++    };
++}
+diff --git a/dist/Layer/useLayer.js b/dist/Layer/useLayer.js
+index 58fb9f5c7f19bb4a75c07f8dc7f75518a8a41fbc..80cb608f055b35f1460ffd11f83adf2def83581f 100644
+--- a/dist/Layer/useLayer.js
++++ b/dist/Layer/useLayer.js
+@@ -13,9 +13,10 @@
+  * - /packages/core/src/Layer/useLayer.test.tsx
+  * - /packages/core/src/Layer/index.ts
+  */
+-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
++import React, { useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react';
+ import * as stylex from '@stylexjs/stylex';
+ import { createPortal } from 'react-dom';
++import { positionLegacyLayer } from "./position-legacy-layer.js";
+ import { addAnchorName, removeAnchorName } from "./anchorName.js";
+ import { currentGesture, currentGestureHasClicked } from "./gestureCounter.js";
+ import { resolveLayerPortalTarget } from "./layerHost.js";
+@@ -262,12 +263,20 @@ function useLayerImplementation(options) {
+   // reference lets the ref callback recognize and reopen its replacement.
+   const openedPopoverRef = useRef(null);
+   const triggerRef = useRef(null);
++  const renderOptionsRef = useRef({});
+   // Context layers place a persistent inert marker at their real JSX position.
+   // Its parent tells us whether the final layer can stay inline or needs a
+   // corrective portal, including after the render call moves.
+   const sentinelRef = useRef(null);
+   const contextMountRef = useRef(null);
+   const [contextMount, setContextMount] = useState(null);
++
++  useLayoutEffect(() => {
++    if (mode !== 'context' || !isOpen || !popoverRef.current || !triggerRef.current) return;
++    if (CSS.supports('anchor-name', '--anchor') && CSS.supports('position-area', 'bottom')) return;
++    return positionLegacyLayer(popoverRef.current, triggerRef.current, renderOptionsRef.current);
++  }, [mode, isOpen, contextMount]);
++
+   // A show() that arrives before the final layer mounts is replayed when its
+   // popover ref attaches.
+   const pendingShowRef = useRef(false);
+@@ -521,6 +530,7 @@ function useLayerImplementation(options) {
+ 
+   // Render function for context mode
+   const renderContext = useCallback((children, props) => {
++    renderOptionsRef.current = props ?? {};
+     // Keep the marker mounted after resolving the layer. Apart from giving
+     // us the real JSX parent on first show, this lets its ref report when a
+     // persistent hook's render call moves to a different host.
+diff --git a/src/Layer/position-legacy-layer.ts b/src/Layer/position-legacy-layer.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..eb02e4573a618f00635f463b47997bed41ddd438
+--- /dev/null
++++ b/src/Layer/position-legacy-layer.ts
+@@ -0,0 +1,60 @@
++import {autoUpdate, computePosition, flip, offset as floatingOffset, shift, size, type Placement} from '@floating-ui/dom';
++import type {ContextRenderProps} from './useLayer';
++
++// 旧 WebKit 仅补定位，菜单样式、焦点和键盘交互继续由 Astryx 管理。
++export function positionLegacyLayer(
++  layer: HTMLElement,
++  trigger: HTMLElement,
++  {placement = 'above', alignment = 'center', offset, positioning}: ContextRenderProps,
++): (() => void) | undefined {
++  if (positioning === 'custom') return;
++  const originalStyle = layer.getAttribute('style');
++  const originalOpacity = layer.style.opacity;
++  const originalAnimation = layer.style.animation;
++  const selector = layer.querySelector('.astryx-selector-popup');
++  const rtl = getComputedStyle(trigger).direction === 'rtl';
++  const side = {above: 'top', below: 'bottom', start: rtl ? 'right' : 'left', end: rtl ? 'left' : 'right'}[placement];
++  const floatingPlacement = `${side}${alignment === 'center' ? '' : `-${alignment}`}` as Placement;
++  // 清除原生居中和残留锚点约束；首次定位前透明显示，既避免闪动，也允许 WebKit 把焦点移入菜单。
++  Object.assign(layer.style, {
++    position: 'fixed', inset: 'auto', top: '0px', left: '0px',
++    positionAnchor: 'auto', positionArea: 'none', positionTryFallbacks: 'none',
++    margin: typeof offset === 'number' ? `${offset}px` : offset ?? '0px',
++    width: selector ? `${trigger.getBoundingClientRect().width}px` : 'max-content',
++    opacity: '0', animation: 'none',
++  });
++  const gap = parseFloat(getComputedStyle(layer).marginTop) || 0;
++  layer.style.margin = '0';
++  let revision = 0;
++  let disposed = false;
++  const cleanup = autoUpdate(trigger, layer, () => {
++    const current = ++revision;
++    const isCurrent = () => !disposed && current === revision;
++    void computePosition(trigger, layer, {
++      strategy: 'fixed',
++      placement: floatingPlacement,
++      middleware: [
++        floatingOffset(gap), flip(), shift(),
++        size({apply({availableWidth, availableHeight, rects}) {
++          if (!isCurrent()) return;
++          Object.assign(layer.style, {
++            maxWidth: `${Math.max(0, availableWidth)}px`,
++            maxHeight: `${Math.max(0, availableHeight)}px`,
++          });
++          if (selector) layer.style.width = `${Math.min(rects.reference.width, Math.max(0, availableWidth))}px`;
++          // 超大菜单允许滚动，常规菜单保留阴影。
++          layer.style.overflow = layer.scrollHeight > layer.clientHeight || layer.scrollWidth > layer.clientWidth ? 'auto' : 'visible';
++        }}),
++      ],
++    }).then(({x, y}) => {
++      // 关闭、卸载或后续更新后，旧计算结果不能再写回弹层。
++      if (isCurrent()) Object.assign(layer.style, {left: `${x}px`, top: `${y}px`, opacity: originalOpacity, animation: originalAnimation});
++    });
++  });
++  return () => {
++    disposed = true;
++    cleanup();
++    if (originalStyle === null) layer.removeAttribute('style');
++    else layer.setAttribute('style', originalStyle);
++  };
++}
+diff --git a/src/Layer/useLayer.tsx b/src/Layer/useLayer.tsx
+index 260638742ff62230426558a32862e4036c1fa7d1..18d602c5155fef90a5aebbc98fa8d1490db0060c 100644
+--- a/src/Layer/useLayer.tsx
++++ b/src/Layer/useLayer.tsx
+@@ -17,6 +17,7 @@
+ import React, {
+   useCallback,
+   useEffect,
++  useLayoutEffect,
+   useId,
+   useMemo,
+   useRef,
+@@ -27,6 +28,7 @@ import React, {
+ import * as stylex from '@stylexjs/stylex';
+ import type {StyleXStyles} from '@stylexjs/stylex';
+ import {createPortal} from 'react-dom';
++import {positionLegacyLayer} from './position-legacy-layer';
+ import {addAnchorName, removeAnchorName} from './anchorName';
+ import {currentGesture, currentGestureHasClicked} from './gestureCounter';
+ import {resolveLayerPortalTarget} from './layerHost';
+@@ -532,6 +534,7 @@ function useLayerImplementation(
+   // reference lets the ref callback recognize and reopen its replacement.
+   const openedPopoverRef = useRef<HTMLElement | null>(null);
+   const triggerRef = useRef<HTMLElement | null>(null);
++  const renderOptionsRef = useRef<ContextRenderProps>({});
+   // Context layers place a persistent inert marker at their real JSX position.
+   // Its parent tells us whether the final layer can stay inline or needs a
+   // corrective portal, including after the render call moves.
+@@ -540,6 +543,13 @@ function useLayerImplementation(
+   const [contextMount, setContextMount] = useState<ContextLayerMount | null>(
+     null,
+   );
++
++  useLayoutEffect(() => {
++    if (mode !== 'context' || !isOpen || !popoverRef.current || !triggerRef.current) return;
++    if (CSS.supports('anchor-name', '--anchor') && CSS.supports('position-area', 'bottom')) return;
++    return positionLegacyLayer(popoverRef.current, triggerRef.current, renderOptionsRef.current);
++  }, [mode, isOpen, contextMount]);
++
+   // A show() that arrives before the final layer mounts is replayed when its
+   // popover ref attaches.
+   const pendingShowRef = useRef(false);
+@@ -858,6 +868,7 @@ function useLayerImplementation(
+   // Render function for context mode
+   const renderContext = useCallback(
+     (children: ReactNode, props?: ContextRenderProps) => {
++      renderOptionsRef.current = props ?? {};
+       // Keep the marker mounted after resolving the layer. Apart from giving
+       // us the real JSX parent on first show, this lets its ref report when a
+       // persistent hook's render call moves to a different host.

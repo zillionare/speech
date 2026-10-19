@@ -1,0 +1,128 @@
+import { test, expect, type Page } from '@playwright/test';
+import { seedState } from './seed';
+import { emptyState, type AudioTimeline, type Draft, type Generation } from '../src/shared/workbench';
+import { Timeline } from '../src/features/media/timeline';
+import { captionsToSrt, captionsToVtt, srtTime, timelineCaptions, vttTime } from '../src/features/media/caption-export';
+import { lrcTime, lyricTimeline, lyricsToLrc } from '../src/features/music/lyric-timing';
+import { createMusicDraft } from '../src/features/music/music-draft';
+
+// 故事配音导出 SRT/VTT 字幕、音乐播放页导出 LRC 歌词：时间格式、裁剪后的实际区间与说话人过滤。
+
+const speakers = [{ id: 'a', sourceName: '旁白' }, { id: 'b', sourceName: '小明' }];
+function segment(id: string, text: string, speakerId: string, draft: Draft): Generation {
+  return { id, title: text, fileName: 'segments.wav', createdAt: '2026-10-18T10:00:00Z', duration: 3, settings: { ...draft, subtitles: undefined, text }, segment: { batchId: 'batch', index: 0, cueId: `cue-${id}`, speakerId, speakerName: speakerId === 'a' ? '旁白' : '小明' } };
+}
+
+test('字幕与歌词时间格式：毫秒和百分之一秒取整进位', () => {
+  expect(srtTime(0)).toBe('00:00:00,000');
+  expect(srtTime(3661.2345)).toBe('01:01:01,235');
+  expect(srtTime(59.9996)).toBe('00:01:00,000');
+  expect(vttTime(1.5)).toBe('00:00:01.500');
+  expect(srtTime(-1)).toBe('00:00:00,000');
+  expect(lrcTime(0)).toBe('[00:00.00]');
+  expect(lrcTime(65.437)).toBe('[01:05.44]');
+  expect(lrcTime(59.996)).toBe('[01:00.00]');
+  expect(lrcTime(6000)).toBe('[100:00.00]');
+});
+
+test('字幕按片段实际播放区间计时：裁剪、所选范围、静音音轨与说话人过滤', () => {
+  const draft = emptyState().drafts[0];
+  const history = [segment('g1', '第一句', 'a', draft), segment('g2', '第二句\n\n换行', 'b', draft), segment('g3', '<静音>', 'a', draft)];
+  const value: AudioTimeline = { tracks: [
+    { id: 't1', name: '对白', muted: false, clips: [{ id: 'c1', generationId: 'g1', start: 0, offset: 0, duration: 3 }, { id: 'c2', generationId: 'g2', start: 4, offset: 0, duration: 3 }] },
+    { id: 't2', name: '静音', muted: true, clips: [{ id: 'c3', generationId: 'g3', start: 1, offset: 0, duration: 3 }] },
+    { id: 't3', name: '素材', muted: false, clips: [{ id: 'c4', assetId: 'bgm', start: 0, offset: 0, duration: 10 }] },
+  ] };
+  // 裁掉第一句开头 0.5 秒：片段起点后移，字幕跟随实际位置而不是原字幕时间。
+  const trimmed = Timeline.trimEdge(value, 'c1', 'start', 0.5, 3);
+  const all = timelineCaptions(trimmed, history, speakers);
+  expect(all).toEqual([{ start: 0.5, end: 3, text: '第一句', speaker: '旁白' }, { start: 4, end: 7, text: '第二句\n\n换行', speaker: '小明' }]);
+  expect(captionsToSrt(all)).toBe('1\n00:00:00,500 --> 00:00:03,000\n第一句\n\n2\n00:00:04,000 --> 00:00:07,000\n第二句\n换行\n');
+  expect(captionsToSrt(all, true)).toContain('\n旁白: 第一句\n');
+  expect(captionsToVtt(all, true)).toBe('WEBVTT\n\n00:00:00.500 --> 00:00:03.000\n<v 旁白>第一句\n\n00:00:04.000 --> 00:00:07.000\n<v 小明>第二句\n换行\n');
+  // 所选范围与 WAV 一致：截到范围内，时间从范围起点算。
+  expect(timelineCaptions(trimmed, history, speakers, { start: 2, end: 5 }).map(c => [c.start, c.end, c.text])).toEqual([[0, 1, '第一句'], [2, 3, '第二句\n\n换行']]);
+  // 某位说话人只留他的片段；单条音轨导出时忽略静音，并转义 VTT 标记字符。
+  expect(timelineCaptions(Timeline.scoped(trimmed, 'role:b', history), history, speakers).map(c => c.text)).toEqual(['第二句\n\n换行']);
+  const muted = timelineCaptions(Timeline.scoped(trimmed, 'track:t2', history), history, speakers);
+  expect(captionsToVtt(muted)).toBe('WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n&lt;静音&gt;\n');
+  expect(timelineCaptions(Timeline.scoped(trimmed, 'track:t3', history), history, speakers)).toEqual([]);
+});
+
+test('LRC 跳过段落标记，器乐间隔清屏，校准时间优先', () => {
+  const lyrics = '[intro]\n\n[verse]\n第一句\n第二句\n\n[bridge]\n\n[chorus]\n第三句';
+  const lines = lyricTimeline(lyrics, 60, [0, 10.5, 20, 30, 45]);
+  expect(lyricsToLrc(lines, '我的歌')).toBe('[ti:我的歌]\n[00:10.50]第一句\n[00:20.00]第二句\n[00:30.00]\n[00:45.00]第三句\n');
+  // 没有校准时按估算时间导出，第一行之前不写空行。
+  const estimated = lyricsToLrc(lyricTimeline('[verse]\n第一句\n第二句', 30));
+  expect(estimated.split('\n').filter(Boolean)).toHaveLength(2);
+  expect(estimated).toMatch(/^\[\d{2}:\d{2}\.\d{2}\]第一句\n\[\d{2}:\d{2}\.\d{2}\]第二句\n$/);
+});
+
+async function storeAudio(page: Page, name: string, seconds: number) {
+  await page.evaluate(async ({ name, seconds }) => {
+    const modulePath = '/src/shared/lib/sound.ts'; const { encodeWav } = await import(/* @vite-ignore */ modulePath);
+    const audio = new AudioBuffer({ length: 24000 * seconds, sampleRate: 24000, numberOfChannels: 1 }); audio.getChannelData(0).fill(0.25);
+    const blob = encodeWav(audio);
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open('voice-workbench-audio', 1); req.onupgradeneeded = () => req.result.createObjectStore('audio'); req.onerror = () => reject(req.error);
+      req.onsuccess = () => { const db = req.result; const tx = db.transaction('audio', 'readwrite'); tx.objectStore('audio').put(blob, name); tx.oncomplete = () => { db.close(); resolve(); }; };
+    });
+  }, { name, seconds });
+}
+
+test('时间轴导出对话框按说话人导出 SRT 与带说话人的 VTT', async ({ page }, testInfo) => {
+  const state = emptyState(); const draft = state.drafts[0];
+  draft.kind = 'story'; draft.text = '第一句\n第二句';
+  draft.subtitles = { speakers, cues: [{ id: 'cue-g1', speakerId: 'a', start: 0, end: 3000, text: '第一句' }, { id: 'cue-g2', speakerId: 'b', start: 3000, end: 6000, text: '第二句' }] };
+  state.history = [segment('1'.repeat(32), '第一句', 'a', draft), segment('2'.repeat(32), '第二句', 'b', draft)];
+  draft.timeline = { acceptedGenerations: state.history.map(g => g.id), tracks: [{ id: 'track', name: '对白', muted: false, clips: [
+    { id: 'c1', generationId: '1'.repeat(32), start: 0, offset: 0, duration: 3 },
+    { id: 'c2', generationId: '2'.repeat(32), start: 5, offset: 1, duration: 1.5 },
+  ] }] };
+  await page.goto('/');
+  await storeAudio(page, 'segments.wav', 3);
+  await seedState(page, state); await page.reload();
+  await expect(page.locator('.multitrack-clip')).toHaveCount(2);
+  const { readFile } = await import('node:fs/promises');
+  async function exportCaptions(format: string, scope: string | null, speaker: boolean, file: string) {
+    await page.getByRole('button', { name: '导出音轨', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('combobox', { name: '格式', exact: true }).click();
+    await page.getByRole('option', { name: format, exact: true }).click();
+    if (scope) {
+      await dialog.getByRole('combobox', { name: '导出范围', exact: true }).click();
+      await page.getByRole('option', { name: scope, exact: true }).click();
+    }
+    if (speaker) await dialog.getByLabel('字幕包含说话人').check();
+    await page.screenshot({ path: testInfo.outputPath(`${file}-dialog.png`) });
+    const download = page.waitForEvent('download');
+    await dialog.getByRole('button', { name: '导出字幕', exact: true }).click();
+    const saved = await download; expect(saved.suggestedFilename()).toBe(file);
+    await saved.saveAs(testInfo.outputPath(file));
+    await expect(dialog).toHaveCount(0);
+    return readFile(testInfo.outputPath(file), 'utf8');
+  }
+  expect(await exportCaptions('SRT 字幕', '小明', false, `${draft.title}.srt`)).toBe('1\n00:00:05,000 --> 00:00:06,500\n第二句\n');
+  expect(await exportCaptions('WebVTT 字幕', '全部音轨', true, `${draft.title}.vtt`)).toBe('WEBVTT\n\n00:00:00.000 --> 00:00:03.000\n<v 旁白>第一句\n\n00:00:05.000 --> 00:00:06.500\n<v 小明>第二句\n');
+});
+
+test('播放页导出 LRC 歌词使用校准时间', async ({ page }, testInfo) => {
+  const draft = { ...createMusicDraft('zh-CN'), id: 'f'.repeat(32) };
+  const state = emptyState();
+  state.drafts = [draft];
+  state.history = [{ id: 'song', title: draft.title, fileName: 'song.wav', createdAt: '2026-10-18T12:00:00Z', duration: 6, lyricTimes: [0, 1.25, 2.5, 4], settings: { ...draft, lyrics: '[intro]\n\n[verse]\n第一句\n第二句\n\n[chorus]\n第三句' } }];
+  await page.goto('/');
+  await storeAudio(page, 'song.wav', 6);
+  await seedState(page, state); await page.reload();
+  await page.locator('.player .transport').getByRole('button', { name: '播放页', exact: true }).click();
+  const playing = page.getByRole('dialog', { name: `${draft.title} · 播放页` });
+  await expect(playing.getByText('歌词时间已校准')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('now-playing.png') });
+  const download = page.waitForEvent('download');
+  await playing.getByRole('button', { name: '导出歌词（LRC）', exact: true }).click();
+  const saved = await download; expect(saved.suggestedFilename()).toBe(`${draft.title}.lrc`);
+  await saved.saveAs(testInfo.outputPath('song.lrc'));
+  const { readFile } = await import('node:fs/promises');
+  expect(await readFile(testInfo.outputPath('song.lrc'), 'utf8')).toBe(`[ti:${draft.title}]\n[00:01.25]第一句\n[00:02.50]第二句\n[00:04.00]第三句\n`);
+});

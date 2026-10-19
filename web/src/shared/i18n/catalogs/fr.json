@@ -1,0 +1,3800 @@
+{
+  "@yovoice.settings.proxy": {
+    "defaultMessage": "Proxy réseau"
+  },
+  "@yovoice.settings.proxyEnabled": {
+    "defaultMessage": "Activer le proxy"
+  },
+  "@yovoice.settings.proxyAddress": {
+    "defaultMessage": "Adresse du proxy"
+  },
+  "@yovoice.error.proxyURL": {
+    "defaultMessage": "Saisissez une URL de proxy HTTP, HTTPS ou SOCKS5 avec un port valide, sans chemin ni identifiants."
+  },
+  "@yovoice.action.cancel": {
+    "defaultMessage": "Annuler"
+  },
+  "@yovoice.action.close": {
+    "defaultMessage": "Fermer"
+  },
+  "@yovoice.action.closeNotice": {
+    "defaultMessage": "Ignorer"
+  },
+  "@yovoice.action.delete": {
+    "defaultMessage": "Supprimer"
+  },
+  "@yovoice.action.pause": {
+    "defaultMessage": "Pause"
+  },
+  "@yovoice.action.reset": {
+    "defaultMessage": "Réinitialiser"
+  },
+  "@yovoice.action.save": {
+    "defaultMessage": "Enregistrer"
+  },
+  "@yovoice.activity.cancelled": {
+    "defaultMessage": "Annulé. Vous pouvez recommencer."
+  },
+  "@yovoice.activity.completed": {
+    "defaultMessage": "Terminé"
+  },
+  "@yovoice.activity.download": {
+    "defaultMessage": "Télécharger {name}"
+  },
+  "@yovoice.activity.downloading": {
+    "defaultMessage": "Téléchargement de {name}"
+  },
+  "@yovoice.activity.engineStart": {
+    "defaultMessage": "Démarrage d’audio.cpp"
+  },
+  "@yovoice.activity.failed": {
+    "defaultMessage": "L’opération n’a pas abouti"
+  },
+  "@yovoice.activity.generate": {
+    "defaultMessage": "Préparation de la génération"
+  },
+  "@yovoice.activity.interrupted": {
+    "defaultMessage": "L’opération précédente a été interrompue. Vous pouvez recommencer."
+  },
+  "@yovoice.activity.paused": {
+    "defaultMessage": "En pause"
+  },
+  "@yovoice.activity.runtimeDownload": {
+    "defaultMessage": "Téléchargement du moteur d’inférence"
+  },
+  "@yovoice.activity.runtimeExtract": {
+    "defaultMessage": "Extraction du moteur"
+  },
+  "@yovoice.activity.savingAudio": {
+    "defaultMessage": "Enregistrement de l’audio"
+  },
+  "@yovoice.activity.synthesizing": {
+    "defaultMessage": "Chargement du modèle ou synthèse vocale"
+  },
+  "@yovoice.activity.verifying": {
+    "defaultMessage": "Vérification du modèle"
+  },
+  "@yovoice.app.audition": {
+    "defaultMessage": "Écouter {name}"
+  },
+  "@yovoice.app.browserPreview": {
+    "defaultMessage": "Aperçu de l’interface bureau"
+  },
+  "@yovoice.app.charCount": {
+    "defaultMessage": "{count} caractères"
+  },
+  "@yovoice.app.collapseSidebar": {
+    "defaultMessage": "Réduire la barre latérale"
+  },
+  "@yovoice.app.deleteProjectBody": {
+    "defaultMessage": "Supprimer « {title} » ?"
+  },
+  "@yovoice.app.deleteProjectConfirm": {
+    "defaultMessage": "Supprimer le projet"
+  },
+  "@yovoice.app.deleteProjectTitle": {
+    "defaultMessage": "Supprimer le projet ?"
+  },
+  "@yovoice.app.expandSidebar": {
+    "defaultMessage": "Développer la barre latérale"
+  },
+  "@yovoice.app.historyVersion": {
+    "defaultMessage": "Version {n}"
+  },
+  "@yovoice.app.loading": {
+    "defaultMessage": "Ouverture de l’atelier…"
+  },
+  "@yovoice.app.loadingSettings": {
+    "defaultMessage": "Chargement des paramètres…"
+  },
+  "@yovoice.app.loadingVoicePicker": {
+    "defaultMessage": "Chargement du sélecteur de voix…"
+  },
+  "@yovoice.app.pronunciationApply": {
+    "defaultMessage": "Appliquer la prononciation"
+  },
+  "@yovoice.app.pronunciationBody": {
+    "defaultMessage": "Définissez comment lire « {word} »."
+  },
+  "@yovoice.app.pronunciationLabel": {
+    "defaultMessage": "Pinyin"
+  },
+  "@yovoice.app.pronunciationLabel25": {
+    "defaultMessage": "Pinyin / phonèmes anglais / kana japonais"
+  },
+  "@yovoice.app.pronunciationPlaceholder": {
+    "defaultMessage": "p. ex. HANG2"
+  },
+  "@yovoice.app.pronunciationTitle": {
+    "defaultMessage": "Ajuster la prononciation"
+  },
+  "@yovoice.app.reuseSettings": {
+    "defaultMessage": "Nouveau projet à partir de cette version"
+  },
+  "@yovoice.app.saved": {
+    "defaultMessage": "Enregistré"
+  },
+  "@yovoice.app.saving": {
+    "defaultMessage": "Enregistrement…"
+  },
+  "@yovoice.app.scriptLabel": {
+    "defaultMessage": "Texte"
+  },
+  "@yovoice.app.scriptPlaceholder": {
+    "defaultMessage": "Commencez par la première phrase…"
+  },
+  "@yovoice.app.subtitleOutput": {
+    "defaultMessage": "Audio généré"
+  },
+  "@yovoice.app.subtitleReference": {
+    "defaultMessage": "Audio de référence"
+  },
+  "@yovoice.app.titleLabel": {
+    "defaultMessage": "Titre du projet"
+  },
+  "@yovoice.app.voiceSettings": {
+    "defaultMessage": "Réglages de la voix"
+  },
+  "@yovoice.create.addEmotionReference": {
+    "defaultMessage": "Ajouter une référence d’interprétation"
+  },
+  "@yovoice.create.addReference": {
+    "defaultMessage": "Ajouter un audio de référence"
+  },
+  "@yovoice.create.advanced": {
+    "defaultMessage": "Paramètres avancés"
+  },
+  "@yovoice.create.cancelGenerate": {
+    "defaultMessage": "Annuler la génération"
+  },
+  "@yovoice.create.collapseEmotions": {
+    "defaultMessage": "Réduire les émotions"
+  },
+  "@yovoice.create.doSample": {
+    "defaultMessage": "Échantillonnage aléatoire"
+  },
+  "@yovoice.create.elapsed": {
+    "defaultMessage": "Temps écoulé"
+  },
+  "@yovoice.create.emotionDescription": {
+    "defaultMessage": "Description de l’émotion"
+  },
+  "@yovoice.create.emotionPlaceholder": {
+    "defaultMessage": "Décrivez l’émotion que vous souhaitez entendre…"
+  },
+  "@yovoice.create.emotionPresets": {
+    "defaultMessage": "Préréglages d’émotion"
+  },
+  "@yovoice.create.emotionStrength": {
+    "defaultMessage": "Intensité de l’émotion"
+  },
+  "@yovoice.create.expression": {
+    "defaultMessage": "Expression"
+  },
+  "@yovoice.create.generate": {
+    "defaultMessage": "Générer la voix"
+  },
+  "@yovoice.create.inferEmotion": {
+    "defaultMessage": "Déduire l’émotion du texte"
+  },
+  "@yovoice.create.intervalSilence": {
+    "defaultMessage": "Pause entre les segments (ms)"
+  },
+  "@yovoice.create.language": {
+    "defaultMessage": "Langue"
+  },
+  "@yovoice.create.lengthPenalty": {
+    "defaultMessage": "Pénalité de longueur"
+  },
+  "@yovoice.create.manageModels": {
+    "defaultMessage": "Gérer les modèles…"
+  },
+  "@yovoice.create.maxTokens": {
+    "defaultMessage": "Longueur maximale de génération"
+  },
+  "@yovoice.create.mode.reference": {
+    "defaultMessage": "Interprétation de référence"
+  },
+  "@yovoice.create.mode.speaker": {
+    "defaultMessage": "Suivre la voix"
+  },
+  "@yovoice.create.mode.text": {
+    "defaultMessage": "Guidage par texte"
+  },
+  "@yovoice.create.mode.vector": {
+    "defaultMessage": "Mélange d’émotions"
+  },
+  "@yovoice.create.model": {
+    "defaultMessage": "Modèle"
+  },
+  "@yovoice.create.modelInstalled": {
+    "defaultMessage": "Installé"
+  },
+  "@yovoice.create.moreEmotionPresets": {
+    "defaultMessage": "Plus de préréglages d’émotion"
+  },
+  "@yovoice.create.moreEmotions": {
+    "defaultMessage": "Plus d’émotions"
+  },
+  "@yovoice.create.numBeams": {
+    "defaultMessage": "Nombre de faisceaux (beam search)"
+  },
+  "@yovoice.create.previewVoice": {
+    "defaultMessage": "Écouter la voix actuelle"
+  },
+  "@yovoice.create.randomEmotion": {
+    "defaultMessage": "Émotion aléatoire"
+  },
+  "@yovoice.create.referenceVoice": {
+    "defaultMessage": "Voix de référence"
+  },
+  "@yovoice.create.repetitionPenalty": {
+    "defaultMessage": "Pénalité de répétition"
+  },
+  "@yovoice.create.seed": {
+    "defaultMessage": "Graine aléatoire"
+  },
+  "@yovoice.create.seedAuto": {
+    "defaultMessage": "Auto"
+  },
+  "@yovoice.create.speed": {
+    "defaultMessage": "Débit de parole"
+  },
+  "@yovoice.create.temperature": {
+    "defaultMessage": "Température"
+  },
+  "@yovoice.create.tuneEmotions": {
+    "defaultMessage": "Affiner les émotions"
+  },
+  "@yovoice.create.voiceSettings": {
+    "defaultMessage": "Réglages de la voix"
+  },
+  "@yovoice.draft.copySuffix": {
+    "defaultMessage": " · Copie"
+  },
+  "@yovoice.draft.defaultEmotionText": {
+    "defaultMessage": "Douce et posée, comme si l’on parlait à un proche."
+  },
+  "@yovoice.draft.exampleText": {
+    "defaultMessage": "La lumière du matin glisse entre les rideaux,\net la pièce s’éclaire doucement.\n\nServez-vous une tasse de thé bien chaud,\net laissez vos pensées ralentir un instant.\n\nAujourd’hui, commençons par une belle voix."
+  },
+  "@yovoice.draft.exampleTitle": {
+    "defaultMessage": "Narration du matin"
+  },
+  "@yovoice.draft.untitled": {
+    "defaultMessage": "Sans titre"
+  },
+  "@yovoice.emotion.afraid": {
+    "defaultMessage": "Effrayé"
+  },
+  "@yovoice.emotion.angry": {
+    "defaultMessage": "En colère"
+  },
+  "@yovoice.emotion.calm": {
+    "defaultMessage": "Calme"
+  },
+  "@yovoice.emotion.disgusted": {
+    "defaultMessage": "Dégoûté"
+  },
+  "@yovoice.emotion.happy": {
+    "defaultMessage": "Joyeux"
+  },
+  "@yovoice.emotion.melancholy": {
+    "defaultMessage": "Abattu"
+  },
+  "@yovoice.emotion.preset.afraid": {
+    "defaultMessage": "Effrayé"
+  },
+  "@yovoice.emotion.preset.afraid.desc": {
+    "defaultMessage": "Accentue la peur face au danger"
+  },
+  "@yovoice.emotion.preset.angry": {
+    "defaultMessage": "En colère"
+  },
+  "@yovoice.emotion.preset.angry.desc": {
+    "defaultMessage": "Accentue la colère pour les dialogues conflictuels"
+  },
+  "@yovoice.emotion.preset.calm": {
+    "defaultMessage": "Calme"
+  },
+  "@yovoice.emotion.preset.calm.desc": {
+    "defaultMessage": "Narration posée pour les explications et la voix off"
+  },
+  "@yovoice.emotion.preset.cheerful": {
+    "defaultMessage": "Enjoué"
+  },
+  "@yovoice.emotion.preset.cheerful.desc": {
+    "defaultMessage": "Ton léger pour les salutations et le partage"
+  },
+  "@yovoice.emotion.preset.delight": {
+    "defaultMessage": "Ravi"
+  },
+  "@yovoice.emotion.preset.delight.desc": {
+    "defaultMessage": "Joie mêlée de surprise, pour les bonnes nouvelles"
+  },
+  "@yovoice.emotion.preset.disgusted": {
+    "defaultMessage": "Dégoûté"
+  },
+  "@yovoice.emotion.preset.disgusted.desc": {
+    "defaultMessage": "Accentue le rejet et l’aversion"
+  },
+  "@yovoice.emotion.preset.gentle": {
+    "defaultMessage": "Doux"
+  },
+  "@yovoice.emotion.preset.gentle.desc": {
+    "defaultMessage": "Calme avec une touche de chaleur, pour les répliques attentionnées"
+  },
+  "@yovoice.emotion.preset.melancholy": {
+    "defaultMessage": "Abattu"
+  },
+  "@yovoice.emotion.preset.melancholy.desc": {
+    "defaultMessage": "Accentue la morosité pour la déception et le monologue"
+  },
+  "@yovoice.emotion.preset.sad": {
+    "defaultMessage": "Triste"
+  },
+  "@yovoice.emotion.preset.sad.desc": {
+    "defaultMessage": "Accentue la tristesse pour la perte et les adieux"
+  },
+  "@yovoice.emotion.preset.surprised": {
+    "defaultMessage": "Surpris"
+  },
+  "@yovoice.emotion.preset.surprised.desc": {
+    "defaultMessage": "Accentue la surprise pour les questions et les découvertes"
+  },
+  "@yovoice.emotion.preset.tense": {
+    "defaultMessage": "Tendu"
+  },
+  "@yovoice.emotion.preset.tense.desc": {
+    "defaultMessage": "Peur mêlée de surprise, pour les dialogues à suspense"
+  },
+  "@yovoice.emotion.preset.wistful": {
+    "defaultMessage": "Nostalgique"
+  },
+  "@yovoice.emotion.preset.wistful.desc": {
+    "defaultMessage": "Tristesse mêlée de mélancolie, pour les souvenirs et les adieux"
+  },
+  "@yovoice.emotion.sad": {
+    "defaultMessage": "Triste"
+  },
+  "@yovoice.emotion.surprised": {
+    "defaultMessage": "Surpris"
+  },
+  "@yovoice.error.audioBlobMissing": {
+    "defaultMessage": "Le fichier audio est introuvable. Importez-le à nouveau."
+  },
+  "@yovoice.error.audioConverterMissing": {
+    "defaultMessage": "Le convertisseur audio est absent de l’installation. Réinstallez le paquet complet de yovoice."
+  },
+  "@yovoice.error.audioDecode": {
+    "defaultMessage": "Impossible de décoder l’audio. Vérifiez que le fichier n’est pas endommagé, chiffré ou dépourvu de piste."
+  },
+  "@yovoice.error.audioDuration": {
+    "defaultMessage": "Choisissez un audio de référence de 1 à 60 secondes."
+  },
+  "@yovoice.error.audioFormat": {
+    "defaultMessage": "Choisissez un fichier WAV PCM / Float mono ou stéréo valide."
+  },
+  "@yovoice.error.audioIDInvalid": {
+    "defaultMessage": "Identifiant audio non valide."
+  },
+  "@yovoice.error.audioKindInvalid": {
+    "defaultMessage": "Type audio non valide."
+  },
+  "@yovoice.error.audioMissing": {
+    "defaultMessage": "Audio introuvable."
+  },
+  "@yovoice.error.audioPathInvalid": {
+    "defaultMessage": "Chemin audio non valide."
+  },
+  "@yovoice.error.audioPathSymlink": {
+    "defaultMessage": "Le chemin audio ne doit pas être un lien symbolique."
+  },
+  "@yovoice.error.audioPlayClick": {
+    "defaultMessage": "Cliquez sur Lecture pour lancer l’écoute."
+  },
+  "@yovoice.error.audioPlayFailed": {
+    "defaultMessage": "Impossible de lire l’audio. Vérifiez le fichier."
+  },
+  "@yovoice.error.audioReadFailed": {
+    "defaultMessage": "Impossible de lire l’audio."
+  },
+  "@yovoice.error.audioTooLarge": {
+    "defaultMessage": "L’audio de référence doit faire moins de 20 Mo."
+  },
+  "@yovoice.error.backendUnsupported": {
+    "defaultMessage": "Appareil de calcul ou plateforme non pris en charge."
+  },
+  "@yovoice.error.browserDecode": {
+    "defaultMessage": "Impossible de décoder cet audio. Choisissez un fichier AAC, M4A, MP3 ou WAV non chiffré et intact."
+  },
+  "@yovoice.error.busy": {
+    "defaultMessage": "Attendez la fin de l’opération en cours ou annulez-la d’abord."
+  },
+  "@yovoice.error.cpuBundleInvalid": {
+    "defaultMessage": "Le moteur intégré n’est pas un fichier valide."
+  },
+  "@yovoice.error.cropRangeInvalid": {
+    "defaultMessage": "La fin du recadrage doit être postérieure au début."
+  },
+  "@yovoice.error.downloadChecksum": {
+    "defaultMessage": "Échec de la vérification de la somme de contrôle. Changez de source de téléchargement et réessayez."
+  },
+  "@yovoice.error.downloadHTTP": {
+    "defaultMessage": "Échec du téléchargement (HTTP {status}). Vérifiez le réseau ou changez de source."
+  },
+  "@yovoice.error.downloadIncomplete": {
+    "defaultMessage": "Téléchargement incomplet. Vous pouvez le reprendre."
+  },
+  "@yovoice.error.downloadOversized": {
+    "defaultMessage": "Le fichier téléchargé dépasse la taille annoncée."
+  },
+  "@yovoice.error.downloadRange": {
+    "defaultMessage": "La source de téléchargement a renvoyé une plage de reprise non valide."
+  },
+  "@yovoice.error.downloadSize": {
+    "defaultMessage": "La taille du fichier à la source ne correspond pas."
+  },
+  "@yovoice.error.downloadSource": {
+    "defaultMessage": "Choisissez une source de téléchargement valide."
+  },
+  "@yovoice.error.downloadStale": {
+    "defaultMessage": "Les données de reprise sont obsolètes. Relancez le téléchargement."
+  },
+  "@yovoice.error.draftIDInvalid": {
+    "defaultMessage": "Identifiant de brouillon non valide."
+  },
+  "@yovoice.error.draftLimits": {
+    "defaultMessage": "Le contenu du brouillon dépasse la limite."
+  },
+  "@yovoice.error.emotionInvalid": {
+    "defaultMessage": "Paramètres d’émotion non valides."
+  },
+  "@yovoice.error.emotionStrength": {
+    "defaultMessage": "L’intensité de l’émotion doit être comprise entre 0 et 1."
+  },
+  "@yovoice.error.emotionTextRequired": {
+    "defaultMessage": "Saisissez une description de l’émotion ou choisissez de la déduire du texte."
+  },
+  "@yovoice.error.emotionVoiceRequired": {
+    "defaultMessage": "Ajoutez un audio de référence pour l’émotion."
+  },
+  "@yovoice.error.engineNoAudio": {
+    "defaultMessage": "Le moteur n’a renvoyé aucun audio."
+  },
+  "@yovoice.error.engineStartFailed": {
+    "defaultMessage": "Le moteur n’a pas pu démarrer. Vérifiez le moteur d’inférence ou changez d’appareil de calcul."
+  },
+  "@yovoice.error.engineStartTimeout": {
+    "defaultMessage": "Le démarrage du moteur a expiré. Ouvrez les journaux pour plus de détails."
+  },
+  "@yovoice.error.generateFailed": {
+    "defaultMessage": "Échec de la génération. Vérifiez le modèle, la VRAM et l’audio de référence. Ouvrez les journaux dans les Paramètres."
+  },
+  "@yovoice.error.languageUnsupported": {
+    "defaultMessage": "Ce modèle ne prend pas en charge cette langue."
+  },
+  "@yovoice.error.legacyRestore": {
+    "defaultMessage": "Impossible de lire les anciennes données."
+  },
+  "@yovoice.error.licenseReadFailed": {
+    "defaultMessage": "Impossible de lire la licence."
+  },
+  "@yovoice.error.macAppleSilicon": {
+    "defaultMessage": "Seuls les Mac Apple Silicon (arm64) sont pris en charge."
+  },
+  "@yovoice.error.macBackend": {
+    "defaultMessage": "macOS prend en charge le CPU ou Metal."
+  },
+  "@yovoice.error.methodUnsupported": {
+    "defaultMessage": "Opération non prise en charge."
+  },
+  "@yovoice.error.micDeniedBrowser": {
+    "defaultMessage": "Accès au micro refusé. Autorisez le micro dans les autorisations du site et les réglages système, puis réessayez."
+  },
+  "@yovoice.error.micDeniedMac": {
+    "defaultMessage": "Accès au micro refusé. Quittez et rouvrez yovoice ; si le problème persiste, autorisez yovoice dans Réglages Système → Confidentialité et sécurité → Microphone."
+  },
+  "@yovoice.error.micFailed": {
+    "defaultMessage": "Impossible d’enregistrer : {detail}"
+  },
+  "@yovoice.error.micNotFound": {
+    "defaultMessage": "Aucun micro détecté. Branchez un périphérique d’entrée et réessayez."
+  },
+  "@yovoice.error.modeInvalid": {
+    "defaultMessage": "Mode d’expression non valide."
+  },
+  "@yovoice.error.modelDirAbsolute": {
+    "defaultMessage": "Le dossier des modèles doit être un chemin absolu."
+  },
+  "@yovoice.error.modelDirSpace": {
+    "defaultMessage": "Espace disque insuffisant dans le dossier des modèles."
+  },
+  "@yovoice.error.modelForgetBlocked": {
+    "defaultMessage": "Ce modèle ne peut pas encore être retiré. Terminez d’abord les opérations associées."
+  },
+  "@yovoice.error.modelMoved": {
+    "defaultMessage": "Le fichier du modèle a été déplacé. Importez-le à nouveau."
+  },
+  "@yovoice.error.modelRequired": {
+    "defaultMessage": "Téléchargez ou importez d’abord un modèle dans les Paramètres."
+  },
+  "@yovoice.error.modelUnsupported": {
+    "defaultMessage": "Modèle non pris en charge."
+  },
+  "@yovoice.error.nameLength": {
+    "defaultMessage": "Le nom doit comporter de 1 à 120 caractères."
+  },
+  "@yovoice.error.paramsOutOfRange": {
+    "defaultMessage": "Paramètres de génération hors limites."
+  },
+  "@yovoice.error.platformArch": {
+    "defaultMessage": "Architecture de plateforme non prise en charge."
+  },
+  "@yovoice.error.previewDesktopOnly": {
+    "defaultMessage": "Utilisez cette fonction dans l’application de bureau. Le navigateur permet de prévisualiser l’interface, de modifier les textes et d’écouter les audios de référence."
+  },
+  "@yovoice.error.recordTooShort": {
+    "defaultMessage": "Enregistrez au moins 1 seconde."
+  },
+  "@yovoice.error.requestInvalid": {
+    "defaultMessage": "Paramètres de requête non valides."
+  },
+  "@yovoice.error.runtimeArchiveLink": {
+    "defaultMessage": "Le moteur d’inférence contient des liens ou des fichiers spéciaux non pris en charge."
+  },
+  "@yovoice.error.runtimeArchivePath": {
+    "defaultMessage": "L’archive contient un chemin non autorisé."
+  },
+  "@yovoice.error.runtimeArchiveSize": {
+    "defaultMessage": "Taille d’extraction du moteur anormale."
+  },
+  "@yovoice.error.runtimeMissing": {
+    "defaultMessage": "Installez d’abord le moteur d’inférence dans les Paramètres."
+  },
+  "@yovoice.error.runtimeRequired": {
+    "defaultMessage": "Installez ou mettez à jour d’abord le moteur d’inférence pour l’appareil sélectionné."
+  },
+  "@yovoice.error.runtimeUnique": {
+    "defaultMessage": "L’archive du moteur ne contient pas exactement un serveur d’inférence."
+  },
+  "@yovoice.error.stateCorrupt": {
+    "defaultMessage": "Impossible de lire les données locales."
+  },
+  "@yovoice.error.stateSaveFailed": {
+    "defaultMessage": "Échec de l’enregistrement de l’état."
+  },
+  "@yovoice.error.textRequired": {
+    "defaultMessage": "Saisissez un texte de 1 à 12000 caractères."
+  },
+  "@yovoice.error.titleLength": {
+    "defaultMessage": "Le titre doit comporter de 1 à 120 caractères."
+  },
+  "@yovoice.error.trimTooShort": {
+    "defaultMessage": "Conservez au moins 1 seconde après le recadrage."
+  },
+  "@yovoice.error.unknown": {
+    "defaultMessage": "Une erreur s’est produite. Veuillez réessayer."
+  },
+  "@yovoice.error.voiceBusyDelete": {
+    "defaultMessage": "Attendez la fin de la génération avant de supprimer une voix."
+  },
+  "@yovoice.error.voiceRequired": {
+    "defaultMessage": "Ajoutez d’abord un audio de référence pour la voix."
+  },
+  "@yovoice.error.voxModeInvalid": {
+    "defaultMessage": "Mode de génération VoxCPM2 non valide."
+  },
+  "@yovoice.error.voxParams": {
+    "defaultMessage": "Paramètres VoxCPM2 hors limites."
+  },
+  "@yovoice.error.voxReferenceRequired": {
+    "defaultMessage": "Le clonage fin nécessite la transcription de l’audio de référence."
+  },
+  "@yovoice.error.voxTextLimits": {
+    "defaultMessage": "La description de la voix ou la transcription de référence dépasse la limite."
+  },
+  "@yovoice.language.ar": {
+    "defaultMessage": "Arabe"
+  },
+  "@yovoice.language.en": {
+    "defaultMessage": "Anglais"
+  },
+  "@yovoice.language.es": {
+    "defaultMessage": "Espagnol"
+  },
+  "@yovoice.language.ja": {
+    "defaultMessage": "Japonais"
+  },
+  "@yovoice.language.zh": {
+    "defaultMessage": "Chinois"
+  },
+  "@yovoice.library.addFirstVoice": {
+    "defaultMessage": "Ajouter un audio de référence"
+  },
+  "@yovoice.library.addVoice": {
+    "defaultMessage": "Ajouter un audio de référence"
+  },
+  "@yovoice.library.emptyHistoryTitle": {
+    "defaultMessage": "Aucune version pour l’instant"
+  },
+  "@yovoice.library.emptyVoicesTitle": {
+    "defaultMessage": "Aucun audio de référence pour l’instant"
+  },
+  "@yovoice.library.voicesTitle": {
+    "defaultMessage": "Bibliothèque de sons"
+  },
+  "@yovoice.media.delete": {
+    "defaultMessage": "Supprimer {noun} {name}"
+  },
+  "@yovoice.media.deleteBody": {
+    "defaultMessage": "« {name} » et son fichier audio seront définitivement supprimés."
+  },
+  "@yovoice.media.deleteConfirm": {
+    "defaultMessage": "Supprimer {noun}"
+  },
+  "@yovoice.media.deleteHistoryExtra": {
+    "defaultMessage": "Le texte et la voix de référence sont conservés."
+  },
+  "@yovoice.media.deleteTitle": {
+    "defaultMessage": "Supprimer {noun} ?"
+  },
+  "@yovoice.media.deleteVoiceExtra": {
+    "defaultMessage": "Les projets utilisant cette voix devront en choisir une autre ; l’audio généré est conservé."
+  },
+  "@yovoice.media.name": {
+    "defaultMessage": "Nom"
+  },
+  "@yovoice.media.nounHistory": {
+    "defaultMessage": "l’audio"
+  },
+  "@yovoice.media.nounVoice": {
+    "defaultMessage": "la voix"
+  },
+  "@yovoice.media.rename": {
+    "defaultMessage": "Renommer {noun} {name}"
+  },
+  "@yovoice.media.renameTitle": {
+    "defaultMessage": "Renommer {noun}"
+  },
+  "@yovoice.media.reveal": {
+    "defaultMessage": "Afficher {name}"
+  },
+  "@yovoice.media.saveName": {
+    "defaultMessage": "Enregistrer le nom"
+  },
+  "@yovoice.nav.deleteProject": {
+    "defaultMessage": "Supprimer le projet : {title}"
+  },
+  "@yovoice.nav.main": {
+    "defaultMessage": "Navigation principale"
+  },
+  "@yovoice.nav.recent": {
+    "defaultMessage": "Récents"
+  },
+  "@yovoice.nav.resize": {
+    "defaultMessage": "Redimensionner la barre latérale"
+  },
+  "@yovoice.nav.settings": {
+    "defaultMessage": "Paramètres"
+  },
+  "@yovoice.player.audition": {
+    "defaultMessage": "Écouter {name}"
+  },
+  "@yovoice.player.mute": {
+    "defaultMessage": "Couper le son"
+  },
+  "@yovoice.player.stop": {
+    "defaultMessage": "Arrêter"
+  },
+  "@yovoice.player.pause": {
+    "defaultMessage": "Pause"
+  },
+  "@yovoice.player.play": {
+    "defaultMessage": "Lecture"
+  },
+  "@yovoice.player.progress": {
+    "defaultMessage": "Progression de la lecture"
+  },
+  "@yovoice.player.progressValue": {
+    "defaultMessage": "{current} sur {total}"
+  },
+  "@yovoice.player.reveal": {
+    "defaultMessage": "Ouvrir l’emplacement de l’audio"
+  },
+  "@yovoice.player.skipEnd": {
+    "defaultMessage": "Aller à la fin"
+  },
+  "@yovoice.player.skipStart": {
+    "defaultMessage": "Aller au début"
+  },
+  "@yovoice.player.unavailable": {
+    "defaultMessage": "Fichier audio manquant ou illisible"
+  },
+  "@yovoice.player.unmute": {
+    "defaultMessage": "Rétablir le son"
+  },
+  "@yovoice.player.volume": {
+    "defaultMessage": "Volume"
+  },
+  "@yovoice.player.zoomFit": {
+    "defaultMessage": "Ajuster à la piste entière"
+  },
+  "@yovoice.player.zoomGroup": {
+    "defaultMessage": "Zoom de la piste"
+  },
+  "@yovoice.player.zoomIn": {
+    "defaultMessage": "Zoom avant sur la piste"
+  },
+  "@yovoice.player.zoomOut": {
+    "defaultMessage": "Zoom arrière sur la piste"
+  },
+  "@yovoice.selection.adjustPronunciation": {
+    "defaultMessage": "Ajuster la prononciation"
+  },
+  "@yovoice.selection.aria": {
+    "defaultMessage": "Actions sur le texte sélectionné"
+  },
+  "@yovoice.settings.backend.vulkan": {
+    "defaultMessage": "GPU Vulkan · expérimental"
+  },
+  "@yovoice.settings.changeLocation": {
+    "defaultMessage": "Changer l’emplacement"
+  },
+  "@yovoice.settings.closeLicense": {
+    "defaultMessage": "Fermer la licence"
+  },
+  "@yovoice.settings.computeDevice": {
+    "defaultMessage": "Appareil de calcul"
+  },
+  "@yovoice.settings.defaultDirectory": {
+    "defaultMessage": "Dossier de l’application / modèles"
+  },
+  "@yovoice.settings.diagnostics": {
+    "defaultMessage": "Diagnostic"
+  },
+  "@yovoice.settings.download.failed": {
+    "defaultMessage": "Téléchargement incomplet"
+  },
+  "@yovoice.settings.download.paused": {
+    "defaultMessage": "En pause"
+  },
+  "@yovoice.settings.download.running": {
+    "defaultMessage": "Téléchargement"
+  },
+  "@yovoice.settings.download.verifying": {
+    "defaultMessage": "Vérification"
+  },
+  "@yovoice.settings.downloadModel": {
+    "defaultMessage": "Télécharger le modèle"
+  },
+  "@yovoice.settings.downloadProgress": {
+    "defaultMessage": "Progression du téléchargement de {name} {precision}"
+  },
+  "@yovoice.settings.downloadSource": {
+    "defaultMessage": "Source de téléchargement"
+  },
+  "@yovoice.settings.inUse": {
+    "defaultMessage": "En cours d’utilisation"
+  },
+  "@yovoice.settings.installRuntime": {
+    "defaultMessage": "Installer le moteur"
+  },
+  "@yovoice.settings.licenseBlurb": {
+    "defaultMessage": "OmniVoice : usage non commercial uniquement"
+  },
+  "@yovoice.settings.licenseButton": {
+    "defaultMessage": "Licence IndexTTS"
+  },
+  "@yovoice.settings.licenseTitle": {
+    "defaultMessage": "Licence du modèle"
+  },
+  "@yovoice.settings.modelDesc.25": {
+    "defaultMessage": "Chinois, anglais, japonais, espagnol, arabe"
+  },
+  "@yovoice.settings.modelDesc.basic": {
+    "defaultMessage": "Chinois, anglais"
+  },
+  "@yovoice.settings.modelDesc.vox": {
+    "defaultMessage": "30 langues · 48 kHz · conception et clonage de voix"
+  },
+  "@yovoice.settings.modelDirectory": {
+    "defaultMessage": "Emplacement des modèles"
+  },
+  "@yovoice.settings.openFolder": {
+    "defaultMessage": "Ouvrir le dossier"
+  },
+  "@yovoice.settings.openLogs": {
+    "defaultMessage": "Ouvrir le dossier des journaux"
+  },
+  "@yovoice.settings.reinstallRuntime": {
+    "defaultMessage": "Réinstaller"
+  },
+  "@yovoice.settings.updateRuntime": {
+    "defaultMessage": "Mettre à niveau vers {version}"
+  },
+  "@yovoice.settings.removeBlocked": {
+    "defaultMessage": "Terminez les opérations associées avant de retirer ce modèle."
+  },
+  "@yovoice.settings.removeModel": {
+    "defaultMessage": "Retirer le modèle"
+  },
+  "@yovoice.settings.removeTooltip": {
+    "defaultMessage": "Désenregistrer le modèle ; conserver les fichiers locaux"
+  },
+  "@yovoice.settings.removeManagedTooltip": {
+    "defaultMessage": "Retirer le modèle et supprimer ses fichiers téléchargés pour libérer de l’espace disque"
+  },
+  "@yovoice.settings.resumeDownload": {
+    "defaultMessage": "Reprendre le téléchargement"
+  },
+  "@yovoice.settings.runtime": {
+    "defaultMessage": "Moteur d’inférence"
+  },
+  "@yovoice.settings.runtimeMissing": {
+    "defaultMessage": "Non prêt · installez le moteur pour l’appareil sélectionné"
+  },
+  "@yovoice.settings.runtimeOutdated": {
+    "defaultMessage": "Mise à jour requise · cette version nécessite audio.cpp {version} ou ultérieur"
+  },
+  "@yovoice.settings.runtimeReady": {
+    "defaultMessage": "Installé · prêt à générer"
+  },
+  "@yovoice.settings.runtimeUpgradable": {
+    "defaultMessage": "Prêt · mise à niveau facultative vers audio.cpp {version}"
+  },
+  "@yovoice.settings.source.huggingface": {
+    "defaultMessage": "Hugging Face"
+  },
+  "@yovoice.settings.source.mirror": {
+    "defaultMessage": "HF Mirror · tiers"
+  },
+  "@yovoice.settings.source.modelscope": {
+    "defaultMessage": "ModelScope"
+  },
+  "@yovoice.settings.tabEngine": {
+    "defaultMessage": "Moteur d’inférence"
+  },
+  "@yovoice.settings.tabGeneral": {
+    "defaultMessage": "Général"
+  },
+  "@yovoice.settings.tabModels": {
+    "defaultMessage": "Modèles vocaux"
+  },
+  "@yovoice.settings.title": {
+    "defaultMessage": "Paramètres"
+  },
+  "@yovoice.settings.uiLocale": {
+    "defaultMessage": "Langue de l’interface"
+  },
+  "@yovoice.settings.verified": {
+    "defaultMessage": "Vérifié"
+  },
+  "@yovoice.voice.addTitle": {
+    "defaultMessage": "Ajouter un audio de référence"
+  },
+  "@yovoice.voice.audition": {
+    "defaultMessage": "Écouter {name}"
+  },
+  "@yovoice.voice.closeAdd": {
+    "defaultMessage": "Fermer l’ajout de voix"
+  },
+  "@yovoice.voice.closePick": {
+    "defaultMessage": "Fermer le sélecteur de voix"
+  },
+  "@yovoice.voice.crop": {
+    "defaultMessage": "Recadrer"
+  },
+  "@yovoice.voice.cropRange": {
+    "defaultMessage": "Plage conservée"
+  },
+  "@yovoice.voice.cropTitle": {
+    "defaultMessage": "Recadrer · {name}"
+  },
+  "@yovoice.voice.croppedSuffix": {
+    "defaultMessage": " · Recadré"
+  },
+  "@yovoice.voice.defaultName": {
+    "defaultMessage": "Ma voix"
+  },
+  "@yovoice.voice.import": {
+    "defaultMessage": "Importer un audio de référence"
+  },
+  "@yovoice.voice.pickTitle": {
+    "defaultMessage": "Choisir un audio de référence"
+  },
+  "@yovoice.voice.record": {
+    "defaultMessage": "Enregistrer une voix"
+  },
+  "@yovoice.voice.recordName": {
+    "defaultMessage": "Nom de l’enregistrement"
+  },
+  "@yovoice.voice.saveCrop": {
+    "defaultMessage": "Enregistrer comme nouvelle voix"
+  },
+  "@yovoice.voice.startRecord": {
+    "defaultMessage": "Démarrer l’enregistrement"
+  },
+  "@yovoice.vox.clone": {
+    "defaultMessage": "Clonage de voix"
+  },
+  "@yovoice.vox.continuation": {
+    "defaultMessage": "Clonage fin"
+  },
+  "@yovoice.vox.design": {
+    "defaultMessage": "Conception de voix"
+  },
+  "@yovoice.vox.generationMode": {
+    "defaultMessage": "Mode de génération"
+  },
+  "@yovoice.vox.guidanceScale": {
+    "defaultMessage": "Intensité du guidage"
+  },
+  "@yovoice.vox.inferenceSteps": {
+    "defaultMessage": "Étapes d’inférence"
+  },
+  "@yovoice.vox.referenceText": {
+    "defaultMessage": "Transcription de l’audio de référence"
+  },
+  "@yovoice.vox.referenceTextPlaceholder": {
+    "defaultMessage": "Paroles prononcées dans l’audio de référence"
+  },
+  "@yovoice.vox.styleGuidance": {
+    "defaultMessage": "Guidage de style (facultatif)"
+  },
+  "@yovoice.vox.stylePlaceholder": {
+    "defaultMessage": "p. ex. joyeux, avec un rythme léger."
+  },
+  "@yovoice.vox.voiceDescription": {
+    "defaultMessage": "Description de la voix"
+  },
+  "@yovoice.vox.voiceDescriptionPlaceholder": {
+    "defaultMessage": "p. ex. voix féminine douce, rythme détendu ; laissez vide pour une lecture naturelle"
+  },
+  "@yovoice.breeze.voiceDescriptionPlaceholder": {
+    "defaultMessage": "p. ex. une voix féminine chaleureuse, rythme régulier, diction claire ; laissez vide pour une lecture naturelle"
+  },
+  "@yovoice.breeze.instructionHelp": {
+    "defaultMessage": "Décrivez le rythme, l’émotion et le ton dans la même langue que le texte. Insérez (laugh) ou (sigh) dans un texte anglais, [笑] ou [叹气] dans un texte chinois."
+  },
+  "@yovoice.breeze.referenceTextHelp": {
+    "defaultMessage": "Saisissez exactement ce que dit l’audio de référence, répétitions comprises. Utilisez 5 à 15 secondes de parole nette, sans bruit de fond."
+  },
+  "@yovoice.reference.transcript": {
+    "defaultMessage": "Transcription de référence (facultatif)"
+  },
+  "@yovoice.reference.transcriptHelp": {
+    "defaultMessage": "Une transcription exacte améliore le clonage ; laissez vide pour n’utiliser que la voix."
+  },
+  "@yovoice.reference.designPlaceholder": {
+    "defaultMessage": "Par exemple : female, young adult, moderate pitch. Laissez vide pour une voix automatique."
+  },
+  "@yovoice.settings.modelDesc.omni": {
+    "defaultMessage": "Multilingue · conception et clonage de voix"
+  },
+  "@yovoice.settings.modelDesc.breeze": {
+    "defaultMessage": "Chinois, anglais · conception et clonage de voix · GPU recommandé. La licence du modèle n’autorise que la recherche et l’usage non commercial."
+  },
+  "@yovoice.settings.modelDesc.qwen": {
+    "defaultMessage": "10 langues · clonage de voix de référence"
+  },
+  "@yovoice.reference.designHelp": {
+    "defaultMessage": "Utilisez des attributs séparés par des virgules, comme male/female, young adult/middle-aged, low pitch/moderate pitch, whisper ; les descriptions libres ne sont pas prises en charge."
+  },
+  "@yovoice.options.text_chunk_size": {
+    "defaultMessage": "Taille des segments de texte (0 = valeur par défaut du modèle)"
+  },
+  "@yovoice.options.text_chunk_mode": {
+    "defaultMessage": "Mode de segmentation du texte"
+  },
+  "@yovoice.options.max_tokens": {
+    "defaultMessage": "Nombre maximal de jetons générés"
+  },
+  "@yovoice.options.voxcpm2.chunk_strategy": {
+    "defaultMessage": "Stratégie pour les textes longs"
+  },
+  "@yovoice.options.num_inference_steps": {
+    "defaultMessage": "Étapes d’inférence"
+  },
+  "@yovoice.options.guidance_scale": {
+    "defaultMessage": "Échelle de guidage"
+  },
+  "@yovoice.options.audio_chunk_duration": {
+    "defaultMessage": "Durée de segmentation automatique (secondes)"
+  },
+  "@yovoice.options.audio_chunk_threshold": {
+    "defaultMessage": "Seuil de segmentation automatique (secondes)"
+  },
+  "@yovoice.options.do_sample": {
+    "defaultMessage": "Échantillonnage"
+  },
+  "@yovoice.options.temperature": {
+    "defaultMessage": "Température"
+  },
+  "@yovoice.options.top_k": {
+    "defaultMessage": "Top K"
+  },
+  "@yovoice.options.top_p": {
+    "defaultMessage": "Top P"
+  },
+  "@yovoice.options.depth_temperature": {
+    "defaultMessage": "Température du décodeur de profondeur"
+  },
+  "@yovoice.options.repetition_penalty": {
+    "defaultMessage": "Pénalité de répétition"
+  },
+  "@yovoice.options.subtalker_do_sample": {
+    "defaultMessage": "Échantillonnage du subtalker"
+  },
+  "@yovoice.options.subtalker_temperature": {
+    "defaultMessage": "Température du subtalker"
+  },
+  "@yovoice.options.subtalker_top_k": {
+    "defaultMessage": "Top K du subtalker"
+  },
+  "@yovoice.options.subtalker_top_p": {
+    "defaultMessage": "Top P du subtalker"
+  },
+  "@yovoice.reference.auto": {
+    "defaultMessage": "Auto"
+  },
+  "@yovoice.reference.speaker": {
+    "defaultMessage": "Voix intégrée"
+  },
+  "@yovoice.reference.voiceDesignHelp": {
+    "defaultMessage": "Décrivez la voix, l’émotion et le style d’élocution."
+  },
+  "@yovoice.reference.omniLanguage": {
+    "defaultMessage": "Indication de langue (vide pour automatique)"
+  },
+  "@yovoice.reference.gender": {
+    "defaultMessage": "Genre"
+  },
+  "@yovoice.reference.age": {
+    "defaultMessage": "Âge"
+  },
+  "@yovoice.reference.pitch": {
+    "defaultMessage": "Hauteur"
+  },
+  "@yovoice.reference.delivery": {
+    "defaultMessage": "Débit"
+  },
+  "@yovoice.reference.accent": {
+    "defaultMessage": "Accent"
+  },
+  "@yovoice.reference.dialect": {
+    "defaultMessage": "Dialecte"
+  },
+  "@yovoice.reference.tags": {
+    "defaultMessage": "Sons non verbaux"
+  },
+  "@yovoice.reference.male": {
+    "defaultMessage": "homme"
+  },
+  "@yovoice.reference.female": {
+    "defaultMessage": "femme"
+  },
+  "@yovoice.reference.child": {
+    "defaultMessage": "enfant"
+  },
+  "@yovoice.reference.teenager": {
+    "defaultMessage": "adolescent"
+  },
+  "@yovoice.reference.young adult": {
+    "defaultMessage": "jeune adulte"
+  },
+  "@yovoice.reference.middle-aged": {
+    "defaultMessage": "d’âge moyen"
+  },
+  "@yovoice.reference.elderly": {
+    "defaultMessage": "âgé"
+  },
+  "@yovoice.reference.very low pitch": {
+    "defaultMessage": "très grave"
+  },
+  "@yovoice.reference.low pitch": {
+    "defaultMessage": "grave"
+  },
+  "@yovoice.reference.moderate pitch": {
+    "defaultMessage": "hauteur moyenne"
+  },
+  "@yovoice.reference.high pitch": {
+    "defaultMessage": "aigu"
+  },
+  "@yovoice.reference.very high pitch": {
+    "defaultMessage": "très aigu"
+  },
+  "@yovoice.reference.whisper": {
+    "defaultMessage": "chuchotement"
+  },
+  "@yovoice.reference.american accent": {
+    "defaultMessage": "accent américain"
+  },
+  "@yovoice.reference.british accent": {
+    "defaultMessage": "accent britannique"
+  },
+  "@yovoice.reference.australian accent": {
+    "defaultMessage": "accent australien"
+  },
+  "@yovoice.reference.chinese accent": {
+    "defaultMessage": "accent chinois"
+  },
+  "@yovoice.reference.canadian accent": {
+    "defaultMessage": "accent canadien"
+  },
+  "@yovoice.reference.indian accent": {
+    "defaultMessage": "accent indien"
+  },
+  "@yovoice.reference.korean accent": {
+    "defaultMessage": "accent coréen"
+  },
+  "@yovoice.reference.portuguese accent": {
+    "defaultMessage": "accent portugais"
+  },
+  "@yovoice.reference.russian accent": {
+    "defaultMessage": "accent russe"
+  },
+  "@yovoice.reference.japanese accent": {
+    "defaultMessage": "accent japonais"
+  },
+  "@yovoice.reference.河南话": {
+    "defaultMessage": "河南话"
+  },
+  "@yovoice.reference.陕西话": {
+    "defaultMessage": "陕西话"
+  },
+  "@yovoice.reference.四川话": {
+    "defaultMessage": "四川话"
+  },
+  "@yovoice.reference.贵州话": {
+    "defaultMessage": "贵州话"
+  },
+  "@yovoice.reference.云南话": {
+    "defaultMessage": "云南话"
+  },
+  "@yovoice.reference.桂林话": {
+    "defaultMessage": "桂林话"
+  },
+  "@yovoice.reference.济南话": {
+    "defaultMessage": "济南话"
+  },
+  "@yovoice.reference.石家庄话": {
+    "defaultMessage": "石家庄话"
+  },
+  "@yovoice.reference.甘肃话": {
+    "defaultMessage": "甘肃话"
+  },
+  "@yovoice.reference.宁夏话": {
+    "defaultMessage": "宁夏话"
+  },
+  "@yovoice.reference.青岛话": {
+    "defaultMessage": "青岛话"
+  },
+  "@yovoice.reference.东北话": {
+    "defaultMessage": "东北话"
+  },
+  "@yovoice.language.ko": {
+    "defaultMessage": "Coréen"
+  },
+  "@yovoice.language.de": {
+    "defaultMessage": "Allemand"
+  },
+  "@yovoice.language.fr": {
+    "defaultMessage": "Français"
+  },
+  "@yovoice.language.ru": {
+    "defaultMessage": "Russe"
+  },
+  "@yovoice.language.pt": {
+    "defaultMessage": "Portugais"
+  },
+  "@yovoice.language.it": {
+    "defaultMessage": "Italien"
+  },
+  "@yovoice.options.value.default": {
+    "defaultMessage": "Phrases"
+  },
+  "@yovoice.options.value.tag_aware": {
+    "defaultMessage": "Préserver les balises"
+  },
+  "@yovoice.options.value.japanese": {
+    "defaultMessage": "Japonais"
+  },
+  "@yovoice.options.value.endline": {
+    "defaultMessage": "Lignes"
+  },
+  "@yovoice.options.value.continuation": {
+    "defaultMessage": "Continuation"
+  },
+  "@yovoice.options.value.stateless": {
+    "defaultMessage": "Indépendant"
+  },
+  "@yovoice.settings.modelDesc.qwen.base": {
+    "defaultMessage": "Clonage de voix de référence · transcription facultative"
+  },
+  "@yovoice.settings.modelDesc.qwen.customvoice": {
+    "defaultMessage": "9 voix intégrées · instructions de style"
+  },
+  "@yovoice.settings.modelDesc.qwen.voicedesign": {
+    "defaultMessage": "Conception de voix à partir d’une description textuelle"
+  },
+  "@yovoice.error.voiceDescriptionRequired": {
+    "defaultMessage": "Saisissez une description de la voix."
+  },
+  "@yovoice.error.omniAttributes": {
+    "defaultMessage": "OmniVoice nécessite des attributs de voix pris en charge, avec une valeur par catégorie."
+  },
+  "@yovoice.error.speakerInvalid": {
+    "defaultMessage": "Choisissez une voix intégrée prise en charge."
+  },
+  "@yovoice.reference.speaker.Vivian": {
+    "defaultMessage": "Jeune femme, voix claire · chinois"
+  },
+  "@yovoice.reference.speaker.Serena": {
+    "defaultMessage": "Jeune femme, voix douce · chinois"
+  },
+  "@yovoice.reference.speaker.Uncle_Fu": {
+    "defaultMessage": "Homme mûr, voix suave · chinois"
+  },
+  "@yovoice.reference.speaker.Dylan": {
+    "defaultMessage": "Jeune homme, voix naturelle · dialecte de Pékin"
+  },
+  "@yovoice.reference.speaker.Eric": {
+    "defaultMessage": "Homme, voix légèrement voilée · dialecte du Sichuan"
+  },
+  "@yovoice.reference.speaker.Ryan": {
+    "defaultMessage": "Homme, voix dynamique · anglais"
+  },
+  "@yovoice.reference.speaker.Aiden": {
+    "defaultMessage": "Homme, voix nette · anglais américain"
+  },
+  "@yovoice.reference.speaker.Ono_Anna": {
+    "defaultMessage": "Femme, voix légère · japonais"
+  },
+  "@yovoice.reference.speaker.Sohee": {
+    "defaultMessage": "Femme, voix chaleureuse · coréen"
+  },
+  "@yovoice.options.duration": {
+    "defaultMessage": "Durée cible (secondes, 0 pour automatique)"
+  },
+  "@yovoice.options.denoise": {
+    "defaultMessage": "Débruitage de la référence"
+  },
+  "@yovoice.options.preprocess_prompt": {
+    "defaultMessage": "Prétraitement du prompt"
+  },
+  "@yovoice.options.postprocess_output": {
+    "defaultMessage": "Post-traitement de la sortie"
+  },
+  "@yovoice.options.t_shift": {
+    "defaultMessage": "Décalage temporel de diffusion"
+  },
+  "@yovoice.options.layer_penalty_factor": {
+    "defaultMessage": "Facteur de pénalité par couche"
+  },
+  "@yovoice.options.position_temperature": {
+    "defaultMessage": "Température de position"
+  },
+  "@yovoice.options.class_temperature": {
+    "defaultMessage": "Température de classe"
+  },
+  "@yovoice.options.min_tokens": {
+    "defaultMessage": "Nombre minimal de jetons générés"
+  },
+  "@yovoice.options.retry_badcase": {
+    "defaultMessage": "Relancer les générations anormales"
+  },
+  "@yovoice.options.retry_badcase_max_times": {
+    "defaultMessage": "Nombre maximal de tentatives"
+  },
+  "@yovoice.options.retry_badcase_ratio_threshold": {
+    "defaultMessage": "Seuil de ratio de longueur anormale"
+  },
+  "@yovoice.error.omniReferenceRequired": {
+    "defaultMessage": "Le clonage OmniVoice nécessite la transcription de référence."
+  },
+  "@yovoice.error.breezeReferenceRequired": {
+    "defaultMessage": "Le clonage Breeze TTS 2 nécessite la transcription complète de référence."
+  },
+  "@yovoice.reference.omniTranscriptHelp": {
+    "defaultMessage": "La transcription doit correspondre à l’audio de référence."
+  },
+  "@yovoice.settings.modelDesc.kokoro": {
+    "defaultMessage": "Voix prédéfinies · multilingue"
+  },
+  "@yovoice.language.en-us": {
+    "defaultMessage": "Anglais (États-Unis)"
+  },
+  "@yovoice.language.en-gb": {
+    "defaultMessage": "Anglais (Royaume-Uni)"
+  },
+  "@yovoice.language.fr-fr": {
+    "defaultMessage": "Français"
+  },
+  "@yovoice.language.pt-br": {
+    "defaultMessage": "Portugais (Brésil)"
+  },
+  "@yovoice.language.hi": {
+    "defaultMessage": "Hindi"
+  },
+  "@yovoice.nav.characters": {
+    "defaultMessage": "Bibliothèque de sons"
+  },
+  "@yovoice.character.create": {
+    "defaultMessage": "Créer un personnage"
+  },
+  "@yovoice.character.saveAs": {
+    "defaultMessage": "Enregistrer comme personnage"
+  },
+  "@yovoice.character.choose": {
+    "defaultMessage": "Choisir un personnage"
+  },
+  "@yovoice.character.edit": {
+    "defaultMessage": "Modifier le personnage"
+  },
+  "@yovoice.character.name": {
+    "defaultMessage": "Nom du personnage"
+  },
+  "@yovoice.character.demo": {
+    "defaultMessage": "Texte d’écoute"
+  },
+  "@yovoice.character.example": {
+    "defaultMessage": "Bonjour, ravi de vous rencontrer. Partageons notre histoire avec le monde."
+  },
+  "@yovoice.character.save": {
+    "defaultMessage": "Enregistrer le personnage"
+  },
+  "@yovoice.character.copy": {
+    "defaultMessage": "Enregistrer le personnage sous"
+  },
+  "@yovoice.character.apply": {
+    "defaultMessage": "Utiliser le personnage"
+  },
+  "@yovoice.character.preview": {
+    "defaultMessage": "Générer un extrait"
+  },
+  "@yovoice.character.regenerate": {
+    "defaultMessage": "Régénérer l’extrait"
+  },
+  "@yovoice.character.ready": {
+    "defaultMessage": "Extrait prêt"
+  },
+  "@yovoice.character.stale": {
+    "defaultMessage": "Extrait obsolète"
+  },
+  "@yovoice.character.emptyPreview": {
+    "defaultMessage": "Aucun extrait pour l’instant"
+  },
+  "@yovoice.character.empty": {
+    "defaultMessage": "Aucun personnage pour l’instant"
+  },
+  "@yovoice.character.delete": {
+    "defaultMessage": "Supprimer le personnage"
+  },
+  "@yovoice.character.deleteConfirm": {
+    "defaultMessage": "Supprimer ce personnage de la bibliothèque de sons. Les projets existants conservent leurs réglages enregistrés."
+  },
+  "@yovoice.character.missingVoice": {
+    "defaultMessage": "Voix de référence manquante. Veuillez en choisir une autre."
+  },
+  "@yovoice.character.close": {
+    "defaultMessage": "Retour"
+  },
+  "@yovoice.character.listen": {
+    "defaultMessage": "Écouter l’extrait"
+  },
+  "@yovoice.voice.save": {
+    "defaultMessage": "Enregistrer comme audio de référence"
+  },
+  "@yovoice.voice.edit": {
+    "defaultMessage": "Modifier les détails de la voix"
+  },
+  "@yovoice.voice.name": {
+    "defaultMessage": "Nom de la voix"
+  },
+  "@yovoice.voice.transcript": {
+    "defaultMessage": "Transcription de référence"
+  },
+  "@yovoice.voice.sourceGeneration": {
+    "defaultMessage": "Audio généré"
+  },
+  "@yovoice.voice.sourceImport": {
+    "defaultMessage": "Importé / enregistré"
+  },
+  "@yovoice.voice.saved": {
+    "defaultMessage": "Enregistrer la voix"
+  },
+  "@yovoice.error.voiceInUse": {
+    "defaultMessage": "Cette voix est utilisée par un personnage. Remplacez ou retirez d’abord sa référence."
+  },
+  "@yovoice.error.characterInvalid": {
+    "defaultMessage": "Personnage ou détails de voix non valides. Vérifiez le nom, la longueur du texte et l’enregistrement."
+  },
+  "@yovoice.character.clearReferences": {
+    "defaultMessage": "Retirer les références de voix"
+  },
+  "@yovoice.character.search": {
+    "defaultMessage": "Rechercher des personnages"
+  },
+  "@yovoice.character.noResults": {
+    "defaultMessage": "Aucun personnage correspondant. Essayez une autre recherche."
+  },
+  "@yovoice.character.nameLimit": {
+    "defaultMessage": "Le nom d’un personnage doit comporter 120 caractères au maximum."
+  },
+  "@yovoice.library.nameRequired": {
+    "defaultMessage": "Saisissez un nom pour enregistrer."
+  },
+  "@yovoice.library.textLimit": {
+    "defaultMessage": "Le texte doit comporter 2000 caractères au maximum."
+  },
+  "@yovoice.voice.nameLimit": {
+    "defaultMessage": "Le nom d’une voix doit comporter 100 caractères au maximum."
+  },
+  "@yovoice.voice.durationLimit": {
+    "defaultMessage": "Cet audio doit durer entre 1 et 60 secondes. Choisissez un autre extrait de l’historique."
+  },
+  "@yovoice.library.searchVoices": {
+    "defaultMessage": "Rechercher un audio de référence"
+  },
+  "@yovoice.library.searchHistory": {
+    "defaultMessage": "Rechercher des versions"
+  },
+  "@yovoice.library.noSearchResults": {
+    "defaultMessage": "Aucun résultat"
+  },
+  "@yovoice.settings.modelDesc.kokoroOfficial": {
+    "defaultMessage": "8 langues · 49 voix · pas de japonais"
+  },
+  "@yovoice.subtitle.import": {
+    "defaultMessage": "Importer des sous-titres"
+  },
+  "@yovoice.subtitle.file": {
+    "defaultMessage": "Fichier de sous-titres"
+  },
+  "@yovoice.subtitle.invalid": {
+    "defaultMessage": "Sous-titres non valides. Utilisez SRT, VTT ou ASS/SSA, jusqu’à 2 Mo, 2000 répliques, 100 locuteurs et 12000 caractères. Vérifiez les horodatages et l’attribution des locuteurs."
+  },
+  "@yovoice.subtitle.encoding": {
+    "defaultMessage": "Impossible de décoder les sous-titres. Enregistrez-les en UTF-8 ou en UTF-16 avec BOM."
+  },
+  "@yovoice.subtitle.speaker": {
+    "defaultMessage": "Locuteur {n}"
+  },
+  "@yovoice.subtitle.currentSettings": {
+    "defaultMessage": "Voix par défaut"
+  },
+  "@yovoice.subtitle.savedCharacter": {
+    "defaultMessage": "Réglages de personnage enregistrés"
+  },
+  "@yovoice.subtitle.addSpeaker": {
+    "defaultMessage": "Ajouter un locuteur"
+  },
+  "@yovoice.subtitle.lineSpeaker": {
+    "defaultMessage": "Locuteur de la réplique {n}"
+  },
+  "@yovoice.subtitle.lineText": {
+    "defaultMessage": "Texte de la réplique {n}"
+  },
+  "@yovoice.subtitle.previous": {
+    "defaultMessage": "Précédent"
+  },
+  "@yovoice.subtitle.next": {
+    "defaultMessage": "Suivant"
+  },
+  "@yovoice.subtitle.progress": {
+    "defaultMessage": "Génération du sous-titre {n} / {total}"
+  },
+  "@yovoice.subtitle.addCue": {
+    "defaultMessage": "Ajouter une réplique"
+  },
+  "@yovoice.subtitle.customSettings": {
+    "defaultMessage": "Voix personnalisée"
+  },
+  "@yovoice.subtitle.settings": {
+    "defaultMessage": "Réglages du locuteur"
+  },
+  "@yovoice.subtitle.cues": {
+    "defaultMessage": "Sous-titres · {count} répliques"
+  },
+  "@yovoice.subtitle.showTimes": {
+    "defaultMessage": "Afficher le minutage"
+  },
+  "@yovoice.subtitle.hideTimes": {
+    "defaultMessage": "Masquer le minutage"
+  },
+  "@yovoice.timeline.invalid": {
+    "defaultMessage": "Timeline non valide. Vérifiez les plages des extraits. 32 pistes, 2000 extraits et 24 heures au maximum."
+  },
+  "@yovoice.timeline.inUse": {
+    "defaultMessage": "Cet audio est utilisé dans la timeline d’un projet. Retirez d’abord ses extraits."
+  },
+  "@yovoice.timeline.track": {
+    "defaultMessage": "Piste {n}"
+  },
+  "@yovoice.timeline.add": {
+    "defaultMessage": "Ajouter une piste"
+  },
+  "@yovoice.timeline.resize": {
+    "defaultMessage": "Redimensionner la timeline"
+  },
+  "@yovoice.timeline.split": {
+    "defaultMessage": "Scinder l’extrait"
+  },
+  "@yovoice.timeline.removeClip": {
+    "defaultMessage": "Supprimer l’extrait"
+  },
+  "@yovoice.timeline.hint": {
+    "defaultMessage": "Sélectionnez un extrait pour le scinder à la tête de lecture. Faites glisser les extraits pour les déplacer dans le temps ou entre les pistes."
+  },
+  "@yovoice.timeline.tracks": {
+    "defaultMessage": "Pistes"
+  },
+  "@yovoice.timeline.name": {
+    "defaultMessage": "Nom de {name}"
+  },
+  "@yovoice.timeline.mute": {
+    "defaultMessage": "Couper le son de {name}"
+  },
+  "@yovoice.timeline.unmute": {
+    "defaultMessage": "Rétablir le son de {name}"
+  },
+  "@yovoice.timeline.removeTrack": {
+    "defaultMessage": "Supprimer {name} (si vide)"
+  },
+  "@yovoice.timeline.missing": {
+    "defaultMessage": "Audio manquant"
+  },
+  "@yovoice.timeline.importTo": {
+    "defaultMessage": "Ajouter un audio à {name}"
+  },
+  "@yovoice.timeline.fromHistory": {
+    "defaultMessage": "Ajouter depuis les versions"
+  },
+  "@yovoice.nav.library": {
+    "defaultMessage": "Bibliothèque de sons"
+  },
+  "@yovoice.project.new": {
+    "defaultMessage": "Nouveau projet"
+  },
+  "@yovoice.project.text": {
+    "defaultMessage": "Génération vocale"
+  },
+  "@yovoice.project.story": {
+    "defaultMessage": "Narration d’histoire"
+  },
+  "@yovoice.project.subtitle": {
+    "defaultMessage": "Narration de sous-titres"
+  },
+  "@yovoice.project.search": {
+    "defaultMessage": "Rechercher des projets"
+  },
+  "@yovoice.project.empty": {
+    "defaultMessage": "Aucun projet pour l’instant"
+  },
+  "@yovoice.project.copy": {
+    "defaultMessage": "Dupliquer le projet"
+  },
+  "@yovoice.project.rename": {
+    "defaultMessage": "Renommer le projet"
+  },
+  "@yovoice.library.voicesTab": {
+    "defaultMessage": "Personnages"
+  },
+  "@yovoice.library.referencesTab": {
+    "defaultMessage": "Audio de référence"
+  },
+  "@yovoice.library.target": {
+    "defaultMessage": "Choisir la destination"
+  },
+  "@yovoice.library.targetProject": {
+    "defaultMessage": "Projet de destination"
+  },
+  "@yovoice.library.targetSpeaker": {
+    "defaultMessage": "Personnage de destination"
+  },
+  "@yovoice.library.narrator": {
+    "defaultMessage": "Narrateur"
+  },
+  "@yovoice.library.newText": {
+    "defaultMessage": "Nouvelle narration de texte"
+  },
+  "@yovoice.library.apply": {
+    "defaultMessage": "Appliquer le personnage"
+  },
+  "@yovoice.library.newVoice": {
+    "defaultMessage": "Personnage sans titre"
+  },
+  "@yovoice.library.save": {
+    "defaultMessage": "Enregistrer le personnage"
+  },
+  "@yovoice.library.saveApply": {
+    "defaultMessage": "Enregistrer et appliquer"
+  },
+  "@yovoice.library.unsaved": {
+    "defaultMessage": "Enregistrer les modifications du personnage ?"
+  },
+  "@yovoice.library.discard": {
+    "defaultMessage": "Abandonner les modifications"
+  },
+  "@yovoice.library.continue": {
+    "defaultMessage": "Continuer l’édition"
+  },
+  "@yovoice.app.saveFailed": {
+    "defaultMessage": "Échec de l’enregistrement. Réessayer"
+  },
+  "@yovoice.subtitle.roleName": {
+    "defaultMessage": "Nom du personnage"
+  },
+  "@yovoice.error.voiceReferenced": {
+    "defaultMessage": "L’audio de référence est utilisé par « {names} ». Remplacez ou retirez d’abord ces références."
+  },
+  "@yovoice.voice.confirmSelection": {
+    "defaultMessage": "Utiliser la référence sélectionnée"
+  },
+  "@yovoice.voice.rerecord": {
+    "defaultMessage": "Réenregistrer"
+  },
+  "@yovoice.voice.stopRecord": {
+    "defaultMessage": "Arrêter l’enregistrement"
+  },
+  "@yovoice.voice.saveRecording": {
+    "defaultMessage": "Enregistrer la prise"
+  },
+  "@yovoice.voice.recordPreview": {
+    "defaultMessage": "Aperçu de l’enregistrement"
+  },
+  "@yovoice.voice.unsaved": {
+    "defaultMessage": "Enregistrer les modifications de l’audio de référence ?"
+  },
+  "@yovoice.timeline.undo": {
+    "defaultMessage": "Annuler"
+  },
+  "@yovoice.timeline.redo": {
+    "defaultMessage": "Rétablir"
+  },
+  "@yovoice.timeline.trim": {
+    "defaultMessage": "Plage de recadrage"
+  },
+  "@yovoice.timeline.trimStart": {
+    "defaultMessage": "Point d’entrée (s)"
+  },
+  "@yovoice.timeline.trimEnd": {
+    "defaultMessage": "Point de sortie (s)"
+  },
+  "@yovoice.timeline.regenerate": {
+    "defaultMessage": "Régénérer l’extrait"
+  },
+  "@yovoice.timeline.export": {
+    "defaultMessage": "Exporter la timeline"
+  },
+  "@yovoice.timeline.exportConfirm": {
+    "defaultMessage": "Exporter en WAV"
+  },
+  "@yovoice.timeline.exportName": {
+    "defaultMessage": "Nom du fichier"
+  },
+  "@yovoice.timeline.emptyExport": {
+    "defaultMessage": "Aucun audio à exporter. Ajoutez des extraits ou réactivez le son d’une piste."
+  },
+  "@yovoice.timeline.exportLimit": {
+    "defaultMessage": "L’export prend en charge les timelines d’une heure au maximum. Raccourcissez la timeline pour continuer."
+  },
+  "@yovoice.timeline.audio": {
+    "defaultMessage": "Audio"
+  },
+  "@yovoice.timeline.upload": {
+    "defaultMessage": "Importer un audio"
+  },
+  "@yovoice.timeline.searchHistory": {
+    "defaultMessage": "Rechercher un audio généré"
+  },
+  "@yovoice.timeline.noHistory": {
+    "defaultMessage": "Aucun audio généré correspondant"
+  },
+  "@yovoice.timeline.importDuration": {
+    "defaultMessage": "L’audio doit durer entre 0,01 seconde et 1 heure."
+  },
+  "@yovoice.character.new": {
+    "defaultMessage": "Nouveau personnage"
+  },
+  "@yovoice.history.audioActions": {
+    "defaultMessage": "Actions audio"
+  },
+  "@yovoice.history.versions": {
+    "defaultMessage": "Historique des versions"
+  },
+  "@yovoice.history.backProject": {
+    "defaultMessage": "Retour"
+  },
+  "@yovoice.project.more": {
+    "defaultMessage": "Plus d’actions"
+  },
+  "@yovoice.project.created": {
+    "defaultMessage": "Créé le {date}"
+  },
+  "@yovoice.project.new.story": {
+    "defaultMessage": "Nouvelle histoire"
+  },
+  "@yovoice.project.new.text": {
+    "defaultMessage": "Nouvelle synthèse vocale"
+  },
+  "@yovoice.project.renameShort": {
+    "defaultMessage": "Renommer"
+  },
+  "@yovoice.project.copyShort": {
+    "defaultMessage": "Dupliquer"
+  },
+  "@yovoice.timeline.copy": {
+    "defaultMessage": "Copier les extraits"
+  },
+  "@yovoice.timeline.paste": {
+    "defaultMessage": "Coller les extraits"
+  },
+  "@yovoice.timeline.duplicate": {
+    "defaultMessage": "Dupliquer"
+  },
+  "@yovoice.timeline.rippleDelete": {
+    "defaultMessage": "Suppression avec décalage"
+  },
+  "@yovoice.timeline.audition": {
+    "defaultMessage": "Lire la sélection"
+  },
+  "@yovoice.timeline.contextPlay": {
+    "defaultMessage": "Lire avec contexte"
+  },
+  "@yovoice.timeline.fitSelection": {
+    "defaultMessage": "Ajuster à la sélection"
+  },
+  "@yovoice.timeline.balance": {
+    "defaultMessage": "Équilibrer les niveaux des rôles"
+  },
+  "@yovoice.timeline.snap": {
+    "defaultMessage": "Magnétisme"
+  },
+  "@yovoice.timeline.more": {
+    "defaultMessage": "Menu d’édition"
+  },
+  "@yovoice.timeline.clipping": {
+    "defaultMessage": "La crête dépasse 0 dBFS. Activez la protection contre l’écrêtage ou exportez à nouveau au niveau d’origine."
+  },
+  "@yovoice.timeline.exportScope": {
+    "defaultMessage": "Étendue de l’export"
+  },
+  "@yovoice.timeline.all": {
+    "defaultMessage": "Toutes les pistes"
+  },
+  "@yovoice.timeline.range": {
+    "defaultMessage": "Plage sélectionnée"
+  },
+  "@yovoice.timeline.preventClipping": {
+    "defaultMessage": "Éviter l’écrêtage"
+  },
+  "@yovoice.timeline.peak": {
+    "defaultMessage": "Crête"
+  },
+  "@yovoice.timeline.exportType": {
+    "defaultMessage": "Format"
+  },
+  "@yovoice.timeline.formatWav": {
+    "defaultMessage": "Audio WAV"
+  },
+  "@yovoice.timeline.formatSrt": {
+    "defaultMessage": "Sous-titres SRT"
+  },
+  "@yovoice.timeline.formatVtt": {
+    "defaultMessage": "Sous-titres WebVTT"
+  },
+  "@yovoice.timeline.exportCaptions": {
+    "defaultMessage": "Exporter les sous-titres"
+  },
+  "@yovoice.timeline.captionSpeaker": {
+    "defaultMessage": "Inclure le nom des intervenants"
+  },
+  "@yovoice.timeline.captionHint": {
+    "defaultMessage": "Un sous-titre par clip doublé, calé sur sa position dans la timeline."
+  },
+  "@yovoice.timeline.noCaptions": {
+    "defaultMessage": "Aucun clip doublé avec texte dans cette plage d’export."
+  },
+  "@yovoice.timeline.volume": {
+    "defaultMessage": "Volume"
+  },
+  "@yovoice.timeline.duck": {
+    "defaultMessage": "Atténuer sous les dialogues"
+  },
+  "@yovoice.timeline.trackName": {
+    "defaultMessage": "Nom de la piste"
+  },
+  "@yovoice.timeline.solo": {
+    "defaultMessage": "Solo"
+  },
+  "@yovoice.timeline.lock": {
+    "defaultMessage": "Verrouiller la piste"
+  },
+  "@yovoice.timeline.unlock": {
+    "defaultMessage": "Déverrouiller la piste"
+  },
+  "@yovoice.timeline.trackSettings": {
+    "defaultMessage": "Réglages de {name}"
+  },
+  "@yovoice.timeline.gap": {
+    "defaultMessage": "Pause"
+  },
+  "@yovoice.timeline.missingCue": {
+    "defaultMessage": "Non généré"
+  },
+  "@yovoice.timeline.staleCue": {
+    "defaultMessage": "À mettre à jour"
+  },
+  "@yovoice.timeline.failedCue": {
+    "defaultMessage": "Échec de la génération"
+  },
+  "@yovoice.timeline.package": {
+    "defaultMessage": "Exporter le projet"
+  },
+  "@yovoice.timeline.importProject": {
+    "defaultMessage": "Importer un projet"
+  },
+  "@yovoice.timeline.packageInvalid": {
+    "defaultMessage": "Fichier de projet non valide ou médias incomplets."
+  },
+  "@yovoice.timeline.packageLimit": {
+    "defaultMessage": "Le projet dépasse 500 Mo. Sauvegardez les chapitres séparément."
+  },
+  "@yovoice.performance.label": {
+    "defaultMessage": "Interprétation"
+  },
+  "@yovoice.performance.default": {
+    "defaultMessage": "Par défaut"
+  },
+  "@yovoice.performance.add": {
+    "defaultMessage": "Ajouter une interprétation"
+  },
+  "@yovoice.performance.numbered": {
+    "defaultMessage": "Interprétation {n}"
+  },
+  "@yovoice.performance.name": {
+    "defaultMessage": "Nom de l’interprétation"
+  },
+  "@yovoice.performance.delete": {
+    "defaultMessage": "Supprimer l’interprétation"
+  },
+  "@yovoice.performance.invalid": {
+    "defaultMessage": "Utilisez des noms d’interprétation uniques de 1 à 120 caractères"
+  },
+  "@yovoice.performance.more": {
+    "defaultMessage": "Actions sur l’interprétation"
+  },
+  "@yovoice.performance.rename": {
+    "defaultMessage": "Renommer l’interprétation"
+  },
+  "@yovoice.error.musicStyle": {
+    "defaultMessage": "Décrivez le style en 1 à 512 caractères."
+  },
+  "@yovoice.error.musicLyrics": {
+    "defaultMessage": "Les paroles peuvent comporter jusqu’à 4000 caractères."
+  },
+  "@yovoice.error.musicParams": {
+    "defaultMessage": "La durée doit être de 10 à 300 secondes et le tempo de 30 à 300 BPM."
+  },
+  "@yovoice.project.music": {
+    "defaultMessage": "Génération musicale"
+  },
+  "@yovoice.project.new.music": {
+    "defaultMessage": "Nouvelle chanson"
+  },
+  "@yovoice.music.style": {
+    "defaultMessage": "Style"
+  },
+  "@yovoice.music.example": {
+    "defaultMessage": "Essayer un exemple"
+  },
+  "@yovoice.music.stylePlaceholder": {
+    "defaultMessage": "Décrivez le son, p. ex. city pop, warm synths, chill, female vocals"
+  },
+  "@yovoice.music.presets": {
+    "defaultMessage": "Préréglages de style"
+  },
+  "@yovoice.music.moreStyles": {
+    "defaultMessage": "Plus de styles"
+  },
+  "@yovoice.music.collapseStyles": {
+    "defaultMessage": "Réduire les styles"
+  },
+  "@yovoice.music.tuneElements": {
+    "defaultMessage": "Affiner les éléments"
+  },
+  "@yovoice.music.collapseElements": {
+    "defaultMessage": "Réduire les éléments"
+  },
+  "@yovoice.music.addTag": {
+    "defaultMessage": "Ajouter une balise de style"
+  },
+  "@yovoice.music.addTagPlaceholder": {
+    "defaultMessage": "Saisissez une balise, puis appuyez sur Entrée…"
+  },
+  "@yovoice.music.tags": {
+    "defaultMessage": "Balises de style"
+  },
+  "@yovoice.music.tagGroup.genre": {
+    "defaultMessage": "Genre"
+  },
+  "@yovoice.music.tagGroup.mood": {
+    "defaultMessage": "Ambiance"
+  },
+  "@yovoice.music.tagGroup.instrument": {
+    "defaultMessage": "Instruments"
+  },
+  "@yovoice.music.tagGroup.vocal": {
+    "defaultMessage": "Voix"
+  },
+  "@yovoice.music.lyrics": {
+    "defaultMessage": "Paroles"
+  },
+  "@yovoice.music.insertSection": {
+    "defaultMessage": "Insérer une section"
+  },
+  "@yovoice.music.expandLyrics": {
+    "defaultMessage": "Agrandir les paroles"
+  },
+  "@yovoice.music.instrumental": {
+    "defaultMessage": "Instrumental"
+  },
+  "@yovoice.music.lyricsPlaceholder": {
+    "defaultMessage": "Écrivez les paroles et marquez les sections avec [verse], [chorus], etc. Laissez vide pour laisser le modèle fredonner."
+  },
+  "@yovoice.music.generate": {
+    "defaultMessage": "Générer la chanson"
+  },
+  "@yovoice.music.duration": {
+    "defaultMessage": "Durée"
+  },
+  "@yovoice.music.auto": {
+    "defaultMessage": "Auto"
+  },
+  "@yovoice.music.language": {
+    "defaultMessage": "Langue du chant"
+  },
+  "@yovoice.music.languageName.zh": {
+    "defaultMessage": "Mandarin"
+  },
+  "@yovoice.music.languageName.en": {
+    "defaultMessage": "Anglais"
+  },
+  "@yovoice.music.languageName.yue": {
+    "defaultMessage": "Cantonais"
+  },
+  "@yovoice.music.languageName.ja": {
+    "defaultMessage": "Japonais"
+  },
+  "@yovoice.music.languageName.ko": {
+    "defaultMessage": "Coréen"
+  },
+  "@yovoice.music.languageName.es": {
+    "defaultMessage": "Espagnol"
+  },
+  "@yovoice.music.languageName.fr": {
+    "defaultMessage": "Français"
+  },
+  "@yovoice.music.languageName.de": {
+    "defaultMessage": "Allemand"
+  },
+  "@yovoice.music.languageName.pt": {
+    "defaultMessage": "Portugais"
+  },
+  "@yovoice.music.languageName.ru": {
+    "defaultMessage": "Russe"
+  },
+  "@yovoice.music.languageName.it": {
+    "defaultMessage": "Italien"
+  },
+  "@yovoice.music.bpm": {
+    "defaultMessage": "Tempo (BPM)"
+  },
+  "@yovoice.music.keyscale": {
+    "defaultMessage": "Tonalité"
+  },
+  "@yovoice.music.timesignature": {
+    "defaultMessage": "Signature rythmique"
+  },
+  "@yovoice.error.engineUpgradeRequired": {
+    "defaultMessage": "Ce modèle nécessite le moteur d’inférence {version} ou ultérieur. Mettez à jour le moteur dans les Paramètres."
+  },
+  "@yovoice.music.engineRequired": {
+    "defaultMessage": "La génération musicale nécessite le moteur d’inférence {version} ou ultérieur."
+  },
+  "@yovoice.music.updateEngine": {
+    "defaultMessage": "Mettre à jour le moteur"
+  },
+  "@yovoice.error.scoreInvalid": {
+    "defaultMessage": "La partition n’est pas valide : vérifiez le tempo, la mesure, les pistes et la position des notes (512 mesures, 32 pistes, 20 000 notes et 10 minutes au maximum)."
+  },
+  "@yovoice.error.scoreTooLong": {
+    "defaultMessage": "La partition est trop longue : {minutes} minutes et {bars} mesures au maximum. Supprimez des mesures ou augmentez le tempo, puis réessayez."
+  },
+  "@yovoice.error.midiInvalid": {
+    "defaultMessage": "Impossible de lire ce fichier MIDI. Utilisez un fichier MIDI standard de type 0 ou 1 contenant des notes."
+  },
+  "@yovoice.activity.rendering": {
+    "defaultMessage": "Rendu des pistes ({done}/{total})"
+  },
+  "@yovoice.project.score": {
+    "defaultMessage": "Génération de partitions"
+  },
+  "@yovoice.project.new.score": {
+    "defaultMessage": "Nouvelle partition"
+  },
+  "@yovoice.score.arrangement": {
+    "defaultMessage": "Arrangement"
+  },
+  "@yovoice.score.barCount": {
+    "defaultMessage": "{count} mesures"
+  },
+  "@yovoice.score.bars": {
+    "defaultMessage": "Mesures {start}–{end}"
+  },
+  "@yovoice.score.downloadSoundFont": {
+    "defaultMessage": "Télécharger"
+  },
+  "@yovoice.score.drumKit": {
+    "defaultMessage": "Kit de batterie"
+  },
+  "@yovoice.score.duration": {
+    "defaultMessage": "Durée {time}"
+  },
+  "@yovoice.score.empty": {
+    "defaultMessage": "Écrivez chaque partie sous forme de notes en mesures et en temps, puis faites le rendu d’un mixage avec pistes séparées. Importez un MIDI ou une partition écrite par un agent, ou partez de l’exemple."
+  },
+  "@yovoice.score.example": {
+    "defaultMessage": "Utiliser l’exemple"
+  },
+  "@yovoice.score.export": {
+    "defaultMessage": "Exporter"
+  },
+  "@yovoice.score.exportMidi": {
+    "defaultMessage": "Fichier MIDI (.mid)"
+  },
+  "@yovoice.score.exportJson": {
+    "defaultMessage": "JSON de partition (.json)"
+  },
+  "@yovoice.score.file": {
+    "defaultMessage": "Fichier MIDI ou partition"
+  },
+  "@yovoice.score.import": {
+    "defaultMessage": "Importer un MIDI ou une partition"
+  },
+  "@yovoice.score.key": {
+    "defaultMessage": "Tonalité"
+  },
+  "@yovoice.score.keyPlaceholder": {
+    "defaultMessage": "p. ex. ré mineur"
+  },
+  "@yovoice.score.levelOf": {
+    "defaultMessage": "Niveau cible de {name}"
+  },
+  "@yovoice.score.meter": {
+    "defaultMessage": "Mesure"
+  },
+  "@yovoice.score.playTrack": {
+    "defaultMessage": "Lire {name}"
+  },
+  "@yovoice.score.render": {
+    "defaultMessage": "Rendre la musique"
+  },
+  "@yovoice.score.rhythm": {
+    "defaultMessage": "Tempo et mesure"
+  },
+  "@yovoice.score.rollLabel": {
+    "defaultMessage": "Vue d’ensemble de {tracks} pistes et {notes} notes"
+  },
+  "@yovoice.score.sections": {
+    "defaultMessage": "Sections"
+  },
+  "@yovoice.score.soundFont": {
+    "defaultMessage": "Banque de sons"
+  },
+  "@yovoice.score.soundFontRequired": {
+    "defaultMessage": "Le rendu nécessite la banque de sons ({size})."
+  },
+  "@yovoice.score.tempo": {
+    "defaultMessage": "Tempo (BPM)"
+  },
+  "@yovoice.score.trackName": {
+    "defaultMessage": "Piste {n}"
+  },
+  "@yovoice.score.tracks": {
+    "defaultMessage": "Pistes"
+  },
+  "@yovoice.score.role.melody": {
+    "defaultMessage": "Mélodie"
+  },
+  "@yovoice.score.role.piano": {
+    "defaultMessage": "Piano"
+  },
+  "@yovoice.score.role.strings": {
+    "defaultMessage": "Cordes"
+  },
+  "@yovoice.score.role.bass": {
+    "defaultMessage": "Basse"
+  },
+  "@yovoice.score.role.drums": {
+    "defaultMessage": "Batterie"
+  },
+  "@yovoice.score.role.pad": {
+    "defaultMessage": "Nappe"
+  },
+  "@yovoice.score.role.arp": {
+    "defaultMessage": "Arpège"
+  },
+  "@yovoice.score.role.other": {
+    "defaultMessage": "Autre"
+  },
+  "@yovoice.settings.modelDesc.music": {
+    "defaultMessage": "Génère des chansons et des instrumentaux à partir d’une description de style et de paroles."
+  },
+  "@yovoice.settings.modelDesc.soundfont": {
+    "defaultMessage": "Banque de sons General MIDI avec 128 instruments et kits de batterie ; équilibrée et adaptée à la plupart des partitions."
+  },
+  "@yovoice.settings.tabAI": {
+    "defaultMessage": "Services d’IA"
+  },
+  "@yovoice.ai.intro": {
+    "defaultMessage": "Connectez un grand modèle de langage : l’assistant IA intégré écrit des arrangements dans Partition et des paroles dans Musique, et vous pouvez continuer à modifier le résultat."
+  },
+  "@yovoice.ai.customProvider": {
+    "defaultMessage": "Service personnalisé"
+  },
+  "@yovoice.ai.name": {
+    "defaultMessage": "Nom"
+  },
+  "@yovoice.ai.baseURL": {
+    "defaultMessage": "Point de terminaison"
+  },
+  "@yovoice.ai.format": {
+    "defaultMessage": "Protocole"
+  },
+  "@yovoice.ai.formatName.chat_completions": {
+    "defaultMessage": "OpenAI Chat Completions"
+  },
+  "@yovoice.ai.formatName.responses": {
+    "defaultMessage": "OpenAI Responses"
+  },
+  "@yovoice.ai.formatName.anthropic_messages": {
+    "defaultMessage": "Anthropic Messages"
+  },
+  "@yovoice.ai.modelsPath": {
+    "defaultMessage": "Chemin de la liste des modèles"
+  },
+  "@yovoice.ai.key": {
+    "defaultMessage": "Clé d’API"
+  },
+  "@yovoice.ai.keyOptional": {
+    "defaultMessage": "Généralement inutile pour les services locaux"
+  },
+  "@yovoice.ai.getKey": {
+    "defaultMessage": "Obtenir une clé"
+  },
+  "@yovoice.ai.model": {
+    "defaultMessage": "Modèle"
+  },
+  "@yovoice.ai.modelPlaceholder": {
+    "defaultMessage": "Nom du modèle, ou récupérez la liste"
+  },
+  "@yovoice.ai.test": {
+    "defaultMessage": "Tester"
+  },
+  "@yovoice.ai.testOk": {
+    "defaultMessage": "Connecté. Le modèle a répondu."
+  },
+  "@yovoice.ai.testFailed": {
+    "defaultMessage": "Échec du test : {reason}"
+  },
+  "@yovoice.ai.inUse": {
+    "defaultMessage": "En cours d’utilisation"
+  },
+  "@yovoice.ai.deleteTitle": {
+    "defaultMessage": "Supprimer ce service d’IA ?"
+  },
+  "@yovoice.ai.deleteBody": {
+    "defaultMessage": "{name} et sa clé enregistrée seront supprimés de cet ordinateur."
+  },
+  "@yovoice.ai.configure": {
+    "defaultMessage": "Configurer l’IA"
+  },
+  "@yovoice.error.aiProviderInvalid": {
+    "defaultMessage": "Les réglages du service d’IA ne sont pas valides. Vérifiez l’adresse, le nom et le modèle."
+  },
+  "@yovoice.error.aiNotConfigured": {
+    "defaultMessage": "Aucun service d’IA n’est configuré. Ajoutez-en un et choisissez un modèle dans Paramètres › IA."
+  },
+  "@yovoice.error.aiAuth": {
+    "defaultMessage": "Le service d’IA a refusé la clé (HTTP {status}). Vérifiez la clé d’API."
+  },
+  "@yovoice.error.aiRateLimit": {
+    "defaultMessage": "Le service d’IA est surchargé ou a épuisé son quota. Les modèles gratuits sont souvent limités quand beaucoup de personnes les utilisent ; patientez une minute et réessayez, ou choisissez un autre modèle dans le panneau d’écriture."
+  },
+  "@yovoice.error.aiNetwork": {
+    "defaultMessage": "Impossible de joindre le service d’IA : {detail}"
+  },
+  "@yovoice.error.aiResponse": {
+    "defaultMessage": "Le service d’IA a renvoyé une erreur (HTTP {status}) : {detail}"
+  },
+  "@yovoice.error.aiModelsPath": {
+    "defaultMessage": "Ce service ne fournit pas de liste de modèles. Saisissez directement le nom du modèle."
+  },
+  "@yovoice.error.aiResultInvalid": {
+    "defaultMessage": "Le résultat de l’IA est inutilisable : {detail}. Réessayez ou reformulez."
+  },
+  "@yovoice.settings.tabSoundfonts": {
+    "defaultMessage": "Banques de sons pour partitions"
+  },
+  "@yovoice.settings.downloads": {
+    "defaultMessage": "Téléchargements"
+  },
+  "@yovoice.settings.downloaded": {
+    "defaultMessage": "Téléchargé"
+  },
+  "@yovoice.settings.available": {
+    "defaultMessage": "Disponible"
+  },
+  "@yovoice.settings.soundfontIntro": {
+    "defaultMessage": "Banques de sons General MIDI utilisées pour le rendu des partitions, gérées séparément des modèles vocaux et musicaux."
+  },
+  "@yovoice.settings.uiLocaleHint": {
+    "defaultMessage": "Prend effet immédiatement."
+  },
+  "@yovoice.settings.proxyHint": {
+    "defaultMessage": "Utilisé pour les téléchargements de modèles et de moteurs, ainsi que pour les services d’IA."
+  },
+  "@yovoice.settings.preferences": {
+    "defaultMessage": "Préférences"
+  },
+  "@yovoice.ai.added": {
+    "defaultMessage": "Ajouté"
+  },
+  "@yovoice.ai.replaceKey": {
+    "defaultMessage": "Remplacer la clé"
+  },
+  "@yovoice.ai.clearKey": {
+    "defaultMessage": "Effacer la clé"
+  },
+  "@yovoice.ai.keyNotSet": {
+    "defaultMessage": "Aucune clé définie"
+  },
+  "@yovoice.ai.getKeyFrom": {
+    "defaultMessage": "Obtenir une clé d’API auprès de {name}"
+  },
+  "@yovoice.ai.syncModels": {
+    "defaultMessage": "Synchroniser la liste des modèles"
+  },
+  "@yovoice.ai.searchModels": {
+    "defaultMessage": "Rechercher des modèles"
+  },
+  "@yovoice.ai.noModels": {
+    "defaultMessage": "Pas encore de liste de modèles. Saisissez un nom de modèle ou synchronisez la liste."
+  },
+  "@yovoice.ai.currentModel": {
+    "defaultMessage": "Modèle actuel"
+  },
+  "@yovoice.ai.saveProvider": {
+    "defaultMessage": "Ajouter le service"
+  },
+  "@yovoice.ai.saveChanges": {
+    "defaultMessage": "Enregistrer les modifications"
+  },
+  "@yovoice.ai.removeProvider": {
+    "defaultMessage": "Retirer le service"
+  },
+  "@yovoice.ai.unsaved": {
+    "defaultMessage": "Modifications non enregistrées"
+  },
+  "@yovoice.library.performanceUnit": {
+    "defaultMessage": "interprétations"
+  },
+  "@yovoice.library.duration": {
+    "defaultMessage": "durée"
+  },
+  "@yovoice.ai.discard": {
+    "defaultMessage": "Abandonner"
+  },
+  "@yovoice.ai.openProject": {
+    "defaultMessage": "Ouvrir le projet"
+  },
+  "@yovoice.error.aiTimeout": {
+    "defaultMessage": "Le service d’IA n’a pas terminé en {seconds} secondes. Augmentez le délai d’expiration des requêtes d’IA dans Paramètres › Services d’IA, ou choisissez un modèle plus rapide."
+  },
+  "@yovoice.music.lyricsMode": {
+    "defaultMessage": "Mode des paroles"
+  },
+  "@yovoice.music.vocal": {
+    "defaultMessage": "Avec paroles"
+  },
+  "@yovoice.score.instrumentOf": {
+    "defaultMessage": "Instrument de {name}"
+  },
+  "@yovoice.score.roleOf": {
+    "defaultMessage": "Rôle de {name}"
+  },
+  "@yovoice.settings.diagnosticsGroup": {
+    "defaultMessage": "Diagnostic"
+  },
+  "@yovoice.settings.diagnosticsHint": {
+    "defaultMessage": "Journaux du service, du moteur d’inférence et des requêtes d’IA. Joignez-les lorsque vous signalez un problème."
+  },
+  "@yovoice.settings.searchModels": {
+    "defaultMessage": "Rechercher par nom, précision ou usage"
+  },
+  "@yovoice.settings.noModelMatch": {
+    "defaultMessage": "Aucun modèle correspondant."
+  },
+  "@yovoice.app.collapseInspector": {
+    "defaultMessage": "Réduire le panneau latéral"
+  },
+  "@yovoice.app.expandInspector": {
+    "defaultMessage": "Développer le panneau latéral"
+  },
+  "@yovoice.ai.group.api": {
+    "defaultMessage": "API à l’usage"
+  },
+  "@yovoice.ai.group.coding": {
+    "defaultMessage": "Forfaits de code"
+  },
+  "@yovoice.ai.group.local": {
+    "defaultMessage": "Local et personnalisé"
+  },
+  "@yovoice.error.musicLyricsRequired": {
+    "defaultMessage": "YuE2 a besoin de paroles pour une chanson chantée ; passez en instrumental pour s’en passer."
+  },
+  "@yovoice.settings.modelDesc.yue2": {
+    "defaultMessage": "Génère une chanson complète ou un instrumental à partir de paroles et d’un style, et peut d’abord écrire une partition modifiable ; la durée dépend des paroles ou de la partition. Sous licence CC BY-NC 4.0, usage non commercial uniquement."
+  },
+  "@yovoice.music.reuseTake": {
+    "defaultMessage": "Réutiliser le style et les paroles de cette prise"
+  },
+  "@yovoice.score.importShort": {
+    "defaultMessage": "Importer"
+  },
+  "@yovoice.settings.modelDesc.soundfontGeneralUser": {
+    "defaultMessage": "Banque de sons GM/GS compacte et nette, avec un piano et une batterie détaillés et des niveaux d’instruments bien équilibrés. Gratuite pour la musique personnelle et commerciale."
+  },
+  "@yovoice.settings.modelDesc.soundfontSgm": {
+    "defaultMessage": "Banque de sons GM plus réaliste, avec des échantillons plus riches de piano, cordes, guitare et cuivres ; plus volumineuse et plus lente au rendu. L’auteur n’indique aucune licence : vérifiez avant tout usage commercial."
+  },
+  "@yovoice.update.group": {
+    "defaultMessage": "Version et mises à jour"
+  },
+  "@yovoice.update.starTitle": {
+    "defaultMessage": "Vous aimez yovoice ?"
+  },
+  "@yovoice.update.starHint": {
+    "defaultMessage": "Offrez-lui une étoile sur GitHub : ça illumine sa journée et aide d’autres personnes à le découvrir."
+  },
+  "@yovoice.update.star": {
+    "defaultMessage": "Mettre une étoile"
+  },
+  "@yovoice.update.title": {
+    "defaultMessage": "Mise à jour du logiciel"
+  },
+  "@yovoice.update.currentVersion": {
+    "defaultMessage": "yovoice {version}"
+  },
+  "@yovoice.update.versionChange": {
+    "defaultMessage": "Actuelle {current} → nouvelle {version}"
+  },
+  "@yovoice.update.published": {
+    "defaultMessage": "Publiée le {date}"
+  },
+  "@yovoice.update.autoHint": {
+    "defaultMessage": "Vérification au lancement puis toutes les 4 heures ; les nouvelles versions se téléchargent en arrière-plan."
+  },
+  "@yovoice.update.latestHint": {
+    "defaultMessage": "À jour · dernière vérification {time}"
+  },
+  "@yovoice.update.checking": {
+    "defaultMessage": "Recherche de mises à jour…"
+  },
+  "@yovoice.update.check": {
+    "defaultMessage": "Rechercher des mises à jour"
+  },
+  "@yovoice.update.foundTitle": {
+    "defaultMessage": "Nouvelle version {version} disponible"
+  },
+  "@yovoice.update.downloading": {
+    "defaultMessage": "Téléchargement de {version}"
+  },
+  "@yovoice.update.downloadStarting": {
+    "defaultMessage": "Connexion…"
+  },
+  "@yovoice.update.verifying": {
+    "defaultMessage": "Vérification de la mise à jour…"
+  },
+  "@yovoice.update.progress": {
+    "defaultMessage": "Progression du téléchargement"
+  },
+  "@yovoice.update.background": {
+    "defaultMessage": "Continuer en arrière-plan"
+  },
+  "@yovoice.update.readyTitle": {
+    "defaultMessage": "La version {version} est prête"
+  },
+  "@yovoice.update.readyBody": {
+    "defaultMessage": "La mise à jour est téléchargée et vérifiée. Elle s’installera au redémarrage, après l’enregistrement de votre travail."
+  },
+  "@yovoice.update.restart": {
+    "defaultMessage": "Redémarrer pour mettre à jour"
+  },
+  "@yovoice.update.later": {
+    "defaultMessage": "Plus tard"
+  },
+  "@yovoice.update.installingTitle": {
+    "defaultMessage": "Enregistrement et redémarrage…"
+  },
+  "@yovoice.update.installingBody": {
+    "defaultMessage": "Enregistrement de votre travail et arrêt du service local avant l’installation. yovoice se rouvrira une fois terminé."
+  },
+  "@yovoice.update.failedTitle": {
+    "defaultMessage": "La mise à jour n’a pas pu aboutir"
+  },
+  "@yovoice.update.failedBody": {
+    "defaultMessage": "Les mises à jour sont indisponibles pour le moment. Réessayez plus tard."
+  },
+  "@yovoice.update.retry": {
+    "defaultMessage": "Réessayer"
+  },
+  "@yovoice.update.openDownloads": {
+    "defaultMessage": "Ouvrir la page de téléchargement"
+  },
+  "@yovoice.update.latestTitle": {
+    "defaultMessage": "Vous êtes à jour"
+  },
+  "@yovoice.update.disabled": {
+    "defaultMessage": "Les versions de développement ne recherchent pas de mises à jour. Installez une version officielle."
+  },
+  "@yovoice.update.close": {
+    "defaultMessage": "Fermer"
+  },
+  "@yovoice.update.whatsNew": {
+    "defaultMessage": "Nouveautés"
+  },
+  "@yovoice.update.thisVersion": {
+    "defaultMessage": "Nouveautés de cette version"
+  },
+  "@yovoice.update.fullNotes": {
+    "defaultMessage": "Voir sur GitHub"
+  },
+  "@yovoice.update.viewNotes": {
+    "defaultMessage": "Nouveautés"
+  },
+  "@yovoice.update.noticeFound": {
+    "defaultMessage": "Nouvelle version {version} trouvée, téléchargement en arrière-plan"
+  },
+  "@yovoice.update.noticeReady": {
+    "defaultMessage": "La version {version} est prête. Redémarrez pour mettre à jour"
+  },
+  "@yovoice.update.noticeUpdated": {
+    "defaultMessage": "Mis à jour vers {version}"
+  },
+  "@yovoice.update.sidebarDownloading": {
+    "defaultMessage": "Téléchargement de {version}"
+  },
+  "@yovoice.update.sidebarReady": {
+    "defaultMessage": "Version {version}"
+  },
+  "@yovoice.ai.orca.connect": {
+    "defaultMessage": "Connecter OrcaRouter gratuitement"
+  },
+  "@yovoice.ai.orca.waiting": {
+    "defaultMessage": "OrcaRouter est ouvert dans votre navigateur. Connectez-vous et approuvez : yovoice se connectera automatiquement."
+  },
+  "@yovoice.ai.orca.hint": {
+    "defaultMessage": "Aucune clé à copier : connectez-vous à OrcaRouter dans votre navigateur et approuvez, le service sera ajouté avec un modèle gratuit."
+  },
+  "@yovoice.error.aiFreeRate": {
+    "defaultMessage": "Le quota du modèle gratuit est épuisé pour le moment. Il se réinitialise dans environ {seconds} secondes ; réessayez ensuite."
+  },
+  "@yovoice.error.aiFreeBusy": {
+    "defaultMessage": "Le modèle gratuit est surchargé pour le moment. Patientez un instant et réessayez, ou choisissez un autre modèle dans le panneau d’écriture."
+  },
+  "@yovoice.error.aiFreePromptCap": {
+    "defaultMessage": "Cette requête dépasse la longueur que le modèle gratuit accepte en une fois : réessayer ne servira à rien. Raccourcissez la description, ou obtenez des crédits (orcarouter.ai/offers) ou rechargez votre compte OrcaRouter et passez à un modèle payant."
+  },
+  "@yovoice.error.aiFreeAccess": {
+    "defaultMessage": "OrcaRouter ne propose les modèles gratuits qu’aux comptes liés à un compte GitHub établi. Liez GitHub dans les paramètres de votre profil OrcaRouter, ou rechargez d’abord votre compte."
+  },
+  "@yovoice.settings.localApi": {
+    "defaultMessage": "API locale"
+  },
+  "@yovoice.settings.localApiIntro": {
+    "defaultMessage": "Permet aux autres applications de cet ordinateur de générer de la voix avec yovoice via HTTP ou MCP. Elle n’écoute que sur 127.0.0.1 : les autres appareils de votre réseau ne peuvent pas y accéder."
+  },
+  "@yovoice.settings.localApiEnabled": {
+    "defaultMessage": "Activer l’API locale"
+  },
+  "@yovoice.settings.localApiOff": {
+    "defaultMessage": "Désactivée. Aucun port n’est utilisé."
+  },
+  "@yovoice.settings.localApiRunning": {
+    "defaultMessage": "En cours d’exécution sur {url}"
+  },
+  "@yovoice.settings.localApiRunningShort": {
+    "defaultMessage": "En cours d’exécution"
+  },
+  "@yovoice.settings.localApiFailed": {
+    "defaultMessage": "Non démarrée"
+  },
+  "@yovoice.settings.localApiPort": {
+    "defaultMessage": "Port"
+  },
+  "@yovoice.settings.localApiPortHint": {
+    "defaultMessage": "1024–65535. Par défaut : 8080."
+  },
+  "@yovoice.settings.localApiToken": {
+    "defaultMessage": "Jeton d’accès"
+  },
+  "@yovoice.settings.localApiTokenHint": {
+    "defaultMessage": "Envoyez-le sous la forme Authorization: Bearer suivi de ce jeton. La réinitialisation révoque immédiatement l’ancien jeton."
+  },
+  "@yovoice.settings.localApiCopy": {
+    "defaultMessage": "Copier"
+  },
+  "@yovoice.settings.localApiCopied": {
+    "defaultMessage": "Copié"
+  },
+  "@yovoice.settings.localApiReset": {
+    "defaultMessage": "Réinitialiser"
+  },
+  "@yovoice.settings.localApiExample": {
+    "defaultMessage": "Exemple"
+  },
+  "@yovoice.settings.localApiExampleHint": {
+    "defaultMessage": "Les points de terminaison HTTP se trouvent sous {url}/v1 et MCP sur {url}/mcp. Remplacez YOUR_TOKEN par le jeton copié ci-dessus."
+  },
+  "@yovoice.error.localApiPort": {
+    "defaultMessage": "Utilisez un port compris entre 1024 et 65535."
+  },
+  "@yovoice.error.localApiPortInUse": {
+    "defaultMessage": "Le port {port} est déjà utilisé par un autre programme. Choisissez un autre port."
+  },
+  "@yovoice.import.file": {
+    "defaultMessage": "Importer un fichier à vocaliser"
+  },
+  "@yovoice.import.unsupported": {
+    "defaultMessage": "Importez un fichier texte TXT ou Markdown, ou un fichier de sous-titres SRT, VTT ou ASS."
+  },
+  "@yovoice.import.empty": {
+    "defaultMessage": "Le fichier ne contient aucun texte à lire."
+  },
+  "@yovoice.import.tooLong": {
+    "defaultMessage": "Le texte dépasse 12 000 caractères. Divisez-le en plusieurs fichiers et importez-les séparément."
+  },
+  "@yovoice.import.tooLarge": {
+    "defaultMessage": "Le fichier dépasse 2 Mo. Divisez-le avant de l’importer."
+  },
+  "@yovoice.error.storageInsideApp": {
+    "defaultMessage": "Le dossier de données ne peut pas se trouver dans le dossier d’installation de l’application, afin d’éviter toute perte de données lors des mises à jour."
+  },
+  "@yovoice.error.storageTargetNotEmpty": {
+    "defaultMessage": "Le dossier de destination existe déjà et n’est pas vide. Veuillez choisir un dossier vide."
+  },
+  "@yovoice.error.storageSame": {
+    "defaultMessage": "Le dossier sélectionné est identique au dossier de données actuel."
+  },
+  "@yovoice.settings.storageGroup": {
+    "defaultMessage": "Stockage"
+  },
+  "@yovoice.settings.storageDirectory": {
+    "defaultMessage": "Dossier de données"
+  },
+  "@yovoice.settings.storageRelocateHint": {
+    "defaultMessage": "Changer d’emplacement copie toutes les données dans le nouveau dossier. Une fois terminé, yovoice redémarre automatiquement pour l’appliquer, puis l’ancien dossier est supprimé pour libérer de l’espace."
+  },
+  "@yovoice.settings.storageRelocatePending": {
+    "defaultMessage": "Les données ont été copiées vers le nouvel emplacement. Quittez complètement yovoice puis rouvrez-le pour appliquer le changement. D’ici là, les nouvelles modifications ne peuvent pas être enregistrées ; l’ancien dossier sera supprimé automatiquement après le redémarrage."
+  },
+  "@yovoice.settings.storageBreakdown": {
+    "defaultMessage": "Utilisation : total {total} (modèles {models} · sorties {outputs} · voix {voices} · cache {downloads})"
+  },
+  "@yovoice.settings.cleanupResiduals": {
+    "defaultMessage": "Nettoyer les résidus"
+  },
+  "@yovoice.settings.cleanupResidualsHint": {
+    "defaultMessage": "Récupère les fichiers orphelins et les anciennes versions restantes de plus de 24 heures."
+  },
+  "@yovoice.settings.cleanupSuccess": {
+    "defaultMessage": "{count} fichiers nettoyés, {size} libérés."
+  },
+  "@yovoice.settings.cleanupEmpty": {
+    "defaultMessage": "Aucun fichier résiduel de plus de 24 heures."
+  },
+  "@yovoice.activity.relocate": {
+    "defaultMessage": "Migration du dossier de stockage des données"
+  },
+  "@yovoice.settings.relocatingTitle": {
+    "defaultMessage": "Migration du dossier de stockage des données"
+  },
+  "@yovoice.settings.relocatingHint": {
+    "defaultMessage": "Copie des données vers le nouvel emplacement. Ne fermez pas l’application et ne déconnectez pas les périphériques de stockage…"
+  },
+  "@yovoice.error.storageInsideData": {
+    "defaultMessage": "Le nouveau dossier ne peut pas se trouver dans le dossier de données actuel, ni le contenir."
+  },
+  "@yovoice.error.dataRootMissing": {
+    "defaultMessage": "Le dossier de données est introuvable ou indisponible : {path}. S’il se trouve sur un disque externe, reconnectez-le ; si le dossier a été supprimé, quittez et rouvrez yovoice pour choisir comment continuer."
+  },
+  "@yovoice.error.diskFull": {
+    "defaultMessage": "Le disque est plein : la modification n’a pas pu être enregistrée. Libérez de l’espace disque, ou utilisez Paramètres › Général › Stockage pour nettoyer les fichiers résiduels ou déplacer le dossier de données vers un disque plus grand, puis réessayez."
+  },
+  "@yovoice.error.storageRestartRequired": {
+    "defaultMessage": "Le dossier de données a été déplacé. Quittez complètement yovoice puis rouvrez-le avant de continuer."
+  },
+  "@yovoice.app.pageError.title": {
+    "defaultMessage": "Cette page a rencontré un problème"
+  },
+  "@yovoice.app.pageError.body": {
+    "defaultMessage": "Les autres pages fonctionnent toujours et l’erreur a été journalisée. Réessayez ou rechargez la fenêtre ; les projets enregistrés ne sont pas affectés."
+  },
+  "@yovoice.app.pageError.retry": {
+    "defaultMessage": "Réessayer"
+  },
+  "@yovoice.app.pageError.reload": {
+    "defaultMessage": "Recharger"
+  },
+  "@yovoice.library.batchDelete": {
+    "defaultMessage": "Suppression groupée"
+  },
+  "@yovoice.library.selectAll": {
+    "defaultMessage": "Tout sélectionner"
+  },
+  "@yovoice.library.pickVoice": {
+    "defaultMessage": "Sélectionner « {name} »"
+  },
+  "@yovoice.library.finishPicking": {
+    "defaultMessage": "Terminé"
+  },
+  "@yovoice.library.deletePicked": {
+    "defaultMessage": "Supprimer la sélection ({n})"
+  },
+  "@yovoice.library.deletePickedTitle": {
+    "defaultMessage": "Supprimer les {n} audios de référence sélectionnés ?"
+  },
+  "@yovoice.library.deletePickedBody": {
+    "defaultMessage": "Les audios de référence sélectionnés et leurs fichiers seront définitivement supprimés."
+  },
+  "@yovoice.library.batchDeleteReferenced": {
+    "defaultMessage": "« {names} » sont encore utilisés par des personnages ou des projets et n’ont pas été supprimés. Remplacez ou retirez d’abord ces références."
+  },
+  "@yovoice.app.exportVersion": {
+    "defaultMessage": "Exporter l’audio"
+  },
+  "@yovoice.history.generations": {
+    "defaultMessage": "Historique des générations"
+  },
+  "@yovoice.library.searchGenerations": {
+    "defaultMessage": "Rechercher des générations"
+  },
+  "@yovoice.library.emptyGenerationsTitle": {
+    "defaultMessage": "Rien n’a encore été généré"
+  },
+  "@yovoice.music.nowPlaying": {
+    "defaultMessage": "Lecture en cours"
+  },
+  "@yovoice.music.nowPlayingTitle": {
+    "defaultMessage": "Lecture en cours · {title}"
+  },
+  "@yovoice.music.openNowPlaying": {
+    "defaultMessage": "Ouvrir {name} dans Lecture en cours"
+  },
+  "@yovoice.music.closeNowPlaying": {
+    "defaultMessage": "Fermer Lecture en cours"
+  },
+  "@yovoice.music.fullscreen": {
+    "defaultMessage": "Plein écran"
+  },
+  "@yovoice.music.exitFullscreen": {
+    "defaultMessage": "Quitter le plein écran"
+  },
+  "@yovoice.music.seekLyric": {
+    "defaultMessage": "Lire à partir de cette ligne"
+  },
+  "@yovoice.music.lyricsEstimated": {
+    "defaultMessage": "Le minutage des paroles est estimé d’après la durée de la chanson"
+  },
+  "@yovoice.music.rewind": {
+    "defaultMessage": "Reculer de {n} secondes"
+  },
+  "@yovoice.music.forward": {
+    "defaultMessage": "Avancer de {n} secondes"
+  },
+  "@yovoice.music.syncLyrics": {
+    "defaultMessage": "Synchroniser les paroles"
+  },
+  "@yovoice.music.resyncLyrics": {
+    "defaultMessage": "Resynchroniser"
+  },
+  "@yovoice.music.syncReset": {
+    "defaultMessage": "Effacer la synchronisation"
+  },
+  "@yovoice.music.exportLrc": {
+    "defaultMessage": "Exporter les paroles (LRC)"
+  },
+  "@yovoice.music.lyricsAnalyzed": {
+    "defaultMessage": "Minutage des paroles placé d’après le chant ; synchronisez pour l’affiner"
+  },
+  "@yovoice.music.lyricsSynced": {
+    "defaultMessage": "Minutage des paroles synchronisé"
+  },
+  "@yovoice.music.syncHint": {
+    "defaultMessage": "Appuyez sur ↓ ou cliquez sur Ligne suivante au début de chaque ligne ; Retour arrière annule la dernière ligne"
+  },
+  "@yovoice.music.syncNext": {
+    "defaultMessage": "Ligne suivante"
+  },
+  "@yovoice.music.syncUndo": {
+    "defaultMessage": "Annuler"
+  },
+  "@yovoice.music.syncCancel": {
+    "defaultMessage": "Annuler la synchronisation"
+  },
+  "@yovoice.music.syncProgress": {
+    "defaultMessage": "{done} / {total} lignes"
+  },
+  "@yovoice.music.preset.city-pop": {
+    "defaultMessage": "City Pop"
+  },
+  "@yovoice.music.preset.lofi": {
+    "defaultMessage": "Lo-Fi"
+  },
+  "@yovoice.music.preset.folk": {
+    "defaultMessage": "Folk"
+  },
+  "@yovoice.music.preset.electronic": {
+    "defaultMessage": "Électronique"
+  },
+  "@yovoice.music.preset.chinese": {
+    "defaultMessage": "Chinois"
+  },
+  "@yovoice.music.preset.romantic": {
+    "defaultMessage": "Romantique"
+  },
+  "@yovoice.music.preset.hiphop": {
+    "defaultMessage": "Hip Hop"
+  },
+  "@yovoice.music.preset.rock": {
+    "defaultMessage": "Rock"
+  },
+  "@yovoice.music.tagHint.pop": {
+    "defaultMessage": "Musique pop"
+  },
+  "@yovoice.music.tagHint.city-pop": {
+    "defaultMessage": "Pop urbaine japonaise des années 80"
+  },
+  "@yovoice.music.tagHint.lo-fi": {
+    "defaultMessage": "Beats basse fidélité détendus"
+  },
+  "@yovoice.music.tagHint.folk": {
+    "defaultMessage": "Folk acoustique narratif"
+  },
+  "@yovoice.music.tagHint.rock": {
+    "defaultMessage": "Son rock énergique"
+  },
+  "@yovoice.music.tagHint.electronic": {
+    "defaultMessage": "Beats électroniques modernes"
+  },
+  "@yovoice.music.tagHint.r-b": {
+    "defaultMessage": "Rhythm and blues soyeux"
+  },
+  "@yovoice.music.tagHint.jazz": {
+    "defaultMessage": "Accords de jazz classiques"
+  },
+  "@yovoice.music.tagHint.hip-hop": {
+    "defaultMessage": "Beats percutants et flow"
+  },
+  "@yovoice.music.tagHint.chinese-traditional": {
+    "defaultMessage": "Mélodies chinoises traditionnelles"
+  },
+  "@yovoice.music.tagHint.upbeat": {
+    "defaultMessage": "Ambiance lumineuse et énergique"
+  },
+  "@yovoice.music.tagHint.chill": {
+    "defaultMessage": "Atmosphère calme et relaxante"
+  },
+  "@yovoice.music.tagHint.dreamy": {
+    "defaultMessage": "Atmosphère éthérée"
+  },
+  "@yovoice.music.tagHint.melancholic": {
+    "defaultMessage": "Nostalgie douce-amère"
+  },
+  "@yovoice.music.tagHint.epic": {
+    "defaultMessage": "Ampleur cinématographique"
+  },
+  "@yovoice.music.tagHint.romantic": {
+    "defaultMessage": "Ton tendre et amoureux"
+  },
+  "@yovoice.music.tagHint.warm-synths": {
+    "defaultMessage": "Synthétiseur analogique chaleureux"
+  },
+  "@yovoice.music.tagHint.acoustic-guitar": {
+    "defaultMessage": "Accords de guitare acoustique"
+  },
+  "@yovoice.music.tagHint.piano": {
+    "defaultMessage": "Piano acoustique expressif"
+  },
+  "@yovoice.music.tagHint.strings": {
+    "defaultMessage": "Section de cordes orchestrale"
+  },
+  "@yovoice.music.tagHint.808-bass": {
+    "defaultMessage": "Sub-basse lourde"
+  },
+  "@yovoice.music.tagHint.guzheng": {
+    "defaultMessage": "Cordes pincées de guzheng traditionnel"
+  },
+  "@yovoice.music.tagHint.female-vocals": {
+    "defaultMessage": "Voix féminine claire"
+  },
+  "@yovoice.music.tagHint.male-vocals": {
+    "defaultMessage": "Voix masculine grave"
+  },
+  "@yovoice.music.tagHint.choir": {
+    "defaultMessage": "Harmonies de chœur à plusieurs voix"
+  },
+  "@yovoice.music.tagHint.rap": {
+    "defaultMessage": "Flow rap rapide et rythmé"
+  },
+  "@yovoice.book.import": {
+    "defaultMessage": "Importer un livre"
+  },
+  "@yovoice.book.file": {
+    "defaultMessage": "Fichier du livre"
+  },
+  "@yovoice.book.title": {
+    "defaultMessage": "Importer un livre"
+  },
+  "@yovoice.book.name": {
+    "defaultMessage": "Titre"
+  },
+  "@yovoice.book.chapters": {
+    "defaultMessage": "Tous les chapitres · {count}"
+  },
+  "@yovoice.book.selected": {
+    "defaultMessage": "{count} sélectionnés · {chars} caractères"
+  },
+  "@yovoice.book.part": {
+    "defaultMessage": "Partie {n}"
+  },
+  "@yovoice.book.next": {
+    "defaultMessage": "Suivant : distribuer les rôles"
+  },
+  "@yovoice.book.back": {
+    "defaultMessage": "Retour"
+  },
+  "@yovoice.book.cast": {
+    "defaultMessage": "Rôles et voix"
+  },
+  "@yovoice.book.summary": {
+    "defaultMessage": "{chapters} chapitres · {roles} personnages · {lines} lignes"
+  },
+  "@yovoice.book.castHelp": {
+    "defaultMessage": "La narration et les dialogues sont séparés par les guillemets, et les locuteurs repérés grâce à des tournures comme « dit Alice ». Vous pourrez corriger chaque ligne dans le projet."
+  },
+  "@yovoice.book.aiCast": {
+    "defaultMessage": "Distribuer avec l'IA"
+  },
+  "@yovoice.book.aiRunning": {
+    "defaultMessage": "{model} distribue les rôles {done} / {total} · {time}"
+  },
+  "@yovoice.book.aiPartial": {
+    "defaultMessage": "La sortie de l'IA était inutilisable pour {count} passages ; ils gardent le résultat automatique."
+  },
+  "@yovoice.book.listen": {
+    "defaultMessage": "Écouter {name}"
+  },
+  "@yovoice.book.voiceFor": {
+    "defaultMessage": "Voix de {name}"
+  },
+  "@yovoice.book.lines": {
+    "defaultMessage": "{count} lignes"
+  },
+  "@yovoice.book.unknown": {
+    "defaultMessage": "Dialogue sans locuteur"
+  },
+  "@yovoice.book.gender.male": {
+    "defaultMessage": "Masculine"
+  },
+  "@yovoice.book.gender.female": {
+    "defaultMessage": "Féminine"
+  },
+  "@yovoice.book.create": {
+    "defaultMessage": "Créer {count} projets"
+  },
+  "@yovoice.book.tooLarge": {
+    "defaultMessage": "Le fichier est trop volumineux. Les manuscrits texte sont limités à 16 Mo et les EPUB à 32 Mo."
+  },
+  "@yovoice.book.invalid": {
+    "defaultMessage": "Impossible de lire cet EPUB. Vérifiez qu'il n'est ni protégé par DRM ni endommagé."
+  },
+  "@yovoice.book.unsupported": {
+    "defaultMessage": "Importez un livre au format TXT, Markdown ou EPUB."
+  },
+  "@yovoice.ai.task.running.cast": {
+    "defaultMessage": "L'IA distribue les rôles"
+  },
+  "@yovoice.ai.task.done.cast": {
+    "defaultMessage": "L'IA a distribué les rôles"
+  },
+  "@yovoice.ai.task.failed.cast": {
+    "defaultMessage": "Échec de la distribution par l'IA"
+  },
+  "@yovoice.activity.planMelody": {
+    "defaultMessage": "Écriture de la partition mélodique"
+  },
+  "@yovoice.activity.transcribe": {
+    "defaultMessage": "Extraction de la mélodie du morceau"
+  },
+  "@yovoice.error.melodyInvalid": {
+    "defaultMessage": "La partition mélodique comporte un problème : {issue}"
+  },
+  "@yovoice.error.melodyEmpty": {
+    "defaultMessage": "Le modèle n’a renvoyé aucune partition. Réessayez ou modifiez les paroles."
+  },
+  "@yovoice.error.coverModelRequired": {
+    "defaultMessage": "L’extraction d’une mélodie nécessite le modèle SheetSage2. Téléchargez-le dans Réglages › Modèles musicaux."
+  },
+  "@yovoice.error.melodySoundFontRequired": {
+    "defaultMessage": "L’écoute de la mélodie nécessite une banque de sons. Téléchargez-en une dans « Paramètres › Banques de sons pour partitions »."
+  },
+  "@yovoice.settings.modelDesc.sheetsage2": {
+    "defaultMessage": "Transcrit la mélodie et les accords d’un morceau en partition, pour les reprises avec YuE2."
+  },
+  "@yovoice.music.generateFromMelody": {
+    "defaultMessage": "Générer depuis la partition"
+  },
+  "@yovoice.melody.title": {
+    "defaultMessage": "Partition mélodique"
+  },
+  "@yovoice.melody.plan": {
+    "defaultMessage": "Écrire la partition"
+  },
+  "@yovoice.melody.planNeeds": {
+    "defaultMessage": "Remplissez d’abord le style et les paroles"
+  },
+  "@yovoice.melody.replan": {
+    "defaultMessage": "Réécrire depuis les paroles"
+  },
+  "@yovoice.melody.cover": {
+    "defaultMessage": "Extraire d’un morceau"
+  },
+  "@yovoice.melody.coverHint": {
+    "defaultMessage": "L’extraction garde la mélodie et retire les accords d’origine, pour réarranger le morceau dans votre style. Morceaux de 10 minutes maximum."
+  },
+  "@yovoice.melody.coverFile": {
+    "defaultMessage": "Morceau dont extraire la mélodie"
+  },
+  "@yovoice.melody.abcFile": {
+    "defaultMessage": "Fichier de partition ABC"
+  },
+  "@yovoice.melody.import": {
+    "defaultMessage": "Importer un .abc"
+  },
+  "@yovoice.melody.export": {
+    "defaultMessage": "Exporter en .abc"
+  },
+  "@yovoice.melody.undo": {
+    "defaultMessage": "Annuler : {action}"
+  },
+  "@yovoice.melody.clear": {
+    "defaultMessage": "Effacer la partition"
+  },
+  "@yovoice.melody.stripChords": {
+    "defaultMessage": "Garder la mélodie seule"
+  },
+  "@yovoice.melody.more": {
+    "defaultMessage": "Actions sur la partition"
+  },
+  "@yovoice.melody.tempo": {
+    "defaultMessage": "Tempo"
+  },
+  "@yovoice.melody.listen": {
+    "defaultMessage": "Écouter"
+  },
+  "@yovoice.melody.listening": {
+    "defaultMessage": "Préparation de l’écoute…"
+  },
+  "@yovoice.melody.pause": {
+    "defaultMessage": "Mettre l'écoute en pause"
+  },
+  "@yovoice.melody.view": {
+    "defaultMessage": "Vue de la partition"
+  },
+  "@yovoice.melody.viewTracks": {
+    "defaultMessage": "Pistes"
+  },
+  "@yovoice.melody.viewStaff": {
+    "defaultMessage": "Partition"
+  },
+  "@yovoice.melody.viewSource": {
+    "defaultMessage": "ABC"
+  },
+  "@yovoice.melody.source": {
+    "defaultMessage": "Partition ABC"
+  },
+  "@yovoice.melody.tracksLabel": {
+    "defaultMessage": "Pistes de la partition mélodique, {bars} mesures"
+  },
+  "@yovoice.melody.withChords": {
+    "defaultMessage": "avec accords"
+  },
+  "@yovoice.melody.melodyOnly": {
+    "defaultMessage": "mélodie seule"
+  },
+  "@yovoice.melody.readyPlan": {
+    "defaultMessage": "YuE2 a écrit une nouvelle partition mélodique"
+  },
+  "@yovoice.melody.readyCover": {
+    "defaultMessage": "La mélodie a été extraite du morceau"
+  },
+  "@yovoice.melody.readyReplace": {
+    "defaultMessage": "Remplacer supprime la partition actuelle."
+  },
+  "@yovoice.melody.replace": {
+    "defaultMessage": "Remplacer"
+  },
+  "@yovoice.melody.notice.truncated": {
+    "defaultMessage": "La partition dépassait ce que YuE2 peut chanter et a été coupée à la limite. Raccourcissez les paroles ou retirez des sections pour garder la fin."
+  },
+  "@yovoice.melody.notice.cover": {
+    "defaultMessage": "Mélodie extraite. Les accords d’origine ont été retirés pour que YuE2 réarrange le morceau dans votre style."
+  },
+  "@yovoice.melody.invalid": {
+    "defaultMessage": "YuE2 ne peut pas encore chanter cette partition"
+  },
+  "@yovoice.melody.track.vocal": {
+    "defaultMessage": "Voix"
+  },
+  "@yovoice.melody.track.ins": {
+    "defaultMessage": "Accompagnement"
+  },
+  "@yovoice.melody.track.chords": {
+    "defaultMessage": "Accords"
+  },
+  "@yovoice.melody.track.bass": {
+    "defaultMessage": "Basse"
+  },
+  "@yovoice.melody.voice.Vocal": {
+    "defaultMessage": "voix"
+  },
+  "@yovoice.melody.voice.Ins": {
+    "defaultMessage": "accompagnement"
+  },
+  "@yovoice.melody.where.bar": {
+    "defaultMessage": "mesure {bar}"
+  },
+  "@yovoice.melody.where.barVoice": {
+    "defaultMessage": "mesure {bar} ({voice})"
+  },
+  "@yovoice.melody.where.line": {
+    "defaultMessage": "ligne {line}"
+  },
+  "@yovoice.melody.issueAt": {
+    "defaultMessage": "{where} : {reason}"
+  },
+  "@yovoice.melody.issue.length": {
+    "defaultMessage": "la partition est trop longue."
+  },
+  "@yovoice.melody.issue.header": {
+    "defaultMessage": "l’en-tête doit contenir X, T, M, L, Q, les deux lignes V et K dans cet ordre."
+  },
+  "@yovoice.melody.issue.meter": {
+    "defaultMessage": "signature rythmique non prise en charge."
+  },
+  "@yovoice.melody.issue.tempo": {
+    "defaultMessage": "écrivez le tempo sous la forme Q:1/4=BPM, entre 30 et 300."
+  },
+  "@yovoice.melody.issue.key": {
+    "defaultMessage": "tonalité non prise en charge."
+  },
+  "@yovoice.melody.issue.group": {
+    "defaultMessage": "chaque groupe contient V: Vocal puis V: Ins, avec les mêmes 1 à 4 mesures dans les deux."
+  },
+  "@yovoice.melody.issue.barline": {
+    "defaultMessage": "chaque mesure se termine par une barre simple | ; les reprises et doubles barres ne sont pas prises en charge."
+  },
+  "@yovoice.melody.issue.token": {
+    "defaultMessage": "utilise une notation hors du dialecte de YuE2, comme des triolets, des appogiatures ou des liaisons d’expression."
+  },
+  "@yovoice.melody.issue.chord": {
+    "defaultMessage": "accord non pris en charge ; les accords vont sur la ligne vocale et utilisent des qualités courantes comme m, 7, maj7, sus4."
+  },
+  "@yovoice.melody.issue.overflow": {
+    "defaultMessage": "les notes dépassent la fin de la mesure."
+  },
+  "@yovoice.melody.issue.duration": {
+    "defaultMessage": "les durées ne remplissent pas la mesure ou utilisent une durée que YuE2 ne prend pas en charge."
+  },
+  "@yovoice.melody.issue.tie": {
+    "defaultMessage": "une liaison doit relier deux notes de même hauteur."
+  },
+  "@yovoice.melody.issue.rest": {
+    "defaultMessage": "les silences ne peuvent pas porter d’altérations, de marques d’octave ni de liaisons."
+  },
+  "@yovoice.melody.issue.pitch": {
+    "defaultMessage": "une note est hors tessiture."
+  },
+  "@yovoice.melody.issue.grid": {
+    "defaultMessage": "les lignes de voix et d’accompagnement utilisent des mesures ou des unités de note différentes."
+  },
+  "@yovoice.settings.tabLogs": {
+    "defaultMessage": "Journaux"
+  },
+  "@yovoice.settings.viewLogs": {
+    "defaultMessage": "Voir les journaux"
+  },
+  "@yovoice.logs.time": {
+    "defaultMessage": "Heure"
+  },
+  "@yovoice.logs.levelColumn": {
+    "defaultMessage": "Niveau"
+  },
+  "@yovoice.logs.level.info": {
+    "defaultMessage": "Info"
+  },
+  "@yovoice.logs.level.warn": {
+    "defaultMessage": "Avertissement"
+  },
+  "@yovoice.logs.level.error": {
+    "defaultMessage": "Erreur"
+  },
+  "@yovoice.logs.event": {
+    "defaultMessage": "Événement"
+  },
+  "@yovoice.logs.summary": {
+    "defaultMessage": "Résumé"
+  },
+  "@yovoice.logs.detail": {
+    "defaultMessage": "Détails"
+  },
+  "@yovoice.logs.module": {
+    "defaultMessage": "Module"
+  },
+  "@yovoice.logs.allLevels": {
+    "defaultMessage": "Tous les niveaux"
+  },
+  "@yovoice.logs.warnAndAbove": {
+    "defaultMessage": "Avertissements et erreurs"
+  },
+  "@yovoice.logs.errorsOnly": {
+    "defaultMessage": "Erreurs uniquement"
+  },
+  "@yovoice.logs.allModules": {
+    "defaultMessage": "Tous les modules"
+  },
+  "@yovoice.logs.range": {
+    "defaultMessage": "Période"
+  },
+  "@yovoice.logs.allTime": {
+    "defaultMessage": "Toute la période"
+  },
+  "@yovoice.logs.lastHour": {
+    "defaultMessage": "Dernière heure"
+  },
+  "@yovoice.logs.lastDay": {
+    "defaultMessage": "Dernières 24 heures"
+  },
+  "@yovoice.logs.lastWeek": {
+    "defaultMessage": "7 derniers jours"
+  },
+  "@yovoice.logs.search": {
+    "defaultMessage": "Rechercher"
+  },
+  "@yovoice.logs.searchPlaceholder": {
+    "defaultMessage": "Événement, ID de projet ou erreur"
+  },
+  "@yovoice.logs.refresh": {
+    "defaultMessage": "Actualiser"
+  },
+  "@yovoice.logs.export": {
+    "defaultMessage": "Exporter le diagnostic"
+  },
+  "@yovoice.logs.empty": {
+    "defaultMessage": "Aucun journal correspondant."
+  },
+  "@yovoice.logs.pages": {
+    "defaultMessage": "Pages du journal"
+  },
+  "@yovoice.logs.copy": {
+    "defaultMessage": "Copier"
+  },
+  "@yovoice.ai.group.subscription": {
+    "defaultMessage": "Abonnements"
+  },
+  "@yovoice.ai.codex.title": {
+    "defaultMessage": "Codex CLI"
+  },
+  "@yovoice.ai.codex.missing": {
+    "defaultMessage": "Codex CLI introuvable"
+  },
+  "@yovoice.ai.codex.chatgpt": {
+    "defaultMessage": "Codex {version} · connecté avec ChatGPT"
+  },
+  "@yovoice.ai.codex.apiKey": {
+    "defaultMessage": "Codex {version} · connecté avec une clé API (facturé à l’usage)"
+  },
+  "@yovoice.ai.codex.loggedOut": {
+    "defaultMessage": "Codex {version} · non connecté"
+  },
+  "@yovoice.ai.codex.checking": {
+    "defaultMessage": "Vérification…"
+  },
+  "@yovoice.ai.codex.check": {
+    "defaultMessage": "Vérifier"
+  },
+  "@yovoice.ai.codex.login": {
+    "defaultMessage": "Se connecter avec ChatGPT"
+  },
+  "@yovoice.ai.codex.install": {
+    "defaultMessage": "Installer Codex"
+  },
+  "@yovoice.ai.codex.hint": {
+    "defaultMessage": "Utilise votre abonnement ChatGPT via la Codex CLI de cet ordinateur. yovoice ne lit ni n’enregistre votre connexion ; chaque requête s’exécute dans un dossier temporaire vide avec un bac à sable en lecture seule et compte dans les limites d’utilisation de votre abonnement."
+  },
+  "@yovoice.error.codexMissing": {
+    "defaultMessage": "Codex CLI introuvable. Installez Codex (npm i -g @openai/codex ou brew install codex), puis choisissez « Vérifier »."
+  },
+  "@yovoice.error.codexLoggedOut": {
+    "defaultMessage": "Codex n’est pas connecté. Choisissez « Se connecter avec ChatGPT », terminez dans le navigateur, puis réessayez."
+  },
+  "@yovoice.error.codexFailed": {
+    "defaultMessage": "Échec de Codex : {detail}"
+  },
+  "@yovoice.error.codexLimit": {
+    "defaultMessage": "La limite d’utilisation Codex de votre abonnement ChatGPT est atteinte ou les requêtes sont trop fréquentes. Réessayez plus tard."
+  },
+  "@yovoice.error.codexNoImage": {
+    "defaultMessage": "Codex n’a pas généré d’image : {detail}"
+  },
+  "@yovoice.ai.assistantMissing": {
+    "defaultMessage": "Cette version n’inclut pas l’environnement de l’assistant IA"
+  },
+  "@yovoice.error.assistantMissing": {
+    "defaultMessage": "Cette version n’inclut pas l’environnement de l’assistant IA : la composition et l’écriture de paroles par IA sont indisponibles."
+  },
+  "@yovoice.error.assistantProvider": {
+    "defaultMessage": "Le service d’IA actuel (abonnement ChatGPT) ne peut pas être utilisé par l’assistant. Choisissez un service par API dans les réglages."
+  },
+  "@yovoice.assistant.title": {
+    "defaultMessage": "Ocho"
+  },
+  "@yovoice.assistant.newChat": {
+    "defaultMessage": "Nouvelle discussion"
+  },
+  "@yovoice.assistant.expand": {
+    "defaultMessage": "Agrandir en hauteur"
+  },
+  "@yovoice.assistant.collapse": {
+    "defaultMessage": "Rétablir la hauteur"
+  },
+  "@yovoice.assistant.close": {
+    "defaultMessage": "Réduire"
+  },
+  "@yovoice.assistant.placeholder": {
+    "defaultMessage": "Dites à Ocho quoi créer…"
+  },
+  "@yovoice.assistant.empty": {
+    "defaultMessage": "Votre partenaire créatif, prêt quand vous l’êtes"
+  },
+  "@yovoice.assistant.queued": {
+    "defaultMessage": "{count} en attente"
+  },
+  "@yovoice.assistant.cancelled": {
+    "defaultMessage": "Arrêté"
+  },
+  "@yovoice.assistant.setup": {
+    "defaultMessage": "Aucun service d’IA pour l’instant. Ajoutez-en un dans les réglages et choisissez un modèle."
+  },
+  "@yovoice.assistant.openWork": {
+    "defaultMessage": "Ouvrir l’œuvre"
+  },
+  "@yovoice.assistant.play": {
+    "defaultMessage": "Lire"
+  },
+  "@yovoice.assistant.pause": {
+    "defaultMessage": "Pause"
+  },
+  "@yovoice.assistant.chip.piano": {
+    "defaultMessage": "Écrire un morceau de piano"
+  },
+  "@yovoice.assistant.chip.pianoPrompt": {
+    "defaultMessage": "Crée une œuvre de partition et écris une mélodie de piano de quatre mesures"
+  },
+  "@yovoice.assistant.chip.minor": {
+    "defaultMessage": "Passer en mineur"
+  },
+  "@yovoice.assistant.chip.minorPrompt": {
+    "defaultMessage": "Passe la partition actuelle en mineur"
+  },
+  "@yovoice.assistant.chip.song": {
+    "defaultMessage": "Écrire une chanson"
+  },
+  "@yovoice.assistant.chip.songPrompt": {
+    "defaultMessage": "Crée une œuvre musicale et écris une chanson complète"
+  },
+  "@yovoice.assistant.chip.style": {
+    "defaultMessage": "Changer de style"
+  },
+  "@yovoice.assistant.chip.stylePrompt": {
+    "defaultMessage": "Réécris l’œuvre actuelle dans un autre style"
+  },
+  "@yovoice.assistant.chip.voice": {
+    "defaultMessage": "Choisir une voix"
+  },
+  "@yovoice.assistant.chip.voicePrompt": {
+    "defaultMessage": "Parcours mes voix de référence et recommande-en une pour cette œuvre"
+  },
+  "@yovoice.assistant.chip.polish": {
+    "defaultMessage": "Plus chaleureux"
+  },
+  "@yovoice.assistant.chip.polishPrompt": {
+    "defaultMessage": "Réécris la narration actuelle pour qu’elle sonne plus chaleureuse"
+  },
+  "@yovoice.assistant.chip.assign": {
+    "defaultMessage": "Attribuer les voix"
+  },
+  "@yovoice.assistant.chip.assignPrompt": {
+    "defaultMessage": "Parcours mes voix de référence et attribue-en une à chaque personnage de cette histoire"
+  },
+  "@yovoice.assistant.chip.dub": {
+    "defaultMessage": "Générer le doublage"
+  },
+  "@yovoice.assistant.chip.dubPrompt": {
+    "defaultMessage": "Lance la génération vocale de cette histoire"
+  },
+  "@yovoice.assistant.history": {
+    "defaultMessage": "Historique"
+  },
+  "@yovoice.assistant.historyEmpty": {
+    "defaultMessage": "Aucune discussion pour l’instant."
+  },
+  "@yovoice.assistant.deleteChat": {
+    "defaultMessage": "Supprimer la discussion : {title}"
+  },
+  "@yovoice.assistant.deleteConfirm": {
+    "defaultMessage": "Supprimer"
+  },
+  "@yovoice.assistant.justNow": {
+    "defaultMessage": "à l’instant"
+  },
+  "@yovoice.assistant.minutesAgo": {
+    "defaultMessage": "il y a {count} min"
+  },
+  "@yovoice.assistant.hoursAgo": {
+    "defaultMessage": "il y a {count} h"
+  },
+  "@yovoice.assistant.working": {
+    "defaultMessage": "En cours…"
+  },
+  "@yovoice.assistant.toolFailed": {
+    "defaultMessage": "L’action n’a pas abouti"
+  },
+  "@yovoice.assistant.copy": {
+    "defaultMessage": "Copier"
+  },
+  "@yovoice.assistant.copied": {
+    "defaultMessage": "Copié"
+  },
+  "@yovoice.intro.tagline": {
+    "defaultMessage": "Donnez une voix à vos mots. Faites de vos idées des chansons."
+  },
+  "@yovoice.intro.start": {
+    "defaultMessage": "Commencer l’exploration"
+  },
+  "@yovoice.guide.count": {
+    "defaultMessage": "{current} / {total}"
+  },
+  "@yovoice.guide.skip": {
+    "defaultMessage": "Passer"
+  },
+  "@yovoice.guide.back": {
+    "defaultMessage": "Précédent"
+  },
+  "@yovoice.guide.next": {
+    "defaultMessage": "Suivant"
+  },
+  "@yovoice.guide.done": {
+    "defaultMessage": "Commencer"
+  },
+  "@yovoice.guide.assistantTitle": {
+    "defaultMessage": "Demandez à l’assistant à tout moment"
+  },
+  "@yovoice.guide.new": {
+    "defaultMessage": "Créez ici un projet de voix, de narration, de musique ou de partition, ou importez du texte, des sous-titres ou un projet .yovoice."
+  },
+  "@yovoice.guide.text": {
+    "defaultMessage": "Écrivez un texte, choisissez un modèle et une voix, puis générez. Chaque génération est gardée comme version pour comparer et choisir."
+  },
+  "@yovoice.guide.story": {
+    "defaultMessage": "Importez des sous-titres ou un roman entier, faites dire chaque réplique par différents personnages, puis montez sur la timeline, ajoutez une musique de fond et exportez."
+  },
+  "@yovoice.guide.music": {
+    "defaultMessage": "Décrivez un style et écrivez des paroles pour générer une chanson. L’onglet « Génération de partitions » permet d’importer du MIDI ou de laisser l’IA écrire une partition, rendue avec une banque de sons."
+  },
+  "@yovoice.guide.voices": {
+    "defaultMessage": "Conservez les audios de référence et vos réglages de voix favoris pour garder la même voix d’un projet à l’autre."
+  },
+  "@yovoice.guide.settings": {
+    "defaultMessage": "Téléchargez et gérez les modèles, configurez les services d’IA, faites le tri dans les ressources, changez la langue et déplacez le dossier de données. La première fois, téléchargez un modèle ici."
+  },
+  "@yovoice.guide.assistant": {
+    "defaultMessage": "Appuyez sur ⌘J (Ctrl+J sous Windows) ou sur le bouton de l’assistant dans la barre de titre et dites ce que vous voulez, par exemple : « Crée une narration et donne une voix à chaque personnage ». Configurez d’abord un service d’IA dans les Paramètres."
+  },
+  "@yovoice.settings.intro": {
+    "defaultMessage": "Animation d’accueil"
+  },
+  "@yovoice.settings.introReplay": {
+    "defaultMessage": "Rejouer"
+  },
+  "@yovoice.settings.guide": {
+    "defaultMessage": "Visite guidée"
+  },
+  "@yovoice.settings.guideReplay": {
+    "defaultMessage": "Revoir"
+  },
+  "@yovoice.nav.assets": {
+    "defaultMessage": "Ressources"
+  },
+  "@yovoice.assets.total": {
+    "defaultMessage": "{count} éléments · {size}"
+  },
+  "@yovoice.assets.kind.generation": {
+    "defaultMessage": "Audio généré"
+  },
+  "@yovoice.assets.kind.segment": {
+    "defaultMessage": "Extrait de narration"
+  },
+  "@yovoice.assets.kind.voice": {
+    "defaultMessage": "Audio de référence"
+  },
+  "@yovoice.assets.kind.material": {
+    "defaultMessage": "Média de la timeline"
+  },
+  "@yovoice.assets.kind.image": {
+    "defaultMessage": "Image"
+  },
+  "@yovoice.assets.col.name": {
+    "defaultMessage": "Nom"
+  },
+  "@yovoice.assets.col.kind": {
+    "defaultMessage": "Type"
+  },
+  "@yovoice.assets.col.project": {
+    "defaultMessage": "Projet"
+  },
+  "@yovoice.assets.col.duration": {
+    "defaultMessage": "Durée"
+  },
+  "@yovoice.assets.col.size": {
+    "defaultMessage": "Taille"
+  },
+  "@yovoice.assets.col.created": {
+    "defaultMessage": "Créé"
+  },
+  "@yovoice.assets.col.status": {
+    "defaultMessage": "État"
+  },
+  "@yovoice.assets.allKinds": {
+    "defaultMessage": "Tous les types"
+  },
+  "@yovoice.assets.allProjects": {
+    "defaultMessage": "Tous les projets"
+  },
+  "@yovoice.assets.usage": {
+    "defaultMessage": "Utilisation"
+  },
+  "@yovoice.assets.usage.all": {
+    "defaultMessage": "Tous"
+  },
+  "@yovoice.assets.status.unused": {
+    "defaultMessage": "Inutilisé"
+  },
+  "@yovoice.assets.status.used": {
+    "defaultMessage": "Utilisé"
+  },
+  "@yovoice.assets.status.usedBy": {
+    "defaultMessage": "Utilisé par {names}"
+  },
+  "@yovoice.assets.status.missing": {
+    "defaultMessage": "Fichier introuvable"
+  },
+  "@yovoice.assets.search": {
+    "defaultMessage": "Rechercher"
+  },
+  "@yovoice.assets.searchPlaceholder": {
+    "defaultMessage": "Nom, projet ou personnage"
+  },
+  "@yovoice.assets.hint": {
+    "defaultMessage": "Les ressources utilisées et les médias de la timeline ne peuvent pas être supprimés ici : remplacez-les d’abord dans le personnage ou le projet, et retirez les médias depuis la timeline du projet."
+  },
+  "@yovoice.assets.deleteSelected": {
+    "defaultMessage": "Supprimer la sélection"
+  },
+  "@yovoice.assets.clearSelection": {
+    "defaultMessage": "Désélectionner"
+  },
+  "@yovoice.assets.deleteOne": {
+    "defaultMessage": "Supprimer {name}"
+  },
+  "@yovoice.assets.deleteTitle": {
+    "defaultMessage": "Supprimer {count} ressources ?"
+  },
+  "@yovoice.assets.deleteBody": {
+    "defaultMessage": "Les fichiers sélectionnés seront définitivement supprimés, libérant environ {size}. Action irréversible."
+  },
+  "@yovoice.assets.deleteConfirm": {
+    "defaultMessage": "Supprimer"
+  },
+  "@yovoice.assets.deleted": {
+    "defaultMessage": "{count} éléments supprimés, {size} libérés."
+  },
+  "@yovoice.assets.skipped": {
+    "defaultMessage": "{count} non supprimés."
+  },
+  "@yovoice.assets.showSkipped": {
+    "defaultMessage": "Voir pourquoi"
+  },
+  "@yovoice.assets.skippedTitle": {
+    "defaultMessage": "Certaines ressources n’ont pas été supprimées"
+  },
+  "@yovoice.assets.noMatch": {
+    "defaultMessage": "Aucune ressource ne correspond à ces filtres."
+  },
+  "@yovoice.assets.empty": {
+    "defaultMessage": "Aucune ressource pour l’instant. L’audio généré, l’audio de référence importé et les médias apparaîtront ici."
+  },
+  "@yovoice.assets.pages": {
+    "defaultMessage": "Pages de ressources"
+  },
+  "@yovoice.assets.play": {
+    "defaultMessage": "Écouter {name}"
+  },
+  "@yovoice.assets.preview": {
+    "defaultMessage": "Aperçu de {name}"
+  },
+  "@yovoice.assets.sourceMissing": {
+    "defaultMessage": "Projet source supprimé"
+  },
+  "@yovoice.assistant.launch": {
+    "defaultMessage": "Ocho"
+  },
+  "@yovoice.assistant.thought": {
+    "defaultMessage": "Raisonnement"
+  },
+  "@yovoice.assistant.steps": {
+    "defaultMessage": "{count} étapes"
+  },
+  "@yovoice.assistant.toolDone": {
+    "defaultMessage": "Terminé"
+  },
+  "@yovoice.assistant.move": {
+    "defaultMessage": "Faites glisser pour déplacer, double-cliquez pour agrandir"
+  },
+  "@yovoice.assistant.emptyHint": {
+    "defaultMessage": "Écrire des répliques ou des paroles, retoucher une mélodie, composer ou générer. Dites-le, je travaille sur l’œuvre ouverte."
+  },
+  "@yovoice.assistant.back": {
+    "defaultMessage": "Retour à la conversation"
+  },
+  "@yovoice.assistant.messageCount": {
+    "defaultMessage": "{count} msg"
+  },
+  "@yovoice.assistant.hideLauncher": {
+    "defaultMessage": "Masquer le lanceur"
+  },
+  "@yovoice.assistant.hideLauncherHint": {
+    "defaultMessage": "Toujours accessible en haut à droite ou avec ⌘J"
+  },
+  "@yovoice.assistant.toggleHint": {
+    "defaultMessage": "Ouvrir ou fermer Ocho (⌘J)"
+  },
+  "@yovoice.assistant.phase.thinking": {
+    "defaultMessage": "Réflexion"
+  },
+  "@yovoice.assistant.phase.writing": {
+    "defaultMessage": "Réponse en cours"
+  },
+  "@yovoice.assistant.phase.searching": {
+    "defaultMessage": "Recherche"
+  },
+  "@yovoice.assistant.phase.editing": {
+    "defaultMessage": "Modification de l’œuvre"
+  },
+  "@yovoice.assistant.phase.generating": {
+    "defaultMessage": "Génération audio"
+  },
+  "@yovoice.assistant.phase.opening": {
+    "defaultMessage": "Changement"
+  },
+  "@yovoice.assistant.phase.working": {
+    "defaultMessage": "Traitement"
+  },
+  "@yovoice.assistant.proposal.confirm": {
+    "defaultMessage": "Confirmer"
+  },
+  "@yovoice.assistant.proposal.confirmDelete": {
+    "defaultMessage": "Supprimer"
+  },
+  "@yovoice.assistant.proposal.dismiss": {
+    "defaultMessage": "Pas maintenant"
+  },
+  "@yovoice.assistant.proposal.confirmed": {
+    "defaultMessage": "Effectué"
+  },
+  "@yovoice.assistant.proposal.dismissed": {
+    "defaultMessage": "Ignoré"
+  },
+  "@yovoice.assistant.proposal.failed": {
+    "defaultMessage": "Échec"
+  },
+  "@yovoice.assistant.nudge.failed": {
+    "defaultMessage": "La génération a échoué. Je regarde pourquoi ?"
+  },
+  "@yovoice.assistant.nudge.diagnose": {
+    "defaultMessage": "Voir pourquoi"
+  },
+  "@yovoice.assistant.nudge.failedPrompt": {
+    "defaultMessage": "La dernière génération a échoué. Trouve pourquoi et dis-moi comment corriger."
+  },
+  "@yovoice.assistant.nudge.improve": {
+    "defaultMessage": "Aide-moi à l'améliorer"
+  },
+  "@yovoice.assistant.nudge.done.text": {
+    "defaultMessage": "La voix est prête. Une autre voix ou un autre ton ?"
+  },
+  "@yovoice.assistant.nudge.done.story": {
+    "defaultMessage": "Le chapitre est doublé. Je vérifie quelles répliques refaire ?"
+  },
+  "@yovoice.assistant.nudge.done.music": {
+    "defaultMessage": "La chanson est prête. Un autre style ou des paroles retouchées ?"
+  },
+  "@yovoice.assistant.nudge.done.score": {
+    "defaultMessage": "L'arrangement est rendu. J'ajoute des couches ?"
+  },
+  "@yovoice.assistant.nudge.donePrompt.text": {
+    "defaultMessage": "La voix est prête. Propose comment améliorer le ton, les pauses et la voix."
+  },
+  "@yovoice.assistant.nudge.donePrompt.story": {
+    "defaultMessage": "Le chapitre est doublé. Vérifie les personnages sans voix, les répliques trop longues et les mots mal prononcés."
+  },
+  "@yovoice.assistant.nudge.donePrompt.music": {
+    "defaultMessage": "La chanson est prête. Propose comment améliorer le style et les paroles."
+  },
+  "@yovoice.assistant.nudge.donePrompt.score": {
+    "defaultMessage": "L'arrangement est rendu. Propose des parties ou variations à ajouter."
+  },
+  "@yovoice.assistant.nudge.downloadFailed": {
+    "defaultMessage": "Le téléchargement a échoué. Je regarde pourquoi ?"
+  },
+  "@yovoice.assistant.nudge.downloadFailedPrompt": {
+    "defaultMessage": "Le dernier téléchargement a échoué. Trouve pourquoi et dis-moi comment corriger."
+  },
+  "@yovoice.assistant.nudge.modelReady": {
+    "defaultMessage": "{name} est installé."
+  },
+  "@yovoice.assistant.nudge.tryIt": {
+    "defaultMessage": "L'essayer"
+  },
+  "@yovoice.assistant.nudge.modelReadyPrompt": {
+    "defaultMessage": "{name} est installé. Génère un court extrait avec."
+  },
+  "@yovoice.assistant.nudge.close": {
+    "defaultMessage": "Fermer"
+  },
+  "@yovoice.settings.assistantIntro": {
+    "defaultMessage": "Ocho est l'assistant intégré de yovoice. Il voit l'œuvre en cours et votre sélection, et demande confirmation avant de supprimer, télécharger ou modifier un réglage."
+  },
+  "@yovoice.settings.assistantBehavior": {
+    "defaultMessage": "Comportement"
+  },
+  "@yovoice.settings.assistantNudges": {
+    "defaultMessage": "Suggestions proactives"
+  },
+  "@yovoice.settings.assistantNudgesHint": {
+    "defaultMessage": "Quand une génération se termine ou échoue, ou qu'un téléchargement s'achève, Ocho propose une suggestion dans le coin."
+  },
+  "@yovoice.settings.assistantMemory": {
+    "defaultMessage": "Préférences mémorisées"
+  },
+  "@yovoice.settings.assistantMemoryHint": {
+    "defaultMessage": "Indiquez vos habitudes à Ocho dans la conversation, comme une voix ou un style préféré. Il s'en souviendra par la suite."
+  },
+  "@yovoice.settings.assistantMemoryClear": {
+    "defaultMessage": "Tout effacer"
+  },
+  "@yovoice.settings.assistantMemoryClearConfirm": {
+    "defaultMessage": "Tout effacer"
+  },
+  "@yovoice.settings.assistantMemoryDelete": {
+    "defaultMessage": "Oublier : {text}"
+  },
+  "@yovoice.settings.assistantMemoryEmpty": {
+    "defaultMessage": "Aucune préférence pour l'instant"
+  },
+  "@yovoice.settings.assistantMemoryEmptyHint": {
+    "defaultMessage": "Par exemple, dites à Ocho « utilise par défaut la voix féminine douce pour la narration »."
+  },
+  "@yovoice.assistant.selectionHint": {
+    "defaultMessage": "Votre sélection est envoyée à Ocho avec le prochain message"
+  },
+  "@yovoice.music.structurePlaceholder": {
+    "defaultMessage": "Facultatif : repères de section comme [Intro], [Verse], [Chorus], [Outro]"
+  },
+  "@yovoice.music.mode": {
+    "defaultMessage": "Génération"
+  },
+  "@yovoice.music.modeScore": {
+    "defaultMessage": "Avec partition"
+  },
+  "@yovoice.music.modeFree": {
+    "defaultMessage": "Libre"
+  },
+  "@yovoice.melody.toInstrumental": {
+    "defaultMessage": "Confier la mélodie aux instruments"
+  },
+  "@yovoice.options.abc_temperature": {
+    "defaultMessage": "Température de partition"
+  },
+  "@yovoice.options.semantic_temperature": {
+    "defaultMessage": "Température audio"
+  },
+  "@yovoice.options.semantic_top_p": {
+    "defaultMessage": "Top P audio"
+  },
+  "@yovoice.options.semantic_top_k": {
+    "defaultMessage": "Top K audio"
+  },
+  "@yovoice.options.semantic_repetition_penalty": {
+    "defaultMessage": "Pénalité de répétition audio"
+  },
+  "@yovoice.music.compareVersions": {
+    "defaultMessage": "Changer de version pour comparer"
+  },
+  "@yovoice.music.switchBack": {
+    "defaultMessage": "Revenir à la version {n}"
+  },
+  "@yovoice.music.switchBackHint": {
+    "defaultMessage": "Conserve la position de lecture ; appuyez sur B pour basculer"
+  },
+  "@yovoice.settings.tabMusicModels": {
+    "defaultMessage": "Modèles musicaux"
+  },
+  "@yovoice.settings.precisionOf": {
+    "defaultMessage": "Précision de {name}"
+  },
+  "@yovoice.settings.precisionsInstalled": {
+    "defaultMessage": "Téléchargé : {list}"
+  },
+  "@yovoice.settings.precisionHint": {
+    "defaultMessage": "Q4/Q8 sont plus légers et rapides ; BF16, F16 et ORIG restent au plus près de la qualité d’origine."
+  },
+  "@yovoice.create.precision": {
+    "defaultMessage": "Précision"
+  }
+}

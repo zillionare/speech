@@ -27,6 +27,14 @@ output_*.wav
 /voices/
 VibeVoiceFusion/
 
+# Vendored yovoice frontend (web/)
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
+web/.vite/
+web/test-results/
+web/playwright-report/
+
 # Temporary / generated files
 .playwright-mcp/
 .certs/

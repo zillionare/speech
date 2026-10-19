@@ -1,9 +1,20 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// 开发时界面跑在 5173，RPC 与状态推送经代理转发到本机的 Speech Studio（FastAPI）。
+const target = process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8123';
+
 export default defineConfig({
   plugins: [react()],
   base: './',
-  server: { port: 5173, strictPort: true },
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '/api': { target, changeOrigin: true },
+      '/ws': { target, ws: true, changeOrigin: true },
+    },
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

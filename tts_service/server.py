@@ -240,6 +240,8 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     sample_manager = SampleManager(config.voices.expanded_base_dir, config.voices.default_voice)
     engine = create_engine(config, sample_manager)
     static_dir = Path(__file__).resolve().parent / "static"
+    # 新界面（搬来的 yovoice 工作台）构建产物；缺失时自动回落到旧界面。
+    web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
     outputs_dir = config.outputs.expanded_base_dir
     outputs_dir.mkdir(parents=True, exist_ok=True)
     history: deque[GenerationRecord] = deque(maxlen=config.outputs.history_limit)
@@ -262,12 +264,22 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
     )
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    no_cache_headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
+    @app.get("/legacy", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/legacy/", response_class=HTMLResponse, include_in_schema=False)
+    def legacy_index() -> FileResponse:
+        return FileResponse(static_dir / "index.html", headers=no_cache_headers)
+
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(
-            static_dir / "index.html",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
-        )
+        if (web_dist / "index.html").is_file():
+            return FileResponse(web_dist / "index.html", headers=no_cache_headers)
+        return FileResponse(static_dir / "index.html", headers=no_cache_headers)
 
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -2074,5 +2086,23 @@ def create_app(config_path: Optional[str] = None) -> FastAPI:
             session._ws_clients.discard(ws)
             if getattr(session, "_driver_ws", None) is ws:
                 session._driver_ws = None
+
+    from .yovoice_api import YovoiceBackend, register_yovoice_api
+
+    ui_state_dir = Path(config_path).resolve().parent if config_path else outputs_dir
+    yovoice_backend = YovoiceBackend(
+        config=config,
+        sample_manager=sample_manager,
+        podcast_manager=podcast_manager,
+        outputs_dir=outputs_dir,
+        engine_provider=lambda: _resolve_engine(None, config, sample_manager),
+        preferences_path=ui_state_dir / "preferences.json",
+        live_speakers=live_speakers_list,
+    )
+    register_yovoice_api(app, yovoice_backend)
+
+    # 静态挂载放在最后：只在没有命中任何 API 路由时才接管（/api、/ws 已在前注册）。
+    if web_dist.is_dir():
+        app.mount("/", StaticFiles(directory=web_dist, html=True), name="web")
 
     return app

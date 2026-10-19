@@ -83,6 +83,49 @@ class PodcastManager:
         data = json.loads(path.read_text(encoding="utf-8"))
         return PodcastProject(**data)
 
+    def save_project(self, project: PodcastProject) -> PodcastProject:
+        """Persist a project supplied by the interface (upsert)."""
+        project.updated_at = project.updated_at or datetime.now().isoformat()
+        self._project_audio_dir(project.id).mkdir(parents=True, exist_ok=True)
+        self._save_project(project)
+        return project
+
+    def project_audio_dir(self, project_id: str) -> Path:
+        return self._project_audio_dir(project_id)
+
+    def replace_segments(
+        self,
+        project_id: str,
+        *,
+        title: str,
+        segments: list[dict],
+        created_at: Optional[str] = None,
+    ) -> PodcastProject:
+        """Replace the segment list of an existing project (or create it) from interface edits."""
+        project = self.get_project(project_id)
+        now = datetime.now().isoformat()
+        if project is None:
+            project = PodcastProject(
+                id=project_id,
+                title=title,
+                created_at=created_at or now,
+                updated_at=now,
+                segments=[],
+            )
+            self._project_audio_dir(project_id).mkdir(parents=True, exist_ok=True)
+        project.title = title
+        project.segments = [PodcastSegment(**segment) for segment in segments]
+        for index, segment in enumerate(project.segments):
+            segment.index = index
+            if segment.audio_filename:
+                audio_path = self._project_audio_dir(project_id) / segment.audio_filename
+                if not audio_path.exists():
+                    segment.audio_filename = None
+                    segment.status = "pending"
+        project.updated_at = now
+        self._save_project(project)
+        return project
+
     def list_projects(self) -> list[PodcastProject]:
         projects: list[PodcastProject] = []
         for path in sorted(self.projects_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
